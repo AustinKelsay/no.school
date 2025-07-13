@@ -4,7 +4,6 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { MainLayout } from "@/components/layout/main-layout"
 import { Section } from "@/components/layout/section"
-import { Container } from "@/components/layout/container"
 import { 
   Star, 
   Users, 
