@@ -44,7 +44,7 @@
 }
 
 :root {
-  --radius: 0.625rem;
+  --radius: 0.5rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -110,6 +110,32 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+/* Style variants */
+.style-default {
+  /* Default style uses more rounded corners and modern appearance */
+  --card-radius: var(--radius);
+  --button-radius: var(--radius);
+  --input-radius: var(--radius);
+}
+
+.style-new-york {
+  /* New York style uses flatter, more minimal appearance */
+  --card-radius: calc(var(--radius) * 0.75);
+  --button-radius: calc(var(--radius) * 0.5);
+  --input-radius: calc(var(--radius) * 0.5);
+}
+
+/* Apply style-specific border radius */
+.style-default .rounded-md,
+.style-default [class*="rounded-md"] {
+  border-radius: var(--card-radius);
+}
+
+.style-new-york .rounded-md,
+.style-new-york [class*="rounded-md"] {
+  border-radius: var(--card-radius);
 }
 
 @layer base {

@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input"
 import { Search, Zap } from "lucide-react"
 import { Container } from "./container"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { ThemeSelector } from "@/components/theme-selector"
 
 /**
  * Header component for the main navigation
@@ -30,6 +31,7 @@ export function Header() {
               className="w-80 pl-10" 
             />
           </div>
+          <ThemeSelector />
           <ThemeToggle />
           <Button size="sm">Login</Button>
         </div>
