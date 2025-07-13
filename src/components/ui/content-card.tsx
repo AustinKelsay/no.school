@@ -11,7 +11,7 @@ import {
   Users
 } from "lucide-react"
 import type { ContentItem, Course } from "@/data/types"
-import { contentTypeIcons, difficultyColors } from "@/data/config"
+import { contentTypeIcons, difficultyVariants } from "@/data/config"
 import React from "react"
 
 interface HomepageItem {
@@ -61,11 +61,11 @@ export function ContentCard({
   }
 
   return (
-    <Card className={`hover:shadow-md transition-shadow cursor-pointer group ${className}`}>
+    <Card className={`transition-shadow hover:shadow-md cursor-pointer group ${className}`}>
       {/* Course variant shows a header image */}
       {variant === 'course' && (
-        <div className="h-32 bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-          <BookOpen className="h-8 w-8 text-primary" />
+        <div className="h-32 bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center">
+          <BookOpen className="h-8 w-8 text-muted-foreground" />
         </div>
       )}
       
@@ -73,15 +73,15 @@ export function ContentCard({
         {isContent && (
           <div className="flex items-start justify-between mb-2">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                {React.createElement(contentTypeIcons[item.type] || BookOpen, { className: "h-4 w-4 text-primary" })}
+              <div className="p-2 rounded-md bg-secondary">
+                {React.createElement(contentTypeIcons[item.type] || BookOpen, { className: "h-4 w-4 text-secondary-foreground" })}
               </div>
-              <Badge variant="outline" className={difficultyColors[item.difficulty]}>
+              <Badge variant={difficultyVariants[item.difficulty]} className="capitalize">
                 {item.difficulty}
               </Badge>
             </div>
             {item.isPremium && (
-              <Crown className="h-4 w-4 text-premium" />
+              <Crown className="h-4 w-4 text-primary" />
             )}
           </div>
         )}
@@ -121,7 +121,7 @@ export function ContentCard({
           
           {'rating' in item && item.rating && (
             <div className="flex items-center gap-1">
-              <Star className="h-3 w-3 fill-rating text-rating" />
+              <Star className="h-3 w-3 fill-primary text-primary" />
               {item.rating}
             </div>
           )}

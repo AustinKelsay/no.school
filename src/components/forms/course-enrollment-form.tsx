@@ -55,7 +55,7 @@ export function CourseEnrollmentForm({ courseId, courseTitle }: CourseEnrollment
           </div>
 
           {result && (
-            <Alert variant={result.success ? "success" : "destructive"}>
+            <Alert variant={result.success ? "default" : "destructive"}>
               {result.success ? (
                 <CheckCircle className="h-4 w-4" />
               ) : (

@@ -9,7 +9,7 @@ import {
 
 /**
  * Centralized UI configuration for consistent display across the application
- * Uses CSS variables for colors to work with the configurable theme system
+ * Uses standard shadcn variants for colors to work with the configurable theme system
  */
 
 /**
@@ -24,13 +24,13 @@ export const contentTypeIcons: Record<string, LucideIcon> = {
 }
 
 /**
- * Semantic color classes for difficulty levels using CSS variables
+ * Badge variants for difficulty levels using standard shadcn badge variants
  * These automatically adapt to the current theme configuration
  */
-export const difficultyColors: Record<string, string> = {
-  beginner: "bg-difficulty-beginner/10 text-difficulty-beginner border-difficulty-beginner/20",
-  intermediate: "bg-difficulty-intermediate/10 text-difficulty-intermediate border-difficulty-intermediate/20", 
-  advanced: "bg-difficulty-advanced/10 text-difficulty-advanced border-difficulty-advanced/20",
+export const difficultyVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
+  beginner: "secondary",
+  intermediate: "default", 
+  advanced: "destructive",
 }
 
 /**

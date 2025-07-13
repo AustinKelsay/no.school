@@ -26,28 +26,6 @@
   --chart-3: hsl(197 37% 24%);
   --chart-4: hsl(43 74% 66%);
   --chart-5: hsl(27 87% 67%);
-  
-  /* Semantic colors for common UI elements */
-  --success: hsl(142 76% 36%);
-  --success-foreground: hsl(0 0% 98%);
-  --warning: hsl(48 96% 53%);
-  --warning-foreground: hsl(0 0% 3.9%);
-  --info: hsl(217 91% 60%);
-  --info-foreground: hsl(0 0% 98%);
-  
-  /* Rating and premium colors */
-  --rating: hsl(48 96% 53%);
-  --rating-foreground: hsl(0 0% 3.9%);
-  --premium: hsl(48 96% 53%);
-  --premium-foreground: hsl(0 0% 3.9%);
-  
-  /* Difficulty level colors */
-  --difficulty-beginner: hsl(142 76% 36%);
-  --difficulty-beginner-foreground: hsl(0 0% 98%);
-  --difficulty-intermediate: hsl(48 96% 53%);
-  --difficulty-intermediate-foreground: hsl(0 0% 3.9%);
-  --difficulty-advanced: hsl(0 84.2% 60.2%);
-  --difficulty-advanced-foreground: hsl(0 0% 98%);
 }
 
 .dark {
@@ -75,28 +53,6 @@
   --chart-3: hsl(30 80% 55%);
   --chart-4: hsl(280 65% 60%);
   --chart-5: hsl(340 75% 55%);
-  
-  /* Semantic colors for dark mode */
-  --success: hsl(142 76% 36%);
-  --success-foreground: hsl(0 0% 98%);
-  --warning: hsl(48 96% 53%);
-  --warning-foreground: hsl(0 0% 3.9%);
-  --info: hsl(217 91% 60%);
-  --info-foreground: hsl(0 0% 98%);
-  
-  /* Rating and premium colors for dark mode */
-  --rating: hsl(48 96% 53%);
-  --rating-foreground: hsl(0 0% 3.9%);
-  --premium: hsl(48 96% 53%);
-  --premium-foreground: hsl(0 0% 3.9%);
-  
-  /* Difficulty level colors for dark mode */
-  --difficulty-beginner: hsl(142 76% 36%);
-  --difficulty-beginner-foreground: hsl(0 0% 98%);
-  --difficulty-intermediate: hsl(48 96% 53%);
-  --difficulty-intermediate-foreground: hsl(0 0% 3.9%);
-  --difficulty-advanced: hsl(0 84.2% 60.2%);
-  --difficulty-advanced-foreground: hsl(0 0% 98%);
 }
 
 @theme {
@@ -124,24 +80,6 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
-  
-  /* Semantic color mappings */
-  --color-success: var(--success);
-  --color-success-foreground: var(--success-foreground);
-  --color-warning: var(--warning);
-  --color-warning-foreground: var(--warning-foreground);
-  --color-info: var(--info);
-  --color-info-foreground: var(--info-foreground);
-  --color-rating: var(--rating);
-  --color-rating-foreground: var(--rating-foreground);
-  --color-premium: var(--premium);
-  --color-premium-foreground: var(--premium-foreground);
-  --color-difficulty-beginner: var(--difficulty-beginner);
-  --color-difficulty-beginner-foreground: var(--difficulty-beginner-foreground);
-  --color-difficulty-intermediate: var(--difficulty-intermediate);
-  --color-difficulty-intermediate-foreground: var(--difficulty-intermediate-foreground);
-  --color-difficulty-advanced: var(--difficulty-advanced);
-  --color-difficulty-advanced-foreground: var(--difficulty-advanced-foreground);
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
