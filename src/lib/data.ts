@@ -52,7 +52,7 @@ function transformDbCourseToLegacyFormat(dbCourse: import('@/data/types').DbCour
  */
 function transformDbCourseToContentItem(dbCourse: import('@/data/types').DbCourse): import('@/data/types').ContentItem {
   return {
-    id: parseInt(dbCourse.id.replace('course-', ''), 10),
+    id: parseInt(dbCourse.id.replace('course-', ''), 10) + 1000,
     title: dbCourse.title,
     description: dbCourse.description,
     type: 'course',
@@ -73,7 +73,7 @@ function transformDbCourseToContentItem(dbCourse: import('@/data/types').DbCours
  */
 function transformDbDocumentToContentItem(dbDocument: import('@/data/types').DbDocument): import('@/data/types').ContentItem {
   return {
-    id: parseInt(dbDocument.id.replace('doc-', ''), 10),
+    id: parseInt(dbDocument.id.replace('doc-', ''), 10) + 2000,
     title: dbDocument.title,
     description: dbDocument.description,
     type: dbDocument.type === 'cheatsheet' ? 'cheatsheet' : 
@@ -94,7 +94,7 @@ function transformDbDocumentToContentItem(dbDocument: import('@/data/types').DbD
  */
 function transformDbVideoToContentItem(dbVideo: import('@/data/types').DbVideo): import('@/data/types').ContentItem {
   return {
-    id: parseInt(dbVideo.id.replace('video-', ''), 10),
+    id: parseInt(dbVideo.id.replace('video-', ''), 10) + 3000,
     title: dbVideo.title,
     description: dbVideo.description,
     type: 'video',

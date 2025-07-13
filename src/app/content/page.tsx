@@ -163,7 +163,7 @@ export default function ContentPage() {
             </Badge>
             
             {/* Type filters */}
-            <div className="flex flex-wrap gap-2">
+            <div key="type-filters" className="flex flex-wrap gap-2">
               {contentTypeFilters.map(({ type, icon: Icon, label }) => (
                 <Badge
                   key={type}
@@ -178,7 +178,7 @@ export default function ContentPage() {
             </div>
             
             {/* Difficulty filters */}
-            <div className="flex flex-wrap gap-2">
+            <div key="difficulty-filters" className="flex flex-wrap gap-2">
               {difficultyFilters.map(({ difficulty, label }) => (
                 <Badge
                   key={difficulty}
@@ -192,8 +192,9 @@ export default function ContentPage() {
             </div>
             
             {/* Premium/Free filters */}
-            <div className="flex flex-wrap gap-2">
+            <div key="premium-filters" className="flex flex-wrap gap-2">
               <Badge
+                key="free"
                 variant={selectedFilters.has('free') ? 'default' : 'outline'}
                 className="px-4 py-2 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => toggleFilter('free')}
@@ -201,6 +202,7 @@ export default function ContentPage() {
                 Free
               </Badge>
               <Badge
+                key="premium"
                 variant={selectedFilters.has('premium') ? 'default' : 'outline'}
                 className="px-4 py-2 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => toggleFilter('premium')}
@@ -211,7 +213,7 @@ export default function ContentPage() {
             </div>
 
             {/* Popular tags */}
-            <div className="flex flex-wrap gap-2">
+            <div key="popular-tags" className="flex flex-wrap gap-2">
               {popularTags.slice(0, 6).map((tag) => (
                 <Badge
                   key={tag}

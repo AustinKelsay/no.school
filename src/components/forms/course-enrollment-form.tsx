@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, CheckCircle, AlertCircle } from 'lucide-react'
 import { enrollInCourse } from '@/lib/actions'
 
@@ -54,18 +55,16 @@ export function CourseEnrollmentForm({ courseId, courseTitle }: CourseEnrollment
           </div>
 
           {result && (
-            <div className={`flex items-center space-x-2 p-3 rounded-md ${
-              result.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-            }`}>
+            <Alert variant={result.success ? "success" : "destructive"}>
               {result.success ? (
                 <CheckCircle className="h-4 w-4" />
               ) : (
                 <AlertCircle className="h-4 w-4" />
               )}
-              <span className="text-sm">
+              <AlertDescription>
                 {result.success ? result.message : result.error}
-              </span>
-            </div>
+              </AlertDescription>
+            </Alert>
           )}
 
           <Button type="submit" className="w-full" disabled={isPending}>

@@ -150,11 +150,11 @@ export default async function CoursePage({ params }: CoursePageProps) {
                   <div className="flex items-center">
                     {[...Array(5)].map((_, i) => (
                       <Star 
-                        key={i} 
+                        key={`course-${course.id}-star-${i}`} 
                         className={`h-5 w-5 ${
                           i < Math.floor(course.rating) 
-                            ? 'fill-yellow-400 text-yellow-400' 
-                            : 'text-gray-300'
+                            ? 'fill-rating text-rating' 
+                            : 'text-muted-foreground'
                         }`} 
                       />
                     ))}

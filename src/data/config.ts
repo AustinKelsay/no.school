@@ -9,6 +9,7 @@ import {
 
 /**
  * Centralized UI configuration for consistent display across the application
+ * Uses CSS variables for colors to work with the configurable theme system
  */
 
 /**
@@ -23,12 +24,13 @@ export const contentTypeIcons: Record<string, LucideIcon> = {
 }
 
 /**
- * Color classes for difficulty levels
+ * Semantic color classes for difficulty levels using CSS variables
+ * These automatically adapt to the current theme configuration
  */
 export const difficultyColors: Record<string, string> = {
-  beginner: "bg-green-500/10 text-green-700 dark:text-green-300",
-  intermediate: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300", 
-  advanced: "bg-red-500/10 text-red-700 dark:text-red-300",
+  beginner: "bg-difficulty-beginner/10 text-difficulty-beginner border-difficulty-beginner/20",
+  intermediate: "bg-difficulty-intermediate/10 text-difficulty-intermediate border-difficulty-intermediate/20", 
+  advanced: "bg-difficulty-advanced/10 text-difficulty-advanced border-difficulty-advanced/20",
 }
 
 /**
@@ -52,17 +54,55 @@ export const difficultyLabels: Record<string, string> = {
 }
 
 /**
- * Category colors for consistent theming
+ * Category labels for content organization
  */
-export const categoryColors: Record<string, string> = {
-  frontend: "bg-blue-500/10 text-blue-700 dark:text-blue-300",
-  backend: "bg-green-500/10 text-green-700 dark:text-green-300",
-  database: "bg-purple-500/10 text-purple-700 dark:text-purple-300",
-  mobile: "bg-orange-500/10 text-orange-700 dark:text-orange-300",
-  web3: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300",
-  lightning: "bg-yellow-500/10 text-yellow-700 dark:text-yellow-300",
-  security: "bg-red-500/10 text-red-700 dark:text-red-300",
-  devops: "bg-gray-500/10 text-gray-700 dark:text-gray-300",
+export const categoryLabels: Record<string, string> = {
+  bitcoin: "Bitcoin",
+  lightning: "Lightning",
+  nostr: "Nostr",
+  frontend: "Frontend",
+  backend: "Backend",
+  mobile: "Mobile",
+  security: "Security",
+  web3: "Web3",
+}
+
+/**
+ * Priority levels for content sorting
+ */
+export const priorityLevels: Record<string, number> = {
+  high: 3,
+  medium: 2,
+  low: 1,
+}
+
+/**
+ * Content status options
+ */
+export const contentStatus: Record<string, string> = {
+  draft: "Draft",
+  published: "Published",
+  archived: "Archived",
+}
+
+/**
+ * Enrollment status options
+ */
+export const enrollmentStatus: Record<string, string> = {
+  enrolled: "Enrolled",
+  completed: "Completed",
+  inProgress: "In Progress",
+  notStarted: "Not Started",
+}
+
+/**
+ * Payment status options
+ */
+export const paymentStatus: Record<string, string> = {
+  pending: "Pending",
+  completed: "Completed",
+  failed: "Failed",
+  refunded: "Refunded",
 }
 
 /**
