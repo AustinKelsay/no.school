@@ -32,9 +32,9 @@ export async function generateMetadata({ params }: CoursePageProps): Promise<Met
   }
 
   return {
-    title: `${course.title} - PlebDevs`,
+    title: `${course.title} - no.school`,
     description: course.description,
-    keywords: [course.category, 'programming', 'course', 'learning'],
+    keywords: [course.category, 'bitcoin', 'lightning', 'development', 'programming', 'course', 'learning'],
     openGraph: {
       title: course.title,
       description: course.description,
@@ -175,6 +175,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
 
               <div className="flex items-center space-x-4">
                 <Button size="lg" className="bg-primary hover:bg-primary/90">
+                  <BookOpen className="h-5 w-5 mr-2" />
                   Start Learning
                 </Button>
                 <CourseEnrollmentForm 

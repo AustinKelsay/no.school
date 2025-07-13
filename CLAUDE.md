@@ -52,6 +52,7 @@ Advanced theming with multiple providers:
 src/
 ├── app/                    # App Router pages
 │   ├── api/               # API routes (health, courses CRUD)
+│   ├── content/           # Content library page with filtering
 │   ├── courses/           # Course pages with dynamic routing
 │   ├── globals.css        # Global styles and CSS variables
 │   └── layout.tsx         # Root layout with theme providers
@@ -61,9 +62,12 @@ src/
 │   ├── forms/            # Form components with server actions
 │   └── theme-*.tsx       # Theme-related components
 ├── contexts/             # React contexts (theme-context.tsx)
+├── data/                 # Centralized data management
+│   ├── types.ts          # All TypeScript interfaces and types
+│   └── mock-data.ts      # Consolidated mock data for all components
 ├── lib/
 │   ├── actions.ts        # Server actions for forms
-│   ├── data.ts          # Data fetching with caching
+│   ├── data.ts          # Data fetching functions with caching
 │   ├── theme-config.ts  # Theme configuration
 │   └── utils.ts         # Utilities (cn, clsx)
 middleware.ts             # Security headers, CSP, CORS
@@ -71,9 +75,14 @@ middleware.ts             # Security headers, CSP, CORS
 
 ### Key Files to Understand
 
+#### Data Management (IMPORTANT)
+- `src/data/types.ts` - **Central location for ALL TypeScript interfaces** (Course, ContentItem, etc.)
+- `src/data/mock-data.ts` - **Unified mock data** used across homepage, content page, API routes, and course pages
+- `src/lib/data.ts` - Data fetching functions with caching (imports from centralized data)
+- All components, API routes, and pages use the centralized data - never duplicate data
+
 #### Server Components & Actions
 - `src/lib/actions.ts` - Server actions with validation and revalidation
-- `src/lib/data.ts` - Cached data fetching functions
 - Server actions are used in forms for progressive enhancement
 
 #### Theme System
@@ -90,7 +99,8 @@ middleware.ts             # Security headers, CSP, CORS
 RESTful API structure in `src/app/api/`:
 - Health check at `/api/health`
 - CRUD operations for courses at `/api/courses`
-- Proper error handling and TypeScript interfaces
+- **All API routes use `coursesDatabase` from `src/data/mock-data.ts`**
+- Proper error handling and TypeScript interfaces from `src/data/types.ts`
 
 ### Component Patterns
 - Server Components by default for performance

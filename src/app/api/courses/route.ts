@@ -1,40 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-
-/**
- * Mock course data - replace with real database calls
- */
-const mockCourses = [
-  {
-    id: 1,
-    title: "PlebDevs Starter",
-    description: "Get started with the fundamentals",
-    category: "beginner",
-    duration: "2 hours",
-    instructor: "John Doe",
-    rating: 4.8,
-    image: "/api/placeholder/course-1.jpg",
-  },
-  {
-    id: 2,
-    title: "Frontend Course",
-    description: "Build beautiful user interfaces",
-    category: "frontend",
-    duration: "6 hours",
-    instructor: "Jane Smith",
-    rating: 4.9,
-    image: "/api/placeholder/course-2.jpg",
-  },
-  {
-    id: 3,
-    title: "Backend Course",
-    description: "Master server-side development",
-    category: "backend",
-    duration: "8 hours",
-    instructor: "Mike Johnson",
-    rating: 4.7,
-    image: "/api/placeholder/course-3.jpg",
-  },
-];
+import { coursesDatabase } from '@/data/mock-data';
+import type { Course } from '@/data/types';
 
 /**
  * GET /api/courses - Fetch all courses
@@ -48,9 +14,9 @@ export async function GET(request: NextRequest) {
 
   try {
     // Filter courses by category if provided
-    let filteredCourses = mockCourses;
+    let filteredCourses = coursesDatabase;
     if (category) {
-      filteredCourses = mockCourses.filter(course => 
+      filteredCourses = coursesDatabase.filter(course => 
         course.category.toLowerCase() === category.toLowerCase()
       );
     }
@@ -91,8 +57,8 @@ export async function POST(request: NextRequest) {
     }
 
     // In a real app, you'd save to database
-    const newCourse = {
-      id: mockCourses.length + 1,
+    const newCourse: Course = {
+      id: coursesDatabase.length + 1,
       title,
       description,
       category,
@@ -100,6 +66,9 @@ export async function POST(request: NextRequest) {
       instructor: body.instructor || "Unknown",
       rating: 0,
       image: body.image || "/api/placeholder/default-course.jpg",
+      enrollmentCount: 0,
+      createdAt: new Date().toISOString().split('T')[0],
+      lessons: []
     };
 
     return NextResponse.json(
