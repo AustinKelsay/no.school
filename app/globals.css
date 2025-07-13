@@ -1,0 +1,236 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark-first design system */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+    --primary: 43 88% 47%; /* Bitcoin orange */
+    --primary-foreground: 240 10% 3.9%;
+    --secondary: 246 52% 67%; /* Lightning purple */
+    --secondary-foreground: 0 0% 98%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
+    --accent: 260 63% 63%; /* Nostr purple */
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 246 52% 67%;
+    --radius: 0.75rem;
+    --chart-1: 43 88% 47%;
+    --chart-2: 246 52% 67%;
+    --chart-3: 260 63% 63%;
+    --chart-4: 173 58% 39%;
+    --chart-5: 25 95% 53%;
+
+    /* Bitcoin & Lightning Brand Colors */
+    --bitcoin-orange: #f2a900;
+    --lightning-purple: #7b68ee;
+    --nostr-purple: #8b5cf6;
+
+    /* Semantic Colors */
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --info: #3b82f6;
+
+    /* Interactive States */
+    --hover-overlay: rgba(244, 244, 245, 0.05);
+    --focus-ring: #7b68ee;
+    --selection-bg: rgba(123, 104, 238, 0.2);
+    --selection-text: #f4f4f5;
+  }
+
+  /* Light mode variables for compatibility */
+  .light {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 43 88% 47%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 260 63% 63%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 246 52% 67%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background font-primary text-foreground;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+  }
+
+  /* Typography */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display font-semibold;
+  }
+
+  /* Selection */
+  ::selection {
+    background: var(--selection-bg);
+    color: var(--selection-text);
+  }
+
+  /* Focus outline */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+
+  /* Scrollbar styling for dark theme */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-zinc-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-zinc-700;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-zinc-600;
+  }
+}
+
+@layer components {
+  /* Button variants */
+  .btn-bitcoin {
+    @apply rounded-lg bg-bitcoin-orange px-6 py-3 font-medium text-zinc-950 transition-all duration-200 hover:-translate-y-0.5 hover:bg-[#E8970A];
+  }
+
+  .btn-lightning {
+    @apply rounded-lg bg-lightning-purple px-6 py-3 font-medium text-zinc-50 transition-all duration-200 hover:bg-[#6B5CE6];
+  }
+
+  .btn-ghost {
+    @apply rounded-lg border border-zinc-700 bg-transparent px-6 py-3 font-medium text-zinc-300 transition-all duration-200 hover:border-zinc-600 hover:bg-zinc-800;
+  }
+
+  /* Card variants */
+  .card-dark {
+    @apply rounded-xl border border-zinc-800 bg-zinc-900 p-6 transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-700;
+  }
+
+  .card-elevated {
+    @apply rounded-xl border border-zinc-700 bg-zinc-900 p-6 shadow-lg;
+  }
+
+  .card-glass {
+    @apply rounded-xl border border-zinc-500/20 bg-zinc-900/80 p-6 backdrop-blur-sm;
+  }
+
+  /* Input styling */
+  .input-dark {
+    @apply rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-3 text-zinc-100 transition-all duration-200 placeholder:text-zinc-500 focus:border-lightning-purple focus:ring-2 focus:ring-lightning-purple/20;
+  }
+
+  /* Code styling */
+  .code-block {
+    @apply overflow-x-auto rounded-lg border border-zinc-800 bg-zinc-900 p-4 font-mono text-sm;
+  }
+
+  /* Navigation */
+  .nav-link {
+    @apply rounded-lg px-4 py-2 font-medium text-zinc-400 transition-all duration-200 hover:bg-zinc-800/50 hover:text-zinc-100;
+  }
+
+  .nav-link-active {
+    @apply rounded-lg bg-bitcoin-orange/10 px-4 py-2 font-medium text-bitcoin-orange;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  /* Animation utilities */
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-in-out;
+  }
+
+  .animate-slide-up {
+    animation: slideUp 0.2s ease-out;
+  }
+
+  .animate-scale-in {
+    animation: scaleIn 0.15s ease-out;
+  }
+
+  /* Hover effects */
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+
+  .hover-scale:hover {
+    transform: scale(1.02);
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 20px rgba(123, 104, 238, 0.3);
+  }
+}
+
+/* Keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
