@@ -126,7 +126,7 @@ export default function ContentPage() {
           <div className="space-y-2">
             <h1 className="text-3xl font-bold">Content Library</h1>
             <p className="text-muted-foreground">
-              Discover courses, videos, guides, and resources to accelerate your learning
+              Discover courses, video tutorials, implementation guides, API documentation, and quick reference materials for Bitcoin, Lightning, and Nostr development
             </p>
           </div>
           
@@ -214,7 +214,7 @@ export default function ContentPage() {
 
             {/* Popular tags */}
             <div key="popular-tags" className="flex flex-wrap gap-2">
-              {popularTags.slice(0, 6).map((tag) => (
+              {popularTags.slice(0, 8).map((tag) => (
                 <Badge
                   key={tag}
                   variant={selectedFilters.has(tag) ? 'default' : 'outline'}

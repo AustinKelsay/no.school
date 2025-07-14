@@ -17,9 +17,16 @@ export type {
 } from '@/data/types'
 
 /**
- * Simulated database delay
+ * Import the new caching and repository layers
  */
-function simulateDelay(ms: number = 1000) {
+import { CourseRepository, LessonRepository, ContentRepository } from './repositories'
+import { globalCache } from './cache'
+
+/**
+ * Simulate network delay for legacy functions
+ */
+async function simulateDelay(ms: number): Promise<void> {
+  // Remove in production - only for compatibility
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
@@ -148,58 +155,31 @@ function calculateTotalDuration(lessons: import('@/data/types').DbLesson[]): str
 
 /**
  * Fetch all courses with caching
- * Now uses the new database course data
+ * Now uses the repository layer with real caching
  */
 export async function getCourses(category?: string) {
-  // Simulate API call delay
-  await simulateDelay(500)
-
-  // Import data from centralized location
-  const { dbCoursesMockData, dbLessonsMockData } = await import('@/data/mock-data')
-
-  // Filter by category if provided
-  let filteredCourses = dbCoursesMockData
-  if (category) {
-    filteredCourses = dbCoursesMockData.filter(course => 
-      course.category.toLowerCase() === category.toLowerCase()
-    )
-  }
-
-  // Transform to legacy format with lessons
-  return filteredCourses.map(course => {
-    const courseLessons = dbLessonsMockData.filter(lesson => lesson.courseId === course.id)
-    return transformDbCourseToLegacyFormat(course, courseLessons)
-  })
+  return CourseRepository.findAll(category ? { category } : {})
 }
 
 /**
- * Cached version of getCourses - returns a promise
+ * Cached version of getCourses - now truly cached
  */
 export async function getCachedCourses(category?: string) {
-  return getCourses(category)
+  return CourseRepository.findAll(category ? { category } : {})
 }
 
 /**
- * Fetch a single course by ID with detailed information
+ * Fetch a single course by ID with caching
  */
 export async function getCourseById(id: number) {
-  await simulateDelay(300)
-
-  // Import data from centralized location
-  const { dbCoursesMockData, dbLessonsMockData } = await import('@/data/mock-data')
-  
-  const dbCourse = dbCoursesMockData.find(course => course.id === `course-${id}`)
-  if (!dbCourse) return null
-
-  const courseLessons = dbLessonsMockData.filter(lesson => lesson.courseId === dbCourse.id)
-  return transformDbCourseToLegacyFormat(dbCourse, courseLessons)
+  return CourseRepository.findById(id)
 }
 
 /**
- * Cached version of getCourseById - returns a promise
+ * Cached version of getCourseById - now truly cached
  */
 export async function getCachedCourseById(id: number) {
-  return getCourseById(id)
+  return CourseRepository.findById(id)
 }
 
 /**
@@ -289,135 +269,83 @@ export async function getCachedVideoById(id: number) {
 }
 
 /**
- * Fetch content statistics
- * Now includes documents and videos
+ * Fetch content statistics with caching
  */
 export async function getContentStats() {
-  await simulateDelay(200)
-
-  // Import data from centralized location
-  const { dbCoursesMockData, dbDocumentsMockData, dbVideosMockData } = await import('@/data/mock-data')
-  
-  const totalCourses = dbCoursesMockData.length
-  const totalDocuments = dbDocumentsMockData.length
-  const totalVideos = dbVideosMockData.length
-  const totalStudents = dbCoursesMockData.reduce((sum, course) => sum + course.enrollmentCount, 0)
-  
-  // Calculate average rating across all content
-  const allContent = [...dbCoursesMockData, ...dbDocumentsMockData, ...dbVideosMockData]
-  const averageRating = allContent.reduce((sum, item) => sum + item.rating, 0) / allContent.length
-
-  const categoryStats = allContent.reduce((acc, item) => {
-    const category = item.category.charAt(0).toUpperCase() + item.category.slice(1)
+  return globalCache.get('content:stats', async () => {
+    const { dbCoursesMockData, dbDocumentsMockData, dbVideosMockData } = await import('@/data/mock-data')
     
-    if (!acc[category]) {
-      acc[category] = { name: category, count: 0, type: 'course' as const }
+    const totalCourses = dbCoursesMockData.length
+    const totalDocuments = dbDocumentsMockData.length
+    const totalVideos = dbVideosMockData.length
+    const totalStudents = dbCoursesMockData.reduce((sum, course) => sum + course.enrollmentCount, 0)
+    
+    // Calculate average rating across all content
+    const allContent = [...dbCoursesMockData, ...dbDocumentsMockData, ...dbVideosMockData]
+    const averageRating = allContent.reduce((sum, item) => sum + item.rating, 0) / allContent.length
+
+    const categoryStats = allContent.reduce((acc, item) => {
+      const category = item.category.charAt(0).toUpperCase() + item.category.slice(1)
+      
+      if (!acc[category]) {
+        acc[category] = { name: category, count: 0, type: 'course' as const }
+      }
+      acc[category].count++
+      return acc
+    }, {} as Record<string, { name: string; count: number; type: 'course' | 'document' | 'video' }>)
+
+    const topCategories = Object.values(categoryStats)
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 7)
+
+    return {
+      totalCourses,
+      totalDocuments,
+      totalVideos,
+      totalUsers: totalStudents,
+      averageRating: Math.round(averageRating * 10) / 10,
+      topCategories
     }
-    acc[category].count++
-    return acc
-  }, {} as Record<string, { name: string; count: number; type: 'course' | 'document' | 'video' }>)
-
-  const topCategories = Object.values(categoryStats)
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 7)
-
-  return {
-    totalCourses,
-    totalDocuments,
-    totalVideos,
-    totalUsers: totalStudents,
-    averageRating: Math.round(averageRating * 10) / 10,
-    topCategories
-  }
+  }, 300000) // 5 minute cache
 }
 
 /**
- * Fetch course statistics
- * Now uses the new database course data
+ * Fetch course statistics with caching
  */
 export async function getCourseStats() {
-  await simulateDelay(200)
-
-  // Import data from centralized location
-  const { dbCoursesMockData } = await import('@/data/mock-data')
-  
-  const totalCourses = dbCoursesMockData.length
-  const totalStudents = dbCoursesMockData.reduce((sum, course) => sum + course.enrollmentCount, 0)
-  const averageRating = dbCoursesMockData.reduce((sum, course) => sum + course.rating, 0) / totalCourses
-  const completionRate = 78 // Static completion rate
-
-  const categoryStats = dbCoursesMockData.reduce((acc, course) => {
-    const category = course.category.charAt(0).toUpperCase() + course.category.slice(1)
-    acc[category] = (acc[category] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-
-  const topCategories = Object.entries(categoryStats)
-    .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 7)
-
-  return {
-    totalCourses,
-    totalStudents,
-    averageRating: Math.round(averageRating * 10) / 10,
-    completionRate,
-    topCategories
-  }
+  return CourseRepository.getStats()
 }
 
 /**
- * Cached version of getCourseStats - returns a promise
+ * Cached version of getCourseStats - now truly cached
  */
 export async function getCachedCourseStats() {
-  return getCourseStats()
+  return CourseRepository.getStats()
 }
 
 /**
- * Search courses with debounced results
- * Now uses the new database course data
+ * Search courses with caching and relevance scoring
  */
 export async function searchCourses(query: string, category?: string) {
-  await simulateDelay(200)
-
-  const allCourses = await getCourses()
+  const results = await CourseRepository.search(query, category ? { category } : {})
   
-  const filteredCourses = allCourses.filter(course => {
-    const matchesQuery = course.title.toLowerCase().includes(query.toLowerCase()) ||
-                        course.description.toLowerCase().includes(query.toLowerCase())
-    const matchesCategory = !category || course.category === category
-    
-    return matchesQuery && matchesCategory
-  })
-
   return {
-    results: filteredCourses,
-    total: filteredCourses.length,
+    results,
+    total: results.length,
     query,
     category,
   }
 }
 
 /**
- * Search all content (courses, documents, videos)
+ * Search all content with caching
  */
 export async function searchContent(query: string, type?: string, category?: string) {
-  await simulateDelay(200)
-
-  const allContent = await getContentItems()
+  const results = await ContentRepository.search(query, { type, category })
   
-  const filteredContent = allContent.filter(item => {
-    const matchesQuery = item.title.toLowerCase().includes(query.toLowerCase()) ||
-                        item.description.toLowerCase().includes(query.toLowerCase())
-    const matchesType = !type || item.type === type
-    const matchesCategory = !category || item.category === category
-    
-    return matchesQuery && matchesType && matchesCategory
-  })
-
   return {
-    results: filteredContent,
-    total: filteredContent.length,
+    results,
+    total: results.length,
     query,
     type,
     category,
@@ -425,39 +353,17 @@ export async function searchContent(query: string, type?: string, category?: str
 }
 
 /**
- * Fetch mixed content items for the content page
- * Now includes database courses, documents, and videos
+ * Fetch mixed content items with caching
  */
 export async function getContentItems() {
-  await simulateDelay(300)
-
-  // Import both old and new data
-  const { 
-    mockContentItems, 
-    dbCoursesMockData, 
-    dbDocumentsMockData, 
-    dbVideosMockData 
-  } = await import('@/data/mock-data')
-  
-  // Convert database items to content items
-  const courseContentItems = dbCoursesMockData.map(transformDbCourseToContentItem)
-  const documentContentItems = dbDocumentsMockData.map(transformDbDocumentToContentItem)
-  const videoContentItems = dbVideosMockData.map(transformDbVideoToContentItem)
-  
-  // Filter out old content items and add new ones
-  const legacyItems = mockContentItems.filter(item => 
-    item.type !== 'course' && item.type !== 'video' && 
-    item.type !== 'document' && item.type !== 'guide' && item.type !== 'cheatsheet'
-  )
-  
-  return [...courseContentItems, ...documentContentItems, ...videoContentItems, ...legacyItems]
+  return ContentRepository.findAll()
 }
 
 /**
- * Cached version of getContentItems - returns a promise
+ * Cached version of getContentItems - now truly cached
  */
 export async function getCachedContentItems() {
-  return getContentItems()
+  return ContentRepository.findAll()
 }
 
 /**
@@ -565,22 +471,8 @@ export async function getContentByType(
 }
 
 /**
- * Get trending content based on views, ratings, and recency
+ * Get trending content with caching
  */
 export async function getTrendingContent(limit: number = 10) {
-  await simulateDelay(200)
-
-  const allContent = await getContentItems()
-
-  // Simple trending algorithm: weight by rating and recency
-  const trending = allContent
-    .map(item => ({
-      ...item,
-      trendingScore: (item.rating || 0) * 20 + 
-                    (new Date(item.createdAt).getTime() / 1000000) * 0.1
-    }))
-    .sort((a, b) => b.trendingScore - a.trendingScore)
-    .slice(0, limit)
-
-  return trending
+  return ContentRepository.findTrending(limit)
 } 

@@ -1,6 +1,6 @@
 # Course, Document, and Video Data Model
 
-This document explains the comprehensive content data model for the no.school platform, which separates database metadata from Nostr content according to the specified architecture. The platform supports three main content types: **Courses**, **Documents**, and **Videos**.
+This document explains the comprehensive content data model for the no.school platform, which separates database metadata from Nostr content according to the specified architecture. The platform supports three main content types: **Courses**, **Documents**, and **Videos** with a rich library of **50+ educational resources** covering Bitcoin, Lightning Network, Nostr, and modern web development.
 
 ## Architecture Overview
 
@@ -47,14 +47,35 @@ Database (Metadata) ←→ Nostr (Content)
 
 ## Content Types
 
-### Courses
-Structured learning paths with multiple lessons, designed for comprehensive education.
+### Courses (5 items)
+Structured learning paths with multiple lessons, designed for comprehensive education:
+- **Bitcoin Development Fundamentals** - Core concepts and practical implementation
+- **Lightning Network Development** - Channel management and routing protocols
+- **Nostr Protocol Development** - Building decentralized applications
+- **Frontend Development for Bitcoin** - React applications with Bitcoin integration
+- **Lightning Network API Integration** - RESTful APIs and payment processing
 
-### Documents  
-Reference materials, guides, cheatsheets, and documentation for quick lookup and learning.
+### Documents (20 items)
+Reference materials, guides, cheatsheets, and documentation for quick lookup and learning:
+- **Bitcoin**: Script programming, API reference, node setup, security checklists
+- **Lightning**: Implementation guides, routing algorithms, command references
+- **Nostr**: Protocol fundamentals, client building, NIPs comprehensive reference
+- **Frontend**: React optimization, CSS Grid mastery, JavaScript ES2024 features
+- **Backend**: Node.js security, database design patterns, microservices architecture
+- **Mobile**: React Native wallets, state management, iOS development
+- **Security**: Cryptographic key management, testing frameworks, vulnerability assessments
+- **Web3**: Smart contract security, DeFi protocols, blockchain integration
 
-### Videos
-Visual learning content including tutorials, explanations, and demonstrations.
+### Videos (25 items)
+Visual learning content including tutorials, explanations, and demonstrations:
+- **Bitcoin Development**: Transaction deep dives, script programming, mining pool setup
+- **Lightning Network**: Channel lifecycle, routing explained, LND development
+- **Nostr Protocol**: Fundamentals, client building, relay implementation
+- **Frontend Development**: React performance optimization, modern CSS techniques
+- **Backend Architecture**: API security, database design, microservices deployment
+- **Mobile Development**: Bitcoin wallet creation, Flutter/Riverpod patterns
+- **Security Practices**: Key management, penetration testing, security auditing
+- **Web3 Integration**: Smart contract auditing, DeFi protocol development
 
 ## Usage Examples
 
@@ -405,11 +426,11 @@ interface NostrPaidContentEvent {
 ## Mock Data Available
 
 ### Database Mock Data
-- `dbCoursesMockData` - 5 sample courses (Bitcoin/Lightning focused)
-- `dbLessonsMockData` - 8 sample lessons (mix of free/paid)
-- `dbDocumentsMockData` - 4 sample documents (cheatsheets, guides, references)
-- `dbVideosMockData` - 4 sample videos (tutorials, explanations)
-- `coursesWithLessons` - Combined course and lesson data
+- `dbCoursesMockData` - 5 comprehensive courses (Bitcoin/Lightning/Nostr focused)
+- `dbLessonsMockData` - 8 detailed lessons (mix of free/paid content)
+- `dbDocumentsMockData` - 20 comprehensive documents (guides, cheatsheets, API references, tutorials)
+- `dbVideosMockData` - 25 educational videos (tutorials, deep dives, explanations)
+- `coursesWithLessons` - Combined course and lesson data with full relationships
 
 ### Nostr Mock Data
 - `nostrCourseListEvents` - 2 sample course list events

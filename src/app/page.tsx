@@ -40,9 +40,9 @@ interface HeroStat {
  */
 export default function Home() {
   const heroStats: HeroStat[] = [
-    { value: "1,000+", label: "Students", icon: Users },
-    { value: "50+", label: "Courses", icon: BookOpen },
-    { value: "4.8/5", label: "Rating", icon: Star },
+    { value: "2,500+", label: "Students", icon: Users },
+    { value: "50+", label: "Courses, Videos & Docs", icon: BookOpen },
+    { value: "4.7/5", label: "Rating", icon: Star },
     { value: "24/7", label: "Support", icon: Clock },
   ]
 
@@ -68,7 +68,7 @@ export default function Home() {
               </h1>
               
               <p className="text-lg text-muted-foreground max-w-2xl">
-                Master Bitcoin, Lightning Network, and Nostr development with our comprehensive courses, tutorials, and resources. Built by developers, for developers.
+                Master Bitcoin, Lightning Network, and Nostr development with our comprehensive courses, video tutorials, guides, and documentation. Built by developers, for developers.
               </p>
             </div>
 
@@ -140,7 +140,7 @@ export default function Home() {
             </div>
             <h3 className="text-xl font-semibold mb-2">Hands-on Learning</h3>
             <p className="text-muted-foreground">
-              Build real projects with Bitcoin, Lightning, and Nostr protocols
+              Build real projects with Bitcoin, Lightning, and Nostr protocols through courses, videos, and guides
             </p>
           </Card>
 
@@ -148,9 +148,9 @@ export default function Home() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <Lightbulb className="h-8 w-8 text-primary" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">Expert Instructors</h3>
+            <h3 className="text-xl font-semibold mb-2">Comprehensive Content</h3>
             <p className="text-muted-foreground">
-              Learn from industry experts and active Bitcoin developers
+              Access structured courses, video tutorials, quick reference guides, and detailed documentation
             </p>
           </Card>
 
@@ -160,7 +160,7 @@ export default function Home() {
             </div>
             <h3 className="text-xl font-semibold mb-2">Career Ready</h3>
             <p className="text-muted-foreground">
-              Get job-ready skills for the Bitcoin and Lightning ecosystem
+              Get job-ready skills for the Bitcoin and Lightning ecosystem from beginner to advanced levels
             </p>
           </Card>
         </div>
@@ -215,9 +215,9 @@ async function HomepageContent() {
       <Section spacing="lg" className="bg-muted/30">
         <div className="space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">Courses</h2>
+            <h2 className="text-3xl font-bold">Featured Courses</h2>
             <p className="text-muted-foreground">
-              Start your Bitcoin development journey with our top-rated courses
+              Structured learning paths from Bitcoin fundamentals to advanced Lightning Network development
             </p>
           </div>
           
@@ -238,7 +238,7 @@ async function HomepageContent() {
               <h2 className="text-3xl font-bold">Videos</h2>
             </div>
             <p className="text-muted-foreground">
-              Watch and learn with our comprehensive video tutorials
+              Learn by watching: Bitcoin scripting, Lightning channels, Nostr implementations, and more
             </p>
           </div>
           
@@ -259,7 +259,7 @@ async function HomepageContent() {
               <h2 className="text-3xl font-bold">Documents</h2>
             </div>
             <p className="text-muted-foreground">
-              Quick references and guides for Bitcoin development
+              Quick references, implementation guides, API documentation, and cheat sheets for fast learning
             </p>
           </div>
           

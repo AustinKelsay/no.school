@@ -60,20 +60,14 @@ async function CourseStats() {
       </Card>
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-2xl font-bold">{stats.totalStudents.toLocaleString()}</CardTitle>
+          <CardTitle className="text-2xl font-bold">{stats.totalEnrollments.toLocaleString()}</CardTitle>
           <CardDescription>Students</CardDescription>
         </CardHeader>
       </Card>
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-2xl font-bold">{stats.averageRating}</CardTitle>
+          <CardTitle className="text-2xl font-bold">{stats.averageRating.toFixed(1)}</CardTitle>
           <CardDescription>Average Rating</CardDescription>
-        </CardHeader>
-      </Card>
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-2xl font-bold">{stats.completionRate}%</CardTitle>
-          <CardDescription>Completion Rate</CardDescription>
         </CardHeader>
       </Card>
     </div>

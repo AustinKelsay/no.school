@@ -109,9 +109,9 @@ export const paymentStatus: Record<string, string> = {
  * Popular tags for filtering
  */
 export const popularTags = [
-  'react', 'javascript', 'lightning', 'frontend', 'backend', 'security',
-  'beginner', 'intermediate', 'advanced', 'free', 'premium', 'nodejs',
-  'html', 'css', 'api', 'database', 'web3', 'mobile', 'typescript'
+  'bitcoin', 'lightning', 'nostr', 'javascript', 'react', 'api', 
+  'security', 'frontend', 'backend', 'mobile', 'cryptography', 'web3',
+  'nodejs', 'typescript', 'beginner', 'intermediate', 'advanced'
 ]
 
 /**
