@@ -4,16 +4,21 @@
  * Represents NIP-23 (free) and NIP-99 (paid) content events
  */
 
-import type { DbDocument } from '../types'
+import type { Resource } from '../types'
 
 // ============================================================================
 // DATABASE-STYLE DOCUMENT DATA (Primary Data Source)
 // ============================================================================
 
-export const dbDocumentsMockData: DbDocument[] = [
+export const dbDocumentsMockData: Resource[] = [
   // Bitcoin Documents
   {
     id: 'doc-1',
+    userId: 'user-alex-johnson',
+    price: 0,
+    noteId: 'doc-1-note',
+    createdAt: '2024-01-20T10:00:00Z',
+    updatedAt: '2024-01-21T15:00:00Z',
     title: 'Bitcoin Development Cheatsheet',
     description: 'Quick reference for Bitcoin Core development including RPC commands, data structures, and common patterns. Essential commands for working with bitcoind, wallet operations, and blockchain queries.',
     category: 'bitcoin',
@@ -26,14 +31,15 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/bitcoin-cheatsheet.jpg',
     tags: ['bitcoin', 'development', 'rpc', 'core', 'reference'],
     difficulty: 'intermediate',
-    documentEventId: 'doc-event-1',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-20',
-    updatedAt: '2024-01-22'
+    published: true
   },
   {
     id: 'doc-2',
+    userId: 'user-sarah-chen',
+    price: 15000,
+    noteId: 'doc-2-note',
+    createdAt: '2024-01-15T00:00:00Z',
+    updatedAt: '2024-01-18T00:00:00Z',
     title: 'Bitcoin Script Deep Dive',
     description: 'Comprehensive guide to Bitcoin Script - the stack-based programming language used in Bitcoin transactions. Learn opcodes, script patterns, and security considerations.',
     category: 'bitcoin',
@@ -43,19 +49,19 @@ export const dbDocumentsMockData: DbDocument[] = [
     rating: 4.9,
     viewCount: 892,
     isPremium: true,
-    price: 15000,
     currency: 'sats',
     image: '/images/documents/bitcoin-script.jpg',
     tags: ['bitcoin', 'script', 'opcodes', 'transactions', 'programming'],
     difficulty: 'advanced',
-    documentEventId: 'doc-event-2',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9r',
-    published: true,
-    createdAt: '2024-01-15',
-    updatedAt: '2024-01-18'
+    published: true
   },
   {
     id: 'doc-3',
+    userId: 'user-mike-rodriguez',
+    price: 0,
+    noteId: 'doc-3-note',
+    createdAt: '2024-01-25T00:00:00Z',
+    updatedAt: '2024-01-25T00:00:00Z',
     title: 'Setting Up Your First Bitcoin Node',
     description: 'Step-by-step tutorial for setting up and running a Bitcoin full node. Covers installation, configuration, initial sync, and ongoing maintenance.',
     category: 'bitcoin',
@@ -68,14 +74,15 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/bitcoin-node-setup.jpg',
     tags: ['bitcoin', 'node', 'setup', 'tutorial', 'infrastructure'],
     difficulty: 'beginner',
-    documentEventId: 'doc-event-3',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9s',
-    published: true,
-    createdAt: '2024-01-25',
-    updatedAt: '2024-01-25'
+    published: true
   },
   {
     id: 'doc-4',
+    userId: 'user-lisa-park',
+    price: 8000,
+    noteId: 'doc-4-note',
+    createdAt: '2024-01-10T00:00:00Z',
+    updatedAt: '2024-01-12T00:00:00Z',
     title: 'Bitcoin Core API Reference',
     description: 'Complete reference documentation for Bitcoin Core JSON-RPC API. Includes all endpoints, parameters, return values, and practical examples.',
     category: 'bitcoin',
@@ -85,21 +92,21 @@ export const dbDocumentsMockData: DbDocument[] = [
     rating: 4.8,
     viewCount: 1567,
     isPremium: true,
-    price: 8000,
     currency: 'sats',
     image: '/images/documents/bitcoin-api-reference.jpg',
     tags: ['bitcoin', 'api', 'rpc', 'reference', 'documentation'],
     difficulty: 'intermediate',
-    documentEventId: 'doc-event-4',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9t',
-    published: true,
-    createdAt: '2024-01-10',
-    updatedAt: '2024-01-12'
+    published: true
   },
 
   // Lightning Network Documents
   {
     id: 'doc-5',
+    userId: 'user-maria-santos',
+    price: 25000,
+    noteId: 'doc-5-note',
+    createdAt: '2024-01-08T00:00:00Z',
+    updatedAt: '2024-01-10T00:00:00Z',
     title: 'Lightning Network Implementation Guide',
     description: 'Comprehensive guide to implementing Lightning Network features in your applications. Covers LND integration, channel management, and payment flows.',
     category: 'lightning',
@@ -109,19 +116,19 @@ export const dbDocumentsMockData: DbDocument[] = [
     rating: 4.9,
     viewCount: 1892,
     isPremium: true,
-    price: 25000,
     currency: 'sats',
     image: '/images/documents/lightning-guide.jpg',
     tags: ['lightning', 'implementation', 'guide', 'payments', 'lnd'],
     difficulty: 'advanced',
-    documentEventId: 'doc-event-5',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9u',
-    published: true,
-    createdAt: '2024-01-08',
-    updatedAt: '2024-01-10'
+    published: true
   },
   {
     id: 'doc-6',
+    userId: 'user-david-kim',
+    price: 0,
+    noteId: 'doc-6-note',
+    createdAt: '2024-01-12T00:00:00Z',
+    updatedAt: '2024-01-14T00:00:00Z',
     title: 'Lightning Network Routing Algorithms',
     description: 'Deep dive into pathfinding and routing algorithms used in Lightning Network. Understanding how payments find their way across the network.',
     category: 'lightning',
@@ -134,14 +141,15 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/lightning-routing.jpg',
     tags: ['lightning', 'routing', 'pathfinding', 'algorithms', 'network'],
     difficulty: 'advanced',
-    documentEventId: 'doc-event-6',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9v',
-    published: true,
-    createdAt: '2024-01-12',
-    updatedAt: '2024-01-14'
+    published: true
   },
   {
     id: 'doc-7',
+    userId: 'user-emily-watson',
+    price: 0,
+    noteId: 'doc-7-note',
+    createdAt: '2024-01-28T00:00:00Z',
+    updatedAt: '2024-01-28T00:00:00Z',
     title: 'Lightning Network Quick Commands',
     description: 'Essential LND, CLN, and Eclair commands for Lightning Network node operators. Quick reference for common operations and troubleshooting.',
     category: 'lightning',
@@ -154,16 +162,17 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/lightning-commands.jpg',
     tags: ['lightning', 'commands', 'lnd', 'cln', 'reference'],
     difficulty: 'beginner',
-    documentEventId: 'doc-event-7',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9w',
-    published: true,
-    createdAt: '2024-01-28',
-    updatedAt: '2024-01-28'
+    published: true
   },
 
   // Nostr Documents
   {
     id: 'doc-8',
+    userId: 'user-jack-morrison',
+    price: 0,
+    noteId: 'doc-8-note',
+    createdAt: '2024-01-30T00:00:00Z',
+    updatedAt: '2024-02-01T00:00:00Z',
     title: 'Nostr Protocol Fundamentals',
     description: 'Introduction to the Nostr protocol - a simple, open protocol for decentralized social networks. Learn about events, relays, and NIPs.',
     category: 'nostr',
@@ -176,14 +185,15 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/nostr-fundamentals.jpg',
     tags: ['nostr', 'protocol', 'decentralized', 'social', 'fundamentals'],
     difficulty: 'beginner',
-    documentEventId: 'doc-event-8',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9x',
-    published: true,
-    createdAt: '2024-01-30',
-    updatedAt: '2024-02-01'
+    published: true
   },
   {
     id: 'doc-9',
+    userId: 'user-anna-lee',
+    price: 18000,
+    noteId: 'doc-9-note',
+    createdAt: '2024-02-02T00:00:00Z',
+    updatedAt: '2024-02-04T00:00:00Z',
     title: 'Building Nostr Clients',
     description: 'Complete guide to building Nostr clients from scratch. Covers WebSocket connections, event handling, and user interface patterns.',
     category: 'nostr',
@@ -193,19 +203,19 @@ export const dbDocumentsMockData: DbDocument[] = [
     rating: 4.8,
     viewCount: 1234,
     isPremium: true,
-    price: 18000,
     currency: 'sats',
     image: '/images/documents/nostr-clients.jpg',
     tags: ['nostr', 'client', 'development', 'websockets', 'ui'],
     difficulty: 'intermediate',
-    documentEventId: 'doc-event-9',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9y',
-    published: true,
-    createdAt: '2024-02-02',
-    updatedAt: '2024-02-04'
+    published: true
   },
   {
     id: 'doc-10',
+    userId: 'user-carlos-mendez',
+    price: 0,
+    noteId: 'doc-10-note',
+    createdAt: '2024-02-05T00:00:00Z',
+    updatedAt: '2024-02-07T00:00:00Z',
     title: 'Nostr NIPs Reference',
     description: 'Comprehensive reference of all Nostr Implementation Possibilities (NIPs). Quick lookup for event kinds, tags, and protocol specifications.',
     category: 'nostr',
@@ -218,16 +228,17 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/nostr-nips.jpg',
     tags: ['nostr', 'nips', 'reference', 'specification', 'protocol'],
     difficulty: 'intermediate',
-    documentEventId: 'doc-event-10',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9z',
-    published: true,
-    createdAt: '2024-02-05',
-    updatedAt: '2024-02-07'
+    published: true
   },
 
   // Frontend Development Documents
   {
     id: 'doc-11',
+    userId: 'user-sophie-turner',
+    price: 22000,
+    noteId: 'doc-11-note',
+    createdAt: '2024-02-08T00:00:00Z',
+    updatedAt: '2024-02-10T00:00:00Z',
     title: 'React Performance Optimization',
     description: 'Advanced techniques for optimizing React applications. Covers memoization, virtualization, code splitting, and performance monitoring.',
     category: 'frontend',
@@ -237,19 +248,19 @@ export const dbDocumentsMockData: DbDocument[] = [
     rating: 4.8,
     viewCount: 3456,
     isPremium: true,
-    price: 22000,
     currency: 'sats',
     image: '/images/documents/react-performance.jpg',
     tags: ['react', 'performance', 'optimization', 'frontend', 'javascript'],
     difficulty: 'advanced',
-    documentEventId: 'doc-event-11',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j90',
-    published: true,
-    createdAt: '2024-02-08',
-    updatedAt: '2024-02-10'
+    published: true
   },
   {
     id: 'doc-12',
+    userId: 'user-tom-wilson',
+    price: 0,
+    noteId: 'doc-12-note',
+    createdAt: '2024-02-12T00:00:00Z',
+    updatedAt: '2024-02-12T00:00:00Z',
     title: 'CSS Grid Layout Cheatsheet',
     description: 'Quick reference for CSS Grid properties and values. Visual examples of common layout patterns and responsive design techniques.',
     category: 'frontend',
@@ -262,14 +273,15 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/css-grid.jpg',
     tags: ['css', 'grid', 'layout', 'responsive', 'design'],
     difficulty: 'intermediate',
-    documentEventId: 'doc-event-12',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j91',
-    published: true,
-    createdAt: '2024-02-12',
-    updatedAt: '2024-02-12'
+    published: true
   },
   {
     id: 'doc-13',
+    userId: 'user-rachel-green',
+    price: 0,
+    noteId: 'doc-13-note',
+    createdAt: '2024-02-15T00:00:00Z',
+    updatedAt: '2024-02-17T00:00:00Z',
     title: 'Modern JavaScript ES2024 Features',
     description: 'Comprehensive overview of the latest JavaScript features including async/await improvements, decorators, and new array methods.',
     category: 'frontend',
@@ -282,16 +294,17 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/js-es2024.jpg',
     tags: ['javascript', 'es2024', 'features', 'modern', 'programming'],
     difficulty: 'intermediate',
-    documentEventId: 'doc-event-13',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j92',
-    published: true,
-    createdAt: '2024-02-15',
-    updatedAt: '2024-02-17'
+    published: true
   },
 
   // Backend Development Documents
   {
     id: 'doc-14',
+    userId: 'user-marcus-johnson',
+    price: 20000,
+    noteId: 'doc-14-note',
+    createdAt: '2024-02-18T00:00:00Z',
+    updatedAt: '2024-02-20T00:00:00Z',
     title: 'Node.js API Security Best Practices',
     description: 'Essential security practices for Node.js APIs. Covers authentication, authorization, input validation, and common vulnerability prevention.',
     category: 'backend',
@@ -301,19 +314,19 @@ export const dbDocumentsMockData: DbDocument[] = [
     rating: 4.9,
     viewCount: 2156,
     isPremium: true,
-    price: 20000,
     currency: 'sats',
     image: '/images/documents/nodejs-security.jpg',
     tags: ['nodejs', 'security', 'api', 'authentication', 'backend'],
     difficulty: 'advanced',
-    documentEventId: 'doc-event-14',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j93',
-    published: true,
-    createdAt: '2024-02-18',
-    updatedAt: '2024-02-20'
+    published: true
   },
   {
     id: 'doc-15',
+    userId: 'user-jennifer-davis',
+    price: 0,
+    noteId: 'doc-15-note',
+    createdAt: '2024-02-22T00:00:00Z',
+    updatedAt: '2024-02-24T00:00:00Z',
     title: 'Database Schema Design Patterns',
     description: 'Common database design patterns for web applications. Covers normalization, indexing strategies, and performance considerations.',
     category: 'backend',
@@ -326,16 +339,17 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/database-patterns.jpg',
     tags: ['database', 'schema', 'design', 'patterns', 'sql'],
     difficulty: 'intermediate',
-    documentEventId: 'doc-event-15',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j94',
-    published: true,
-    createdAt: '2024-02-22',
-    updatedAt: '2024-02-24'
+    published: true
   },
 
   // Mobile Development Documents
   {
     id: 'doc-16',
+    userId: 'user-kevin-zhang',
+    price: 35000,
+    noteId: 'doc-16-note',
+    createdAt: '2024-02-25T00:00:00Z',
+    updatedAt: '2024-02-28T00:00:00Z',
     title: 'React Native Bitcoin Wallet Tutorial',
     description: 'Step-by-step guide to building a Bitcoin wallet app with React Native. Covers key generation, transaction signing, and security best practices.',
     category: 'mobile',
@@ -345,19 +359,19 @@ export const dbDocumentsMockData: DbDocument[] = [
     rating: 4.8,
     viewCount: 1345,
     isPremium: true,
-    price: 35000,
     currency: 'sats',
     image: '/images/documents/rn-bitcoin-wallet.jpg',
     tags: ['react-native', 'bitcoin', 'wallet', 'mobile', 'tutorial'],
     difficulty: 'advanced',
-    documentEventId: 'doc-event-16',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j95',
-    published: true,
-    createdAt: '2024-02-25',
-    updatedAt: '2024-02-28'
+    published: true
   },
   {
     id: 'doc-17',
+    userId: 'user-laura-martinez',
+    price: 0,
+    noteId: 'doc-17-note',
+    createdAt: '2024-03-01T00:00:00Z',
+    updatedAt: '2024-03-03T00:00:00Z',
     title: 'Mobile App State Management',
     description: 'Comprehensive guide to state management in mobile applications. Covers Redux, Context API, and modern patterns for React Native and Flutter.',
     category: 'mobile',
@@ -370,16 +384,17 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/mobile-state.jpg',
     tags: ['mobile', 'state-management', 'redux', 'react-native', 'flutter'],
     difficulty: 'intermediate',
-    documentEventId: 'doc-event-17',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j96',
-    published: true,
-    createdAt: '2024-03-01',
-    updatedAt: '2024-03-03'
+    published: true
   },
 
   // Security Documents
   {
     id: 'doc-18',
+    userId: 'user-robert-chen',
+    price: 30000,
+    noteId: 'doc-18-note',
+    createdAt: '2024-03-05T00:00:00Z',
+    updatedAt: '2024-03-07T00:00:00Z',
     title: 'Cryptographic Key Management',
     description: 'Best practices for managing cryptographic keys in applications. Covers key generation, storage, rotation, and security considerations.',
     category: 'security',
@@ -389,19 +404,19 @@ export const dbDocumentsMockData: DbDocument[] = [
     rating: 4.9,
     viewCount: 765,
     isPremium: true,
-    price: 30000,
     currency: 'sats',
     image: '/images/documents/key-management.jpg',
     tags: ['security', 'cryptography', 'keys', 'management', 'best-practices'],
     difficulty: 'advanced',
-    documentEventId: 'doc-event-18',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j97',
-    published: true,
-    createdAt: '2024-03-05',
-    updatedAt: '2024-03-07'
+    published: true
   },
   {
     id: 'doc-19',
+    userId: 'user-amy-foster',
+    price: 0,
+    noteId: 'doc-19-note',
+    createdAt: '2024-03-08T00:00:00Z',
+    updatedAt: '2024-03-10T00:00:00Z',
     title: 'Web Application Security Checklist',
     description: 'Comprehensive security checklist for web applications. Covers OWASP Top 10, secure coding practices, and vulnerability assessment.',
     category: 'security',
@@ -414,16 +429,17 @@ export const dbDocumentsMockData: DbDocument[] = [
     image: '/images/documents/security-checklist.jpg',
     tags: ['security', 'web', 'checklist', 'owasp', 'vulnerabilities'],
     difficulty: 'intermediate',
-    documentEventId: 'doc-event-19',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j98',
-    published: true,
-    createdAt: '2024-03-08',
-    updatedAt: '2024-03-10'
+    published: true
   },
 
   // Web3 Documents
   {
     id: 'doc-20',
+    userId: 'user-alex-blockchain',
+    price: 28000,
+    noteId: 'doc-20-note',
+    createdAt: '2024-03-12T00:00:00Z',
+    updatedAt: '2024-03-14T00:00:00Z',
     title: 'Smart Contract Security Patterns',
     description: 'Common security patterns and anti-patterns in smart contract development. Learn to write secure and gas-efficient contracts.',
     category: 'web3',
@@ -433,16 +449,11 @@ export const dbDocumentsMockData: DbDocument[] = [
     rating: 4.8,
     viewCount: 1456,
     isPremium: true,
-    price: 28000,
     currency: 'sats',
     image: '/images/documents/smart-contract-security.jpg',
     tags: ['web3', 'smart-contracts', 'security', 'solidity', 'ethereum'],
     difficulty: 'advanced',
-    documentEventId: 'doc-event-20',
-    documentNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j99',
-    published: true,
-    createdAt: '2024-03-12',
-    updatedAt: '2024-03-14'
+    published: true
   }
 ]
 
@@ -450,52 +461,54 @@ export const dbDocumentsMockData: DbDocument[] = [
 // HELPER FUNCTIONS
 // ============================================================================
 
-export function getDocumentById(id: string): DbDocument | undefined {
+export function getDocumentById(id: string): Resource | undefined {
   return dbDocumentsMockData.find(doc => doc.id === id)
 }
 
-export function getDocumentsByCategory(category: string): DbDocument[] {
+export function getDocumentsByCategory(category: string): Resource[] {
   return dbDocumentsMockData.filter(doc => 
     doc.category.toLowerCase() === category.toLowerCase()
   )
 }
 
-export function getDocumentsByType(type: DbDocument['type']): DbDocument[] {
+export function getDocumentsByType(type: Resource['type']): Resource[] {
   return dbDocumentsMockData.filter(doc => doc.type === type)
 }
 
-export function getFreeDocuments(): DbDocument[] {
+export function getFreeDocuments(): Resource[] {
   return dbDocumentsMockData.filter(doc => !doc.isPremium)
 }
 
-export function getPaidDocuments(): DbDocument[] {
+export function getPaidDocuments(): Resource[] {
   return dbDocumentsMockData.filter(doc => doc.isPremium)
 }
 
-export function getDocumentsByDifficulty(difficulty: DbDocument['difficulty']): DbDocument[] {
+export function getDocumentsByDifficulty(difficulty: Resource['difficulty']): Resource[] {
   return dbDocumentsMockData.filter(doc => doc.difficulty === difficulty)
 }
 
-export function getDocumentsByInstructor(instructorPubkey: string): DbDocument[] {
+export function getDocumentsByInstructor(instructorPubkey: string): Resource[] {
   return dbDocumentsMockData.filter(doc => doc.instructorPubkey === instructorPubkey)
 }
 
-export function searchDocuments(query: string): DbDocument[] {
+export function searchDocuments(query: string): Resource[] {
   const searchTerm = query.toLowerCase()
   return dbDocumentsMockData.filter(doc =>
     doc.title.toLowerCase().includes(searchTerm) ||
     doc.description.toLowerCase().includes(searchTerm) ||
-    doc.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+    doc.tags.some((tag: string) => tag.toLowerCase().includes(searchTerm))
   )
 }
 
-export function getDocumentStatistics(documents: DbDocument[]) {
+export function getDocumentStatistics(documents: Resource[]) {
   const totalDocuments = documents.length
   const totalViews = documents.reduce((sum, doc) => sum + doc.viewCount, 0)
   const averageRating = documents.reduce((sum, doc) => sum + doc.rating, 0) / totalDocuments
 
   const typeCounts = documents.reduce((acc, doc) => {
-    acc[doc.type] = (acc[doc.type] || 0) + 1
+    if (doc.type) {
+      acc[doc.type] = (acc[doc.type] || 0) + 1
+    }
     return acc
   }, {} as Record<string, number>)
 
@@ -524,31 +537,35 @@ export function getDocumentStatistics(documents: DbDocument[]) {
   }
 }
 
-export function getPopularDocuments(limit: number = 10): DbDocument[] {
+export function getPopularDocuments(limit: number = 10): Resource[] {
   return dbDocumentsMockData
     .sort((a, b) => b.viewCount - a.viewCount)
     .slice(0, limit)
 }
 
-export function getRecentDocuments(limit: number = 10): DbDocument[] {
+export function getRecentDocuments(limit: number = 10): Resource[] {
   return dbDocumentsMockData
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .sort((a, b) => {
+      const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0
+      const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0
+      return bDate - aDate
+    })
     .slice(0, limit)
 }
 
-export function getTopRatedDocuments(limit: number = 10): DbDocument[] {
+export function getTopRatedDocuments(limit: number = 10): Resource[] {
   return dbDocumentsMockData
     .sort((a, b) => b.rating - a.rating)
     .slice(0, limit)
 }
 
-export function getDocumentsByTag(tag: string): DbDocument[] {
+export function getDocumentsByTag(tag: string): Resource[] {
   return dbDocumentsMockData.filter(doc => 
-    doc.tags.some(docTag => docTag.toLowerCase() === tag.toLowerCase())
+    doc.tags.some((docTag: string) => docTag.toLowerCase() === tag.toLowerCase())
   )
 }
 
-export function getRelatedDocuments(documentId: string, limit: number = 5): DbDocument[] {
+export function getRelatedDocuments(documentId: string, limit: number = 5): Resource[] {
   const document = getDocumentById(documentId)
   if (!document) return []
 
@@ -556,7 +573,7 @@ export function getRelatedDocuments(documentId: string, limit: number = 5): DbDo
     .filter(doc => 
       doc.id !== documentId && 
       (doc.category === document.category ||
-       doc.tags.some(tag => document.tags.includes(tag)))
+       doc.tags.some((tag: string) => document.tags.includes(tag)))
     )
     .sort((a, b) => b.rating - a.rating)
     .slice(0, limit)

@@ -246,9 +246,9 @@ export const enrollInCourse = createAction(
 
     // Business logic validation
     const { CourseRepository } = await import('./repositories')
-    const courseId = parseInt(sanitizedData.courseId)
+    const courseId = sanitizedData.courseId
     
-    if (isNaN(courseId)) {
+    if (!courseId) {
       throw new ActionError('Invalid course ID format')
     }
 
@@ -313,9 +313,9 @@ export const subscribeToNewsletter = createAction(
 export const rateCourse = createAction(
   RatingSchema,
   async (data, context) => {
-    const courseId = parseInt(data.courseId)
+    const courseId = data.courseId
     
-    if (isNaN(courseId)) {
+    if (!courseId) {
       throw new ActionError('Invalid course ID format')
     }
 
@@ -378,10 +378,10 @@ export const searchCourses = createAction(
 
     // Use the repository for search
     const { CourseRepository } = await import('./repositories')
-    const results = await CourseRepository.search(
-      sanitizedQuery,
-      data.category ? { category: data.category } : {}
-    )
+    const results = await CourseRepository.findAll({
+      search: sanitizedQuery,
+      category: data.category
+    })
 
     return {
       results,
@@ -417,10 +417,19 @@ export const createCourse = createAction(
     
     const course = await CourseRepository.create({
       title: sanitizeString(data.title),
+      userId: context.user?.id || 'anonymous',
+      price: 0,
+      submissionRequired: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       description: sanitizeString(data.description),
       category: data.category,
       instructor: sanitizeString(data.instructor),
-      duration: data.duration ?? '0h 0m',
+      instructorPubkey: 'npub1defaultinstructor',
+      rating: 0,
+      enrollmentCount: 0,
+      isPremium: false,
+      published: true,
       image: data.image ?? ''
     })
 
@@ -440,7 +449,7 @@ export const createCourse = createAction(
 
 export const updateCourse = createAction(
   z.object({
-    id: z.string().transform(val => parseInt(val)),
+    id: z.string(),
     title: z.string().min(1).max(200).optional(),
     description: z.string().min(1).max(2000).optional(),
     category: z.string().min(1).optional(),
@@ -471,7 +480,7 @@ export const updateCourse = createAction(
 
 export const deleteCourse = createAction(
   z.object({
-    id: z.string().transform(val => parseInt(val))
+    id: z.string()
   }),
   async (data, context) => {
     const { CourseRepository } = await import('./repositories')

@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
-import { getCachedCourseById } from '@/lib/data'
+import { getCachedCourseById, getCachedCourseWithLessons } from '@/lib/data'
 import { CourseEnrollmentForm } from '@/components/forms/course-enrollment-form'
 import { Star, Clock, Users, BookOpen, Play } from 'lucide-react'
 import type { Metadata } from 'next'
@@ -22,7 +22,7 @@ interface CoursePageProps {
  */
 export async function generateMetadata({ params }: CoursePageProps): Promise<Metadata> {
   const { id } = await params
-  const course = await getCachedCourseById(parseInt(id))
+  const course = await getCachedCourseById(id)
 
   if (!course) {
     return {
@@ -41,7 +41,7 @@ export async function generateMetadata({ params }: CoursePageProps): Promise<Met
       type: 'article',
       images: [
         {
-          url: course.image,
+          url: course.image || '/placeholder.svg',
           width: 800,
           height: 600,
           alt: course.title,
@@ -52,7 +52,7 @@ export async function generateMetadata({ params }: CoursePageProps): Promise<Met
       card: 'summary_large_image',
       title: course.title,
       description: course.description,
-      images: [course.image],
+      images: [course.image || '/placeholder.svg'],
     },
   }
 }
@@ -78,27 +78,32 @@ function LessonsSkeleton() {
 /**
  * Course lessons component
  */
-async function CourseLessons({ courseId }: { courseId: number }) {
-  const course = await getCachedCourseById(courseId)
+async function CourseLessons({ courseId }: { courseId: string }) {
+  const courseWithLessons = await getCachedCourseWithLessons(courseId)
 
-  if (!course || !course.lessons) {
+  if (!courseWithLessons || !courseWithLessons.lessons) {
     return <div>No lessons available</div>
   }
 
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Course Lessons</h2>
-      {course.lessons.map((lesson, index) => (
+      {courseWithLessons.lessons.map((lesson, index) => (
         <Card key={lesson.id}>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-lg">
-                  {index + 1}. {lesson.title}
+                  {index + 1}. {lesson.title || 'Untitled Lesson'}
                 </CardTitle>
                 <CardDescription className="flex items-center space-x-2">
                   <Clock className="h-4 w-4" />
-                  <span>{lesson.duration}</span>
+                  <span>{lesson.duration || '30 min'}</span>
+                  {lesson.isPremium && (
+                    <Badge variant="secondary" className="ml-2">
+                      Premium
+                    </Badge>
+                  )}
                 </CardDescription>
               </div>
               <Button variant="outline" size="sm">
@@ -118,17 +123,36 @@ async function CourseLessons({ courseId }: { courseId: number }) {
  */
 export default async function CoursePage({ params }: CoursePageProps) {
   const { id } = await params
-  const courseId = parseInt(id)
   
-  if (isNaN(courseId)) {
-    notFound()
-  }
-
-  const course = await getCachedCourseById(courseId)
+  const course = await getCachedCourseById(id)
 
   if (!course) {
     notFound()
   }
+
+  // Calculate total duration from lessons
+  const courseWithLessons = await getCachedCourseWithLessons(id)
+  const totalDuration = courseWithLessons?.lessons?.reduce((total, lesson) => {
+    if (!lesson.duration) return total
+    
+    const match = lesson.duration.match(/(\d+):(\d+)/)
+    if (match) {
+      const hours = parseInt(match[1], 10)
+      const minutes = parseInt(match[2], 10)
+      return total + hours * 60 + minutes
+    }
+    return total
+  }, 0) || 0
+
+  const formatDuration = (minutes: number): string => {
+    if (minutes < 60) return `${minutes} min`
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    if (mins === 0) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
+    return `${hours}h ${mins}m`
+  }
+
+  const lessonCount = courseWithLessons?.lessons?.length || 0
 
   return (
     <MainLayout>
@@ -138,7 +162,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
             <div className="space-y-6">
               <div className="space-y-2">
-                <Badge variant="secondary">{course.category}</Badge>
+                <Badge variant="secondary" className="capitalize">{course.category}</Badge>
                 <h1 className="text-4xl font-bold">{course.title}</h1>
                 <p className="text-lg text-muted-foreground">
                   {course.description}
@@ -169,7 +193,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                 
                 <div className="flex items-center space-x-2">
                   <Clock className="h-5 w-5 text-muted-foreground" />
-                  <span>{course.duration}</span>
+                  <span>{formatDuration(totalDuration)}</span>
                 </div>
               </div>
 
@@ -179,20 +203,30 @@ export default async function CoursePage({ params }: CoursePageProps) {
                   Start Learning
                 </Button>
                 <CourseEnrollmentForm 
-                  courseId={course.id.toString()} 
+                  courseId={course.id} 
                   courseTitle={course.title}
                 />
               </div>
             </div>
 
             <div className="relative">
-              <div className="aspect-video rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center">
-                <div className="text-center">
-                  <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20">
-                    <BookOpen className="h-10 w-10 text-primary" />
+              <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20">
+                {course.image ? (
+                  <img 
+                    src={course.image} 
+                    alt={course.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20">
+                        <BookOpen className="h-10 w-10 text-primary" />
+                      </div>
+                      <p className="text-muted-foreground">Course Preview</p>
+                    </div>
                   </div>
-                  <p className="text-muted-foreground">Course Preview</p>
-                </div>
+                )}
               </div>
             </div>
           </div>
@@ -201,7 +235,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <Suspense fallback={<LessonsSkeleton />}>
-                <CourseLessons courseId={courseId} />
+                <CourseLessons courseId={id} />
               </Suspense>
             </div>
 
@@ -217,15 +251,21 @@ export default async function CoursePage({ params }: CoursePageProps) {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Duration</h4>
-                    <p className="text-sm text-muted-foreground">{course.duration}</p>
+                    <p className="text-sm text-muted-foreground">{formatDuration(totalDuration)}</p>
                   </div>
                   <div>
-                    <h4 className="font-semibold mb-2">Skill Level</h4>
+                    <h4 className="font-semibold mb-2">Category</h4>
                     <p className="text-sm text-muted-foreground capitalize">{course.category}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Lessons</h4>
-                    <p className="text-sm text-muted-foreground">{course.lessons?.length || 0} lessons</p>
+                    <p className="text-sm text-muted-foreground">{lessonCount} lessons</p>
+                  </div>
+                  <div>
+                    <h4 className="font-semibold mb-2">Price</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {course.isPremium ? `${course.price} ${course.currency || 'sats'}` : 'Free'}
+                    </p>
                   </div>
                 </CardContent>
               </Card>

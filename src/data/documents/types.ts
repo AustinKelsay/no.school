@@ -3,31 +3,16 @@
  * All TypeScript interfaces related to documents
  */
 
+import { Resource } from '../types'
+
 // ============================================================================
-// DATABASE DOCUMENT MODELS
+// DATABASE DOCUMENT MODELS (using DbResource as base)
 // ============================================================================
 
-export interface DbDocument {
-  id: string                    // Unique document ID (e.g., "doc-1")
-  title: string                 // Document title
-  description: string           // Document description
-  category: string              // Document category
+export interface DbDocument extends Resource {
   type: 'guide' | 'cheatsheet' | 'reference' | 'tutorial' | 'documentation'
-  instructor: string            // Author name
-  instructorPubkey: string      // Author's Nostr pubkey
-  rating: number                // Document rating (0-5)
-  viewCount: number             // Number of views
-  isPremium: boolean            // Whether document is paid
-  price?: number                // Document price in sats
-  currency?: string             // Currency (default: 'sats')
-  image?: string                // Document image URL
-  tags: string[]                // Document tags
-  difficulty: 'beginner' | 'intermediate' | 'advanced'
-  documentEventId: string       // NIP-23/99 event ID
-  documentNaddr: string         // NIP-19 naddr for document
-  published: boolean            // Whether document is published
-  createdAt: string             // Creation timestamp
-  updatedAt: string             // Update timestamp
+  documentEventId: string       // NIP-23/99 event ID (alias for resourceEventId)
+  documentNaddr: string         // NIP-19 naddr for document (alias for resourceNaddr)
 }
 
 // ============================================================================
@@ -72,8 +57,8 @@ export interface DocumentStats {
 
 export interface DocumentFilters {
   category?: string
-  type?: DbDocument['type']
-  difficulty?: DbDocument['difficulty']
+  type?: 'guide' | 'cheatsheet' | 'reference' | 'tutorial' | 'documentation'
+  difficulty?: 'beginner' | 'intermediate' | 'advanced'
   isPremium?: boolean
   instructor?: string
   tags?: string[]
@@ -95,8 +80,8 @@ export interface CreateDocumentData {
   title: string
   description: string
   category: string
-  type: DbDocument['type']
-  difficulty: DbDocument['difficulty']
+  type: 'guide' | 'cheatsheet' | 'reference' | 'tutorial' | 'documentation'
+  difficulty: 'beginner' | 'intermediate' | 'advanced'
   tags: string[]
   isPremium?: boolean
   price?: number

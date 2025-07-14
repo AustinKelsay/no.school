@@ -55,17 +55,22 @@ export async function POST(request: NextRequest) {
 
     // In a real app, you'd save to database
     const newCourse: Course = {
-      id: 0, // This will be set by the repository
+      id: `course-${Date.now()}`, // Generate a simple ID for now
+      userId: 'user-admin', // Default user ID
+      price: 0,
+      submissionRequired: false,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       title,
       description,
       category,
-      duration: body.duration || "TBD",
       instructor: body.instructor || "Unknown",
+      instructorPubkey: 'npub1defaultinstructor1234567890abcdef1234567890abcdef1234567890',
       rating: 0,
-      image: body.image || "/api/placeholder/default-course.jpg",
       enrollmentCount: 0,
-      createdAt: new Date().toISOString().split('T')[0],
-      lessons: []
+      isPremium: false,
+      image: body.image || "/api/placeholder/default-course.jpg",
+      published: true
     };
 
     const createdCourse = await CourseRepository.create(newCourse);

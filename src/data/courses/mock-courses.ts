@@ -1,344 +1,316 @@
 /**
  * Course domain mock data
- * Contains all course-related data structures and samples
+ * Contains all course-related data structures matching the database schema
+ * Based on content_data_models.md Course model
  */
 
-import type { Course, DbCourse, DbLesson, CourseWithLessons } from '../types'
+import type { Course, Lesson, CourseWithLessons } from '../types'
+
+// Mock user IDs for the database relations
+export const mockUserIds = {
+  alexJohnson: 'user_7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e',
+  mariaSantos: 'user_3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+  davidWilson: 'user_67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa',
+  sarahLee: 'user_82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
+  mikeTaylor: 'user_91451f9928b7fecde3ca8g2f01bed062cf175bg26c0g55b10a0a3e9d3c9gbh7b3'
+}
+
+// Mock instructor pubkeys (from nostr-events.ts)
+export const mockInstructorPubkeys = {
+  alexJohnson: '7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e',
+  mariaSantos: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+  davidWilson: '67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa',
+  sarahLee: '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
+  mikeTaylor: '91451f9928b7fecde3ca8g2f01bed062cf175bg26c0g55b10a0a3e9d3c9gbh7b3'
+}
 
 // ============================================================================
-// DATABASE-STYLE COURSE DATA (Primary Data Source)
+// DATABASE COURSE DATA (Primary Data Source)
 // ============================================================================
 
-export const dbCoursesMockData: DbCourse[] = [
+export const coursesMockData: Course[] = [
   {
-    id: 'course-1',
+    // Database fields (from Prisma schema)
+    id: 'course-bitcoin-lightning-dev',
+    userId: mockUserIds.alexJohnson,
+    price: 0, // Free course
+    noteId: 'course-bitcoin-lightning-dev-note',
+    submissionRequired: false,
+    createdAt: '2024-01-15T10:00:00Z',
+    updatedAt: '2024-01-20T15:30:00Z',
+    
+    // UI fields (not in database but needed for display)
     title: 'Bitcoin & Lightning Protocol Development',
     description: 'Deep dive into Bitcoin protocol development and Lightning Network implementation. Learn how to build on the most secure blockchain network.',
     category: 'bitcoin',
     instructor: 'Alex Johnson',
-    instructorPubkey: 'npub1alexjohnson1234567890abcdef1234567890abcdef1234567890abcdef12',
+    instructorPubkey: mockInstructorPubkeys.alexJohnson,
     rating: 4.8,
     enrollmentCount: 256,
     isPremium: false,
+    currency: 'sats',
     image: '/images/courses/bitcoin-dev.jpg',
-    courseListEventId: 'course-list-event-1',
-    courseListNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-15',
-    updatedAt: '2024-01-20'
+    published: true
   },
   {
-    id: 'course-2',
-    title: 'Lightning Network Integration',
-    description: 'Build Lightning Network applications from scratch. Learn to integrate Lightning payments into web and mobile applications.',
-    category: 'lightning',
+    // Database fields (from Prisma schema)
+    id: 'course-nostr-protocol-dev',
+    userId: mockUserIds.mariaSantos,
+    price: 0, // Free course
+    noteId: 'course-nostr-protocol-dev-note',
+    submissionRequired: false,
+    createdAt: '2024-01-11T09:00:00Z',
+    updatedAt: '2024-01-18T14:00:00Z',
+    
+    // UI fields (not in database but needed for display)
+    title: 'Nostr Protocol Development',
+    description: 'Build decentralized applications on the Nostr protocol. Learn about relays, clients, and the core concepts of censorship-resistant communication.',
+    category: 'nostr',
     instructor: 'Maria Santos',
-    instructorPubkey: 'npub1mariasantos1234567890abcdef1234567890abcdef1234567890abcdef12',
+    instructorPubkey: mockInstructorPubkeys.mariaSantos,
     rating: 4.7,
     enrollmentCount: 189,
+    isPremium: false,
+    currency: 'sats',
+    image: '/images/courses/nostr-dev.jpg',
+    published: true
+  },
+  {
+    // Database fields (from Prisma schema)
+    id: 'course-frontend-bitcoin-apps',
+    userId: mockUserIds.davidWilson,
+    price: 18000, // Paid course
+    noteId: 'course-frontend-bitcoin-apps-note',
+    submissionRequired: true,
+    createdAt: '2024-01-08T11:00:00Z',
+    updatedAt: '2024-01-15T16:00:00Z',
+    
+    // UI fields (not in database but needed for display)
+    title: 'Frontend Development for Bitcoin Apps',
+    description: 'Build modern React applications that integrate with Bitcoin and Lightning Network. Learn to create beautiful, functional Bitcoin apps.',
+    category: 'frontend',
+    instructor: 'David Wilson',
+    instructorPubkey: mockInstructorPubkeys.davidWilson,
+    rating: 4.9,
+    enrollmentCount: 134,
+    isPremium: true,
+    currency: 'sats',
+    image: '/images/courses/frontend-bitcoin.jpg',
+    published: true
+  },
+  {
+    // Database fields (from Prisma schema)
+    id: 'course-lightning-api-integration',
+    userId: mockUserIds.sarahLee,
+    price: 22000, // Paid course
+    noteId: 'course-lightning-api-integration-note',
+    submissionRequired: true,
+    createdAt: '2024-01-05T13:00:00Z',
+    updatedAt: '2024-01-12T10:00:00Z',
+    
+    // UI fields (not in database but needed for display)
+    title: 'Lightning Network API Integration',
+    description: 'Master Lightning Network APIs and build payment processing systems. Learn to integrate Lightning payments into your applications.',
+    category: 'lightning',
+    instructor: 'Sarah Lee',
+    instructorPubkey: mockInstructorPubkeys.sarahLee,
+    rating: 4.6,
+    enrollmentCount: 98,
+    isPremium: true,
+    currency: 'sats',
+    image: '/images/courses/lightning-api.jpg',
+    published: true
+  },
+  {
+    // Database fields (from Prisma schema)
+    id: 'course-web3-security-practices',
+    userId: mockUserIds.mikeTaylor,
+    price: 28000, // Paid course
+    noteId: 'course-web3-security-practices-note',
+    submissionRequired: true,
+    createdAt: '2024-01-02T14:00:00Z',
+    updatedAt: '2024-01-09T12:00:00Z',
+    
+    // UI fields (not in database but needed for display)
+    title: 'Web3 Security Best Practices',
+    description: 'Learn essential security practices for Bitcoin and Lightning applications. Understand common vulnerabilities and how to prevent them.',
+    category: 'security',
+    instructor: 'Mike Taylor',
+    instructorPubkey: mockInstructorPubkeys.mikeTaylor,
+    rating: 4.8,
+    enrollmentCount: 76,
+    isPremium: true,
+    currency: 'sats',
+    image: '/images/courses/web3-security.jpg',
+    published: true
+  }
+]
+
+// ============================================================================
+// LESSON DATA (connecting courses to resources)
+// ============================================================================
+
+export const lessonsMockData: Lesson[] = [
+  // Bitcoin & Lightning Protocol Development course lessons
+  {
+    id: 'lesson-bitcoin-fundamentals',
+    courseId: 'course-bitcoin-lightning-dev',
+    resourceId: 'resource-bitcoin-fundamentals',
+    index: 0,
+    createdAt: '2024-01-16T10:00:00Z',
+    updatedAt: '2024-01-16T10:00:00Z',
+    
+    // UI fields (derived from resource)
+    title: 'Bitcoin Fundamentals',
+    description: 'Learn the core concepts of Bitcoin including blockchain, proof of work, and the UTXO model.',
+    duration: '45:00',
+    isPremium: false,
+    price: 0,
+    currency: 'sats',
+    published: true
+  },
+  {
+    id: 'lesson-lightning-basics',
+    courseId: 'course-bitcoin-lightning-dev',
+    resourceId: 'resource-lightning-basics',
+    index: 1,
+    createdAt: '2024-01-17T10:00:00Z',
+    updatedAt: '2024-01-17T10:00:00Z',
+    
+    // UI fields (derived from resource)
+    title: 'Lightning Network Basics',
+    description: 'Understanding Lightning Network fundamentals, payment channels, and routing.',
+    duration: '52:00',
+    isPremium: false,
+    price: 0,
+    currency: 'sats',
+    published: true
+  },
+  {
+    id: 'lesson-advanced-bitcoin-dev',
+    courseId: 'course-bitcoin-lightning-dev',
+    resourceId: 'resource-advanced-bitcoin-dev',
+    index: 2,
+    createdAt: '2024-01-20T10:00:00Z',
+    updatedAt: '2024-01-20T10:00:00Z',
+    
+    // UI fields (derived from resource)
+    title: 'Advanced Bitcoin Development',
+    description: 'Professional-level Bitcoin development including custom scripts, multisig, and Lightning integration.',
+    duration: '90:00',
     isPremium: true,
     price: 25000,
     currency: 'sats',
-    image: '/images/courses/lightning-integration.jpg',
-    courseListEventId: 'course-list-event-2',
-    courseListNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-10',
-    updatedAt: '2024-01-18'
+    published: true
   },
+  
+  // Nostr Protocol Development course lessons
   {
-    id: 'course-3',
-    title: 'Nostr Protocol & Social Networks',
-    description: 'Build decentralized social applications using the Nostr protocol. Create censorship-resistant apps that put users in control.',
-    category: 'nostr',
-    instructor: 'David Kim',
-    instructorPubkey: 'npub1davidkim1234567890abcdef1234567890abcdef1234567890abcdef1234',
-    rating: 4.9,
-    enrollmentCount: 324,
+    id: 'lesson-nostr-fundamentals',
+    courseId: 'course-nostr-protocol-dev',
+    resourceId: 'resource-nostr-fundamentals',
+    index: 0,
+    createdAt: '2024-01-18T10:00:00Z',
+    updatedAt: '2024-01-18T10:00:00Z',
+    
+    // UI fields (derived from resource)
+    title: 'Nostr Protocol Fundamentals',
+    description: 'Complete guide to understanding and implementing the Nostr protocol.',
+    duration: '38:00',
     isPremium: false,
-    image: '/images/courses/nostr-dev.jpg',
-    courseListEventId: 'course-list-event-3',
-    courseListNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-08',
-    updatedAt: '2024-01-22'
+    price: 0,
+    currency: 'sats',
+    published: true
   },
   {
-    id: 'course-4',
-    title: 'React & TypeScript Mastery',
-    description: 'Master modern React development with TypeScript. Build scalable web applications with the latest React patterns and best practices.',
-    category: 'frontend',
-    instructor: 'Sarah Chen',
-    instructorPubkey: 'npub1sarahchen1234567890abcdef1234567890abcdef1234567890abcdef123',
-    rating: 4.6,
-    enrollmentCount: 412,
-    isPremium: true,
-    price: 15000,
+    id: 'lesson-relay-development',
+    courseId: 'course-nostr-protocol-dev',
+    resourceId: 'resource-relay-development',
+    index: 1,
+    createdAt: '2024-01-19T10:00:00Z',
+    updatedAt: '2024-01-19T10:00:00Z',
+    
+    // UI fields (derived from resource)
+    title: 'Relay Development',
+    description: 'Learn to build and deploy Nostr relays with proper event handling and filtering.',
+    duration: '67:00',
+    isPremium: false,
+    price: 0,
     currency: 'sats',
-    image: '/images/courses/react-typescript.jpg',
-    courseListEventId: 'course-list-event-4',
-    courseListNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-05',
-    updatedAt: '2024-01-19'
+    published: true
   },
   {
-    id: 'course-5',
-    title: 'Mobile Bitcoin Wallets',
-    description: 'Build secure Bitcoin wallets for iOS and Android. Learn mobile security best practices and Bitcoin key management.',
-    category: 'mobile',
-    instructor: 'Jake Wilson',
-    instructorPubkey: 'npub1jakewilson1234567890abcdef1234567890abcdef1234567890abcdef12',
-    rating: 4.5,
-    enrollmentCount: 178,
+    id: 'lesson-advanced-nostr-patterns',
+    courseId: 'course-nostr-protocol-dev',
+    resourceId: 'resource-advanced-nostr-patterns',
+    index: 2,
+    createdAt: '2024-01-21T10:00:00Z',
+    updatedAt: '2024-01-21T10:00:00Z',
+    
+    // UI fields (derived from resource)
+    title: 'Advanced Nostr Patterns',
+    description: 'Advanced patterns for building scalable and secure Nostr applications.',
+    duration: '85:00',
     isPremium: true,
-    price: 30000,
+    price: 18000,
     currency: 'sats',
-    image: '/images/courses/mobile-wallets.jpg',
-    courseListEventId: 'course-list-event-5',
-    courseListNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-12',
-    updatedAt: '2024-01-21'
+    published: true
   }
 ]
 
 // ============================================================================
-// DATABASE-STYLE LESSON DATA
+// COMBINED COURSE DATA (for UI convenience)
 // ============================================================================
 
-export const dbLessonsMockData: DbLesson[] = [
-  // Course 1 lessons (Bitcoin & Lightning Protocol Development)
-  {
-    id: 'lesson-1-1',
-    title: 'Bitcoin Protocol Fundamentals',
-    description: 'Understanding the core concepts of Bitcoin: blocks, transactions, and consensus.',
-    courseId: 'course-1',
-    duration: '45 min',
-    isPremium: false,
-    lessonEventId: 'lesson-event-1-1',
-    lessonNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-15',
-    updatedAt: '2024-01-16',
-    order: 1
-  },
-  {
-    id: 'lesson-1-2',
-    title: 'Transaction Scripts & OpCodes',
-    description: 'Deep dive into Bitcoin scripting language and transaction validation.',
-    courseId: 'course-1',
-    duration: '50 min',
-    isPremium: false,
-    lessonEventId: 'lesson-event-1-2',
-    lessonNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-16',
-    updatedAt: '2024-01-17',
-    order: 2
-  },
-  {
-    id: 'lesson-1-3',
-    title: 'Lightning Network Basics',
-    description: 'Introduction to payment channels and the Lightning Network architecture.',
-    courseId: 'course-1',
-    duration: '40 min',
-    isPremium: false,
-    lessonEventId: 'lesson-event-1-3',
-    lessonNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-17',
-    updatedAt: '2024-01-18',
-    order: 3
-  },
-
-  // Course 2 lessons (Lightning Network Integration)
-  {
-    id: 'lesson-2-1',
-    title: 'Setting Up Lightning Development Environment',
-    description: 'Configure your development environment for Lightning Network applications.',
-    courseId: 'course-2',
-    duration: '30 min',
-    isPremium: true,
-    price: 5000,
-    currency: 'sats',
-    lessonEventId: 'lesson-event-2-1',
-    lessonNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-10',
-    updatedAt: '2024-01-11',
-    order: 1
-  },
-  {
-    id: 'lesson-2-2',
-    title: 'Lightning Payment Flow',
-    description: 'Understand how Lightning payments work and implement basic payment flows.',
-    courseId: 'course-2',
-    duration: '55 min',
-    isPremium: true,
-    price: 8000,
-    currency: 'sats',
-    lessonEventId: 'lesson-event-2-2',
-    lessonNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-11',
-    updatedAt: '2024-01-12',
-    order: 2
-  },
-
-  // Course 3 lessons (Nostr Protocol & Social Networks)
-  {
-    id: 'lesson-3-1',
-    title: 'Nostr Protocol Overview',
-    description: 'Learn the fundamentals of the Nostr protocol and its architecture.',
-    courseId: 'course-3',
-    duration: '35 min',
-    isPremium: false,
-    lessonEventId: 'lesson-event-3-1',
-    lessonNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-08',
-    updatedAt: '2024-01-09',
-    order: 1
-  },
-  {
-    id: 'lesson-3-2',
-    title: 'Building Your First Nostr Client',
-    description: 'Create a simple Nostr client application with basic functionality.',
-    courseId: 'course-3',
-    duration: '60 min',
-    isPremium: false,
-    lessonEventId: 'lesson-event-3-2',
-    lessonNaddr: 'naddr1qqxnzd3cxqmr2wphxucrzd3exgunqvphx5cnwwp5kyfnqv3kxvenqd3hxgezyq5j9qg5j9qg5j9qg5j9q',
-    published: true,
-    createdAt: '2024-01-09',
-    updatedAt: '2024-01-10',
-    order: 2
-  }
-]
-
-// ============================================================================
-// LEGACY COURSE FORMAT (for backward compatibility)
-// ============================================================================
-
-export const coursesDatabase: Course[] = dbCoursesMockData.map((dbCourse, index) => {
-  const courseLessons = dbLessonsMockData
-    .filter(lesson => lesson.courseId === dbCourse.id)
-    .map((lesson, lessonIndex) => ({
-      id: lessonIndex + 1,
-      title: lesson.title,
-      duration: lesson.duration,
-      completed: false
+export const coursesWithLessons: CourseWithLessons[] = coursesMockData.map(course => ({
+  course,
+  lessons: lessonsMockData
+    .filter(lesson => lesson.courseId === course.id)
+    .map(lesson => ({
+      ...lesson,
+      // Resource will be populated by the application layer
+      resource: undefined
     }))
-
-  return {
-    id: index + 1,
-    title: dbCourse.title,
-    description: dbCourse.description,
-    category: dbCourse.category.charAt(0).toUpperCase() + dbCourse.category.slice(1),
-    duration: calculateTotalDuration(courseLessons.map(l => l.duration)),
-    instructor: dbCourse.instructor,
-    rating: dbCourse.rating,
-    image: dbCourse.image || "/placeholder.svg",
-    lessons: courseLessons,
-    enrollmentCount: dbCourse.enrollmentCount,
-    createdAt: dbCourse.createdAt
-  }
-})
-
-// ============================================================================
-// COMBINED COURSES WITH LESSONS
-// ============================================================================
-
-export const coursesWithLessons: CourseWithLessons[] = dbCoursesMockData.map(course => ({
-  ...course,
-  lessons: dbLessonsMockData.filter(lesson => lesson.courseId === course.id)
 }))
 
 // ============================================================================
 // UTILITY FUNCTIONS
 // ============================================================================
 
-function calculateTotalDuration(durations: string[]): string {
-  let totalMinutes = 0
-
-  durations.forEach(duration => {
-    const match = duration.match(/(\d+)\s*(min|minutes|hour|hours|h)/)
-    if (match) {
-      const value = parseInt(match[1], 10)
-      const unit = match[2]
-      
-      if (unit.startsWith('h')) {
-        totalMinutes += value * 60
-      } else {
-        totalMinutes += value
-      }
-    }
-  })
-
-  if (totalMinutes < 60) {
-    return `${totalMinutes} min`
-  }
-
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-
-  if (minutes === 0) {
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
-  }
-
-  return `${hours}h ${minutes}m`
+export function getCourseById(id: string): Course | undefined {
+  return coursesMockData.find(course => course.id === id)
 }
 
-// ============================================================================
-// HELPER FUNCTIONS FOR DATA ACCESS
-// ============================================================================
-
-export function getCourseById(id: string): DbCourse | undefined {
-  return dbCoursesMockData.find(course => course.id === id)
+export function getCoursesByCategory(category: string): Course[] {
+  return coursesMockData.filter(course => course.category === category)
 }
 
-export function getLessonsByCourseId(courseId: string): DbLesson[] {
-  return dbLessonsMockData.filter(lesson => lesson.courseId === courseId)
+export function getFreeCourses(): Course[] {
+  return coursesMockData.filter(course => course.price === 0)
 }
 
-export function getCoursesByCategory(category: string): DbCourse[] {
-  return dbCoursesMockData.filter(course => 
-    course.category.toLowerCase() === category.toLowerCase()
-  )
+export function getPaidCourses(): Course[] {
+  return coursesMockData.filter(course => course.price > 0)
 }
 
-export function getFreeCourses(): DbCourse[] {
-  return dbCoursesMockData.filter(course => !course.isPremium)
+export function getLessonsByCourseId(courseId: string): Lesson[] {
+  return lessonsMockData.filter(lesson => lesson.courseId === courseId)
 }
 
-export function getPaidCourses(): DbCourse[] {
-  return dbCoursesMockData.filter(course => course.isPremium)
+export function getLessonById(id: string): Lesson | undefined {
+  return lessonsMockData.find(lesson => lesson.id === id)
 }
 
-export function getFreeLessons(): DbLesson[] {
-  return dbLessonsMockData.filter(lesson => !lesson.isPremium)
-}
-
-export function getPaidLessons(): DbLesson[] {
-  return dbLessonsMockData.filter(lesson => lesson.isPremium)
-}
-
-export function getCourseStatistics(courses: DbCourse[]) {
-  const totalEnrollments = courses.reduce((sum, course) => sum + course.enrollmentCount, 0)
-  const averageRating = courses.reduce((sum, course) => sum + course.rating, 0) / courses.length
+export function getCourseWithLessons(courseId: string): CourseWithLessons | undefined {
+  const course = getCourseById(courseId)
+  if (!course) return undefined
   
-  const categoryCounts = courses.reduce((acc, course) => {
-    acc[course.category] = (acc[course.category] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-
+  const lessons = getLessonsByCourseId(courseId)
   return {
-    totalCourses: courses.length,
-    totalEnrollments,
-    averageRating: Math.round(averageRating * 10) / 10,
-    categoryCounts,
-    premiumCourses: courses.filter(c => c.isPremium).length,
-    freeCourses: courses.filter(c => !c.isPremium).length
+    course,
+    lessons: lessons.map(lesson => ({
+      ...lesson,
+      resource: undefined // Will be populated by application layer
+    }))
   }
 }

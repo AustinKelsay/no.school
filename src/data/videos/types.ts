@@ -3,32 +3,19 @@
  * All TypeScript interfaces related to videos
  */
 
+import { Resource } from '../types'
+
 // ============================================================================
-// DATABASE VIDEO MODELS
+// DATABASE VIDEO MODELS (using DbResource as base)
 // ============================================================================
 
-export interface DbVideo {
-  id: string                    // Unique video ID (e.g., "video-1")
-  title: string                 // Video title
-  description: string           // Video description
-  category: string              // Video category
-  instructor: string            // Instructor name
-  instructorPubkey: string      // Instructor's Nostr pubkey
+export interface DbVideo extends Resource {
+  type: 'video'
   duration: string              // Video duration (e.g., "25:30")
-  rating: number                // Video rating (0-5)
-  viewCount: number             // Number of views
-  isPremium: boolean            // Whether video is paid
-  price?: number                // Video price in sats
-  currency?: string             // Currency (default: 'sats')
   thumbnailUrl?: string         // Video thumbnail URL
   videoUrl?: string             // Video file URL
-  tags: string[]                // Video tags
-  difficulty: 'beginner' | 'intermediate' | 'advanced'
-  videoEventId: string          // NIP-23/99 event ID
-  videoNaddr: string            // NIP-19 naddr for video
-  published: boolean            // Whether video is published
-  createdAt: string             // Creation timestamp
-  updatedAt: string             // Update timestamp
+  videoEventId: string          // NIP-23/99 event ID (alias for resourceEventId)
+  videoNaddr: string            // NIP-19 naddr for video (alias for resourceNaddr)
 }
 
 // ============================================================================
@@ -87,7 +74,7 @@ export interface VideoStats {
 
 export interface VideoFilters {
   category?: string
-  difficulty?: DbVideo['difficulty']
+  difficulty?: 'beginner' | 'intermediate' | 'advanced'
   isPremium?: boolean
   instructor?: string
   tags?: string[]
@@ -111,7 +98,7 @@ export interface CreateVideoData {
   title: string
   description: string
   category: string
-  difficulty: DbVideo['difficulty']
+  difficulty: 'beginner' | 'intermediate' | 'advanced'
   duration: string
   tags: string[]
   isPremium?: boolean

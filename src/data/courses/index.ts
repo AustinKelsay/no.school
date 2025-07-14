@@ -8,16 +8,16 @@ export type * from './types'
 
 // Export mock data
 export {
-  dbCoursesMockData,
-  dbLessonsMockData,
-  coursesDatabase,
+  coursesMockData,
+  lessonsMockData,
   coursesWithLessons,
   getCourseById,
   getLessonsByCourseId,
   getCoursesByCategory,
   getFreeCourses,
   getPaidCourses,
-  getFreeLessons,
-  getPaidLessons,
-  getCourseStatistics
+  getLessonById,
+  getCourseWithLessons,
+  mockInstructorPubkeys,
+  mockUserIds
 } from './mock-courses'

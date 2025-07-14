@@ -28,6 +28,19 @@ model Resource {
     updatedAt    DateTime      @updatedAt
 }
 
+model Lesson {
+    id          String       @id @default(uuid())
+    courseId    String?
+    course      Course?      @relation(fields: [courseId], references: [id])
+    resourceId  String?
+    resource    Resource?    @relation(fields: [resourceId], references: [id])
+    draftId     String?
+    draft       Draft?       @relation(fields: [draftId], references: [id])
+    index       Int
+    createdAt   DateTime     @default(now())
+    updatedAt   DateTime     @updatedAt
+    userLessons UserLesson[]
+}
 
 export const parseCourseEvent = event => {
   // Initialize an object to store the extracted data
@@ -179,345 +192,6 @@ export const parseEvent = event => {
 
   return eventData;
 };
-
-
-import { useState, useEffect } from 'react';
-import { nip19 } from 'nostr-tools';
-import { parseCourseEvent } from '@/utils/nostr';
-import { useToast } from '@/hooks/useToast';
-
-/**
- * Hook to fetch and manage course data
- * @param {Object} ndk - NDK instance for Nostr data fetching
- * @param {Function} fetchAuthor - Function to fetch author data
- * @param {Object} router - Next.js router instance
- * @returns {Object} Course data and related state
- */
-const useCourseData = (ndk, fetchAuthor, router) => {
-  const [course, setCourse] = useState(null);
-  const [lessonIds, setLessonIds] = useState([]);
-  const [paidCourse, setPaidCourse] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const { showToast } = useToast();
-
-  useEffect(() => {
-    if (!router.isReady) return;
-
-    const { slug } = router.query;
-    let id;
-
-    const fetchCourseId = async () => {
-      // Normalise slug to a string and exit early if it’s still falsy
-      const slugStr = Array.isArray(slug) ? slug[0] : slug;
-      if (!slugStr) {
-        showToast('error', 'Error', 'Invalid course identifier');
-        return null;
-      }
-
-      if (slugStr.includes('naddr')) {
-        let data;
-        try {
-          ({ data } = nip19.decode(slugStr));
-        } catch (err) {
-          showToast('error', 'Error', 'Malformed naddr');
-          return null;
-        }
-
-        if (!data?.identifier) {
-          showToast('error', 'Error', 'Resource not found');
-          return null;
-        }
-        return data.identifier;
-      } else {
-        return slug;
-      }
-    };
-
-    const fetchCourse = async courseId => {
-      try {
-        await ndk.connect();
-        const event = await ndk.fetchEvent({ '#d': [courseId] });
-        if (!event) return null;
-
-        const author = await fetchAuthor(event.pubkey);
-        const lessonIds = event.tags.filter(tag => tag[0] === 'a').map(tag => tag[1].split(':')[2]);
-
-        const parsedCourse = { ...parseCourseEvent(event), author };
-        return { parsedCourse, lessonIds };
-      } catch (error) {
-        console.error('Error fetching event:', error);
-        return null;
-      }
-    };
-
-    const initializeCourse = async () => {
-      setLoading(true);
-      id = await fetchCourseId();
-      if (!id) {
-        setLoading(false);
-        return;
-      }
-
-      const courseData = await fetchCourse(id);
-      if (courseData) {
-        const { parsedCourse, lessonIds } = courseData;
-        setCourse(parsedCourse);
-        setLessonIds(lessonIds);
-        setPaidCourse(parsedCourse.price && parsedCourse.price > 0);
-      }
-      setLoading(false);
-    };
-
-    initializeCourse();
-  }, [router.isReady, router.query, ndk, fetchAuthor, showToast]);
-
-  return { course, lessonIds, paidCourse, loading };
-};
-
-export default useCourseData;
-
-
-import React, { useState, useCallback, useEffect } from 'react';
-import DocumentDetails from '@/components/content/documents/DocumentDetails';
-import VideoDetails from '@/components/content/videos/VideoDetails';
-import { parseEvent, findKind0Fields } from '@/utils/nostr';
-import { nip19 } from 'nostr-tools';
-import { useSession } from 'next-auth/react';
-import { useNDKContext } from '@/context/NDKContext';
-import { useDecryptContent } from '@/hooks/encryption/useDecryptContent';
-import { useToast } from '@/hooks/useToast';
-import { useRouter } from 'next/router';
-import { ProgressSpinner } from 'primereact/progressspinner';
-import axios from 'axios';
-import ZapThreadsWrapper from '@/components/ZapThreadsWrapper';
-import CombinedDetails from '@/components/content/combined/CombinedDetails';
-
-// todo: /decrypt is still being called way too much on this page, need to clean up state management
-
-const Details = () => {
-  const [event, setEvent] = useState(null);
-  const [author, setAuthor] = useState(null);
-  const [nAddress, setNAddress] = useState(null);
-  const [decryptedContent, setDecryptedContent] = useState(null);
-  const [authorView, setAuthorView] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [lessons, setLessons] = useState([]);
-  const [npub, setNpub] = useState(null);
-  const [nsec, setNsec] = useState(null);
-  const { data: session, update } = useSession();
-  const { ndk } = useNDKContext();
-  const { decryptContent } = useDecryptContent();
-  const router = useRouter();
-  const { showToast } = useToast();
-
-  useEffect(() => {
-    axios
-      .get('/api/lessons')
-      .then(res => {
-        if (res.data) {
-          res.data.forEach(lesson => {
-            setLessons(prev => [
-              ...prev,
-              { resourceId: lesson?.resourceId, courseId: lesson?.courseId || null },
-            ]);
-          });
-        }
-      })
-      .catch(err => {
-        console.error('err', err);
-      });
-  }, []);
-
-  const fetchAuthor = useCallback(
-    async pubkey => {
-      if (!pubkey) return;
-      const author = await ndk.getUser({ pubkey });
-      const profile = await author.fetchProfile();
-      const fields = await findKind0Fields(profile);
-      if (fields) {
-        setAuthor(fields);
-      }
-    },
-    [ndk]
-  );
-
-  useEffect(() => {
-    if (event?.d && !nAddress) {
-      const naddr = nip19.naddrEncode({
-        pubkey: event.pubkey,
-        kind: event.kind,
-        identifier: event.d,
-      });
-      setNAddress(naddr);
-    }
-  }, [event, nAddress]);
-
-  useEffect(() => {
-    if (!author && event?.pubkey) {
-      fetchAuthor(event?.pubkey);
-    }
-  }, [author, event, fetchAuthor]);
-
-  useEffect(() => {
-    if (session?.user?.privkey) {
-      const privkeyBuffer = Buffer.from(session.user.privkey, 'hex');
-      setNsec(nip19.nsecEncode(privkeyBuffer));
-      setNpub(null);
-    } else if (session?.user?.pubkey) {
-      setNsec(null);
-      setNpub(nip19.npubEncode(session.user.pubkey));
-    } else {
-      setNsec(null);
-      setNpub(null);
-    }
-  }, [session]);
-
-  useEffect(() => {
-    const fetchAndProcessEvent = async () => {
-      if (!router.isReady || !router.query.slug) return;
-
-      const { slug } = router.query;
-      let id;
-
-      if (slug.includes('naddr')) {
-        const { data } = nip19.decode(slug);
-        if (!data) {
-          showToast('error', 'Error', 'Resource not found');
-          setLoading(false);
-          return;
-        }
-        id = null;
-        setNAddress(slug);
-      } else {
-        id = slug;
-      }
-
-      try {
-        await ndk.connect();
-        let filter;
-        if (id) {
-          filter = { ids: [id] };
-        } else {
-          const decoded = nip19.decode(slug);
-          filter = { '#d': [decoded?.data?.identifier] };
-        }
-        const event = await ndk.fetchEvent(filter);
-
-        if (event) {
-          const parsedEvent = parseEvent(event);
-          setEvent(parsedEvent);
-          await fetchAuthor(event.pubkey);
-
-          const isAuthor = session?.user?.pubkey === event.pubkey;
-          setAuthorView(isAuthor);
-
-          if (parsedEvent.price || (isAuthor && event.kind === 30402)) {
-            const shouldDecrypt =
-              isAuthor ||
-              session?.user?.role?.subscribed ||
-              session?.user?.purchased?.some(purchase => purchase.resourceId === parsedEvent.d) ||
-              lessons.some(
-                lesson =>
-                  lesson.resourceId === parsedEvent.d &&
-                  session?.user?.purchased?.some(purchase => purchase.courseId === lesson.courseId)
-              );
-
-            if (shouldDecrypt && !decryptedContent) {
-              const decrypted = await decryptContent(event.content);
-              setDecryptedContent(decrypted);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error fetching event:', error);
-        showToast('error', 'Error', 'Failed to fetch event. Please try again.');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAndProcessEvent();
-  }, [router.isReady, router.query, ndk, session]);
-
-  const handlePaymentSuccess = response => {
-    if (response && response?.preimage) {
-      update();
-    } else {
-      showToast('error', 'Error', 'Failed to purchase resource. Please try again.');
-    }
-  };
-
-  const handlePaymentError = error => {
-    showToast(
-      'error',
-      'Payment Error',
-      `Failed to purchase resource. Please try again. Error: ${error}`
-    );
-  };
-
-  if (loading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center mt-24">
-        <ProgressSpinner />
-      </div>
-    );
-  }
-
-  if (!author || !event) return null;
-
-  const getDetailComponent = () => {
-    if (event.topics.includes('video') && event.topics.includes('document')) {
-      return CombinedDetails;
-    }
-    return event.type === 'document' ? DocumentDetails : VideoDetails;
-  };
-
-  const DetailComponent = getDetailComponent();
-
-  const isAuthorized =
-    !event.price || decryptedContent || session?.user?.role?.subscribed || authorView;
-
-  return (
-    <>
-      <DetailComponent
-        processedEvent={event}
-        topics={event.topics}
-        title={event.title}
-        summary={event.summary}
-        image={event.image}
-        price={event.price}
-        author={author}
-        paidResource={!!event.price}
-        isLesson={lessons.some(lesson => lesson.resourceId === event.d)}
-        nAddress={nAddress}
-        decryptedContent={decryptedContent}
-        handlePaymentSuccess={handlePaymentSuccess}
-        handlePaymentError={handlePaymentError}
-        authorView={authorView}
-      />
-      {nAddress !== null && isAuthorized ? (
-        <div className="px-4">
-          <ZapThreadsWrapper
-            anchor={nAddress}
-            user={nsec || npub || null}
-            relays="wss://nos.lol/, wss://relay.damus.io/, wss://relay.snort.social/, wss://relay.nostr.band/, wss://relay.primal.net/, wss://nostrue.com/, wss://purplerelay.com/, wss://relay.devs.tools/"
-            disable="zaps"
-            isAuthorized={isAuthorized}
-          />
-        </div>
-      ) : (
-        <div className="text-center p-4 mx-4 bg-gray-800/50 rounded-lg">
-          <p className="text-gray-400">
-            Comments are only available to content purchasers, subscribers, and the content creator.
-          </p>
-        </div>
-      )}
-    </>
-  );
-};
-
-export default Details;
-
 
 NIP-01
 ======
@@ -1098,3 +772,82 @@ Other standard tags that might be useful.
 ```
 
 
+REAL EXAMPLE COURSE NOSTR:
+
+{
+  "pubkey": "f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741",
+  "content": "",
+  "id": "d2797459e3f15491b39225a68146d3ec375f71d01b57cfe3a559179777e20912",
+  "created_at": 1740860353,
+  "kind": 30004,
+  "tags": [
+    [
+      "d",
+      "f538f5c5-1a72-4804-8eb1-3f05cea64874"
+    ],
+    [
+      "name",
+      "PlebDevs Starter Course"
+    ],
+    [
+      "about",
+      "Welcome to the PlebDevs starter course! I'm Austin, the founder of PlebDevs, and I'm here to guide you through your journey from complete beginner to capable developer. This course is specifically designed for those new to coding, though we have plenty of intermediate and advanced content available on the platform for when you're ready to level up. \n\nIn this starter course we cover: \n1. Setting up your Code Editor, \n2. Git / Github \n3. HTML \n4. CSS \n5. JavaScript. \n\nStarter Course Objectives:\n1. Provide an easy-to-follow overview of the developer journey\n2. Get you comfortable in a development environment\n3. Give you hands-on experience with core programming languages\n4. Get you setup for the PlebDevs Frontend & Backend Courses and the rest of the content on the platform."
+    ],
+    [
+      "image",
+      "https://plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com/images/plebdevs-starter.png"
+    ],
+    [
+      "t",
+      "beginner"
+    ],
+    [
+      "t",
+      "frontend"
+    ],
+    [
+      "t",
+      "course"
+    ],
+    [
+      "published_at",
+      "1740860353"
+    ],
+    [
+      "a",
+      "30023:f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741:6d8260b3-c902-46ec-8aed-f3b8c8f1229b"
+    ],
+    [
+      "a",
+      "30023:f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741:f93827ed-68ad-4b5e-af33-f7424b37f0d6"
+    ],
+    [
+      "a",
+      "30023:f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741:80aac9d4-8bef-4a92-9ee9-dea1c2d66c3a"
+    ],
+    [
+      "a",
+      "30023:f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741:6fe3cb4b-2571-4e3b-9159-db78325ee5cc"
+    ],
+    [
+      "a",
+      "30023:f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741:e5399c72-9b95-46d6-a594-498e673b6c58"
+    ],
+    [
+      "a",
+      "30023:f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741:a3083ab5-0187-4b77-83d1-29ae1f644559"
+    ]
+  ]
+}
+
+REAL EXAMPLE VIDEO LESSON NOSTR:
+
+{"content":"<div style=\"position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;\"><video style=\"position:absolute;top:0;left:0;width:100%;height:100%;border:0;\" controls>\n<source src=\"https://plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com/starter-lesson-1.mp4\" type=\"video/mp4\"/>\n<source src=\"https://plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com/starter-lesson-1.webm\" type=\"video/mp4\"/>\n</video></div>\n\n# Setting Up Your Code Editor\n\n## Introduction\nIn this lesson, we'll set up the most fundamental tool in your development journey: your code editor. This is where you'll spend most of your time writing, testing, and debugging code, so it's crucial to get comfortable with it from the start.\n\n## What is an IDE?\n\n### Definition\nAn IDE (Integrated Development Environment) is a software application that provides comprehensive facilities for software development. Think of it as your complete workshop for writing code.\n\n### Key Components\n1. **Code Editor**\n   - Where you write and edit code\n   - Provides syntax highlighting\n   - Helps with code formatting\n   - Makes code easier to read and write\n\n2. **Compiler/Interpreter**\n   - Runs your code\n   - Translates your code into executable instructions\n   - Helps test your applications\n\n3. **Debugging Tools**\n   - Help find and fix errors\n   - Provide error messages and suggestions\n   - Make problem-solving easier\n\n## Setting Up Visual Studio Code\n\n### Why VS Code?\n- Free and open-source\n- Lightweight yet powerful\n- Excellent community support\n- Popular among developers\n- Great for beginners and experts alike\n\n### Installation Steps\n1. Visit [code.visualstudio.com](https://code.visualstudio.com)\n2. Download the version for your operating system\n3. Run the installer\n4. Follow the installation prompts\n\n### Essential VS Code Features\n\n#### 1. Interface Navigation\n- **File Explorer** (Ctrl/Cmd + Shift + E)\n  - Browse and manage your files\n  - Create new files and folders\n  - Navigate your project structure\n\n- **Search** (Ctrl/Cmd + Shift + F)\n  - Find text across all files\n  - Replace text globally\n  - Search with regular expressions\n\n- **Source Control** (Ctrl/Cmd + Shift + G)\n  - Track changes in your code\n  - Commit and manage versions\n  - Integrate with Git\n\n#### 2. Terminal Integration\nTo open the integrated terminal:\n- Use ``` Ctrl + ` ``` (backtick)\n- Or View → Terminal from the menu\n- Basic terminal commands:\n  ```bash\n  ls      # List files (dir on Windows)\n  cd      # Change directory\n  clear   # Clear terminal\n  code .  # Open VS Code in current directory\n  ```\n\n#### 3. Essential Extensions\nInstall these extensions to enhance your development experience:\n1. **ESLint**\n   - Helps find and fix code problems\n   - Enforces coding standards\n   - Improves code quality\n\n2. **Prettier**\n   - Automatically formats your code\n   - Maintains consistent style\n   - Saves time on formatting\n\n3. **Live Server**\n   - Runs your web pages locally\n   - Auto-refreshes on save\n   - Great for web development\n\n### Important Keyboard Shortcuts\n```\nCtrl/Cmd + S          # Save file\nCtrl/Cmd + C          # Copy\nCtrl/Cmd + V          # Paste\nCtrl/Cmd + Z          # Undo\nCtrl/Cmd + Shift + P  # Command palette\nCtrl/Cmd + P          # Quick file open\n```\n\n## Writing Your First Code\nLet's create and run a simple HTML file:\n\n1. Create a new file (`index.html`)\n2. Add basic HTML content:\n   ```html\n   <h1>Hello World!</h1>\n   ```\n3. Save the file (Ctrl/Cmd + S)\n4. Open in browser or use Live Server\n\n## Best Practices\n\n### 1. File Organization\n- Keep related files together\n- Use clear, descriptive names\n- Create separate folders for different projects\n\n### 2. Regular Saving\n- Save frequently (Ctrl/Cmd + S)\n- Watch for the unsaved dot indicator\n- Enable auto-save if preferred\n\n### 3. Terminal Usage\n- Get comfortable with basic commands\n- Use the integrated terminal\n- Practice navigation and file operations\n\n## Troubleshooting Common Issues\n\n### 1. Installation Problems\n- Ensure you have admin rights\n- Check system requirements\n- Use official download sources\n\n### 2. Extension Issues\n- Keep extensions updated\n- Disable conflicting extensions\n- Restart VS Code after installation\n\n### 3. Performance\n- Don't install too many extensions\n- Regular restart of VS Code\n- Keep your system updated\n\n## Next Steps\n\n1. **Practice Navigation**\n   - Create and manage files\n   - Use the integrated terminal\n   - Try keyboard shortcuts\n\n2. **Customize Your Editor**\n   - Explore themes\n   - Adjust font size\n   - Configure auto-save\n\n3. **Prepare for Next Lesson**\n   - Keep VS Code open\n   - Get comfortable with the interface\n   - Practice basic operations\n\n## Additional Resources\n- [VS Code Documentation](https://code.visualstudio.com/docs)\n- [Keyboard Shortcuts Reference](https://code.visualstudio.com/shortcuts/keyboard-shortcuts-windows.pdf)\n- [VS Code Tips and Tricks](https://code.visualstudio.com/docs/getstarted/tips-and-tricks)\n\nRemember: Your code editor is your primary tool as a developer. Take time to get comfortable with it, and don't worry about mastering everything at once. Focus on the basics we covered in the video, and you'll naturally learn more features as you need them.\n\nHappy coding! 🚀","created_at":1740871522,"id":"d3ac1f40bf07c045e97c43b6cbdf6f274de464d1c9d5a5c04d04d50fc12156c0","kind":30023,"pubkey":"f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741","sig":"380c060f8536549749f5d81bb052f218491b76f10544eaf3c255be3a21fad5bdeb65d89e9d28290b16d48134fc898008b14f6dc390a92cb23933ccdfb30dcc86","tags":[["title","Setting up your Code Editor"],["summary","In this lesson, we'll set up the most fundamental tool in your development journey: your code editor. This is where you'll spend most of your time writing, testing, and debugging code, so it's crucial to get comfortable with it from the start."],["image","https://plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com/images/starter-thumbnail-1.png"],["d","f93827ed-68ad-4b5e-af33-f7424b37f0d6"],["t","video"],["t","document"],["t","beginner"],["r","https://docs.google.com/presentation/d/1TC2BcHMa8zHVfAafwgXGEhUS5beTHUp5UsaPwWYty2w/edit?usp=sharing"]]}
+
+REAL EXAMPLE VIDEO RESOURCE FREE NOSTR:
+
+{"content":"<div style=\"position:relative;padding-bottom:56.25%;height:0;overflow:hidden;max-width:100%;\"><iframe src=\"https://www.youtube.com/embed/M_tVo_9OUIs?enablejsapi=1\" style=\"position:absolute;top:0;left:0;width:100%;height:100%;border:0;\" allowfullscreen></iframe></div>","created_at":1751292222,"id":"abd1b6682aaccbaf4260b0da05db07caa30977f663e33eb36eacc56d85e62fa7","kind":30023,"pubkey":"f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741","sig":"6057c73905eb00f8560926367db3126d73ad72efb2439ee5ddb34ae294f64881787194a23bcf2c9a7b8e837f7d1e207138928fd2895315f47c6338ee460a79c9","tags":[["d","6e138ca7-fa4f-470c-9146-fec270a9688e"],["title","Build a Lightning Wallet in 20 Minutes"],["summary","Build a Lightning Wallet in just about 20 mins leveraging the FREE Voltage MutinyNet Lightning Node's to make it easier than ever to build on Bitcoin & Lightning and make REAL payments on a REAL network."],["image","https://plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com/images/build-lightning-wallet-20-mins.png"],["i","youtube:plebdevs","V_fvmyJ91m0"],["t","lightning"],["t","workshop"],["t","video"],["published_at","1751292222"],["r","https://tinyurl.com/20-min-lightning"],["r","https://github.com/AustinKelsay/20-min-lightning-workshop"]]}
+
+REAL EXAMPLE DOCUMENT RESOURCE FREE NOSTR:
+
+{"content":"# Setting Up a React App from Scratch: A Minimal Guide\n\n## Prerequisites\n\n- Node.js and npm installed on your machine\n- A text editor of your choice\n\n## Step 1: Create a New Project Directory\n\n```bash\nmkdir my-react-app\ncd my-react-app\n```\n\n## Step 2: Initialize the Project\n\n```bash\nnpm init -y\n```\n\nThis creates a package.json file with default values.\n\n## Step 3: Install Dependencies\n\n```bash\nnpm install react react-dom\nnpm install --save-dev parcel @babel/preset-react\n```\n\n## Step 4: Create Project Structure\n\nCreate the following files and directories:\n\n```\nmy-react-app/\n├── src/\n│   ├── index.html\n│   └── index.js\n└── package.json\n```\n\n## Step 5: Set Up HTML\n\nIn src/index.html, add the following content:\n\n```html\n<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>My React App</title>\n</head>\n<body>\n    <div id=\"root\"></div>\n    <script src=\"./index.js\"></script>\n</body>\n</html>\n```\n\n## Step 6: Create React Entry Point\n\nIn src/index.js, add the following content:\n\n```javascript\nimport React from 'react';\nimport ReactDOM from 'react-dom/client';\n\nconst App = () => {\n    return <h1>Hello, React!</h1>;\n};\n\nconst root = ReactDOM.createRoot(document.getElementById('root'));\nroot.render(<App />);\n```\n\n## Step 7: Configure Babel\n\nCreate a .babelrc file in the project root:\n\n```json\n{\n    \"presets\": [\"@babel/preset-react\"]\n}\n```\n\n## Step 8: Update package.json Scripts\n\nAdd the following scripts to your package.json:\n\n```json\n\"scripts\": {\n    \"start\": \"parcel src/index.html\",\n    \"build\": \"parcel build src/index.html\"\n}\n```\n\n## Step 9: Run the Development Server\n\n```bash\nnpm start\n```\n\nYour app should now be running at http://localhost:1234.\n\n## Step 10: Build for Production\n\nWhen you're ready to deploy:\n\n```bash\nnpm run build\n```\n\nThis will create a dist folder with your optimized production build.\n\n---\n\nCongratulations! You've set up a React app from scratch using Parcel. This setup provides a lightweight and modern development environment with minimal overhead.","created_at":1731696272,"id":"758149694299ce464c299f9b97a2c6a3e94536eeeeb939fa981d3b09dbf1cf11","kind":30023,"pubkey":"f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741","sig":"4389b364746a27a0c650adb14ab043475eb66cfde20ccaa00d029d91c06a9863469e7e1db0627ece0f205122cad5d34efd77bf668fef77e34404b9cb925a8220","tags":[["d","e25f3d3b-f28b-4edd-a325-380564e6db7d"],["title","Setting Up a React App from Scratch: A Minimal Guide"],["summary","This guide will walk you through setting up a React app manually, using Parcel as a bundler for its simplicity and efficiency."],["image","https://miro.medium.com/v2/resize:fit:1200/1*jfpk9Pld9ZGh9f68NMb-Cg.jpeg"],["t","guide"],["t","document"],["published_at","1731696272"],["r","https://parceljs.org/recipes/react/"]]}

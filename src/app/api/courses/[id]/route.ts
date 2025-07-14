@@ -10,9 +10,9 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const courseId = parseInt(id);
+    const courseId = id;
     
-    if (isNaN(courseId)) {
+    if (!courseId) {
       return NextResponse.json(
         { error: 'Invalid course ID' },
         { status: 400 }
@@ -46,10 +46,10 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const courseId = parseInt(id);
+    const courseId = id;
     const body = await request.json();
     
-    if (isNaN(courseId)) {
+    if (!courseId) {
       return NextResponse.json(
         { error: 'Invalid course ID' },
         { status: 400 }
@@ -78,9 +78,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const courseId = parseInt(id);
+    const courseId = id;
     
-    if (isNaN(courseId)) {
+    if (!courseId) {
       return NextResponse.json(
         { error: 'Invalid course ID' },
         { status: 400 }
