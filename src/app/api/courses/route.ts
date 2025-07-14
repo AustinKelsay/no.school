@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { coursesDatabase } from '@/data/mock-data';
+import { CourseRepository } from '@/lib/repositories';
 import type { Course } from '@/data/types';
 
 /**
@@ -13,24 +13,21 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get('page') || '1');
 
   try {
-    // Filter courses by category if provided
-    let filteredCourses = coursesDatabase;
-    if (category) {
-      filteredCourses = coursesDatabase.filter(course => 
-        course.category.toLowerCase() === category.toLowerCase()
-      );
-    }
+    // Use repository to get courses with filtering
+    const allCourses = await CourseRepository.findAll(
+      category ? { category } : {}
+    );
 
     // Implement pagination
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + limit;
-    const paginatedCourses = filteredCourses.slice(startIndex, endIndex);
+    const paginatedCourses = allCourses.slice(startIndex, endIndex);
 
     return NextResponse.json({
       courses: paginatedCourses,
-      total: filteredCourses.length,
+      total: allCourses.length,
       page,
-      totalPages: Math.ceil(filteredCourses.length / limit),
+      totalPages: Math.ceil(allCourses.length / limit),
     });
   } catch {
     return NextResponse.json(
@@ -58,7 +55,7 @@ export async function POST(request: NextRequest) {
 
     // In a real app, you'd save to database
     const newCourse: Course = {
-      id: coursesDatabase.length + 1,
+      id: 0, // This will be set by the repository
       title,
       description,
       category,
@@ -71,8 +68,10 @@ export async function POST(request: NextRequest) {
       lessons: []
     };
 
+    const createdCourse = await CourseRepository.create(newCourse);
+
     return NextResponse.json(
-      { course: newCourse, message: 'Course created successfully' },
+      { course: createdCourse, message: 'Course created successfully' },
       { status: 201 }
     );
   } catch {

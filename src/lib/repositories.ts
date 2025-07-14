@@ -3,9 +3,9 @@
  * Provides clean abstraction over data sources with caching
  */
 
-import { Course, Lesson, ContentItem } from '@/data/types'
-import { coursesDatabase } from '@/data/mock-data'
-import { globalCache, taggedCache } from './cache'
+import { Course, Lesson, ContentItem, DbCourse, DbLesson } from '@/data/types'
+import { dbCoursesMockData, dbLessonsMockData } from '@/data/courses'
+import { globalCache } from './cache'
 import { NotFoundError, ConflictError } from './api-utils'
 
 // Repository-specific filter type (no pagination required)
@@ -29,8 +29,11 @@ export class CourseRepository {
     const cacheKey = `${this.CACHE_PREFIX}:${id}`
     
     return globalCache.get(cacheKey, async () => {
-      const course = coursesDatabase.find(c => c.id === id)
-      return course || null
+      const course = dbCoursesMockData.find(c => parseInt(c.id.replace('course-', '')) === id)
+      if (!course) return null
+      
+      const lessons = dbLessonsMockData.filter(l => l.courseId === course.id)
+      return this.transformDbCourseToLegacy(course, lessons)
     }, this.CACHE_TTL)
   }
 
@@ -41,7 +44,7 @@ export class CourseRepository {
     const cacheKey = `${this.CACHE_PREFIX}:all:${JSON.stringify(filters)}`
     
     return globalCache.get(cacheKey, async () => {
-      let courses = [...coursesDatabase] // Create copy to avoid mutations
+      let courses = [...dbCoursesMockData] // Create copy to avoid mutations
 
       // Apply category filter
       if (filters.category) {
@@ -60,8 +63,55 @@ export class CourseRepository {
         )
       }
 
-      return courses
+      // Transform to legacy format
+      return courses.map(course => {
+        const lessons = dbLessonsMockData.filter(l => l.courseId === course.id)
+        return this.transformDbCourseToLegacy(course, lessons)
+      })
     }, this.CACHE_TTL)
+  }
+
+  /**
+   * Transform DbCourse to legacy Course format
+   */
+  private static transformDbCourseToLegacy(dbCourse: DbCourse, lessons: DbLesson[] = []): Course {
+    return {
+      id: parseInt(dbCourse.id.replace('course-', ''), 10),
+      title: dbCourse.title,
+      description: dbCourse.description,
+      category: dbCourse.category.charAt(0).toUpperCase() + dbCourse.category.slice(1),
+      duration: this.calculateTotalDuration(lessons),
+      instructor: dbCourse.instructor,
+      rating: dbCourse.rating,
+      image: dbCourse.image || "/placeholder.svg",
+      lessons: lessons.map(lesson => ({
+        id: parseInt(lesson.id.replace(/lesson-\d+-/, ''), 10),
+        title: lesson.title,
+        duration: lesson.duration,
+        completed: false
+      })),
+      enrollmentCount: dbCourse.enrollmentCount,
+      createdAt: dbCourse.createdAt
+    }
+  }
+
+  /**
+   * Calculate total duration from lessons
+   */
+  private static calculateTotalDuration(lessons: DbLesson[]): string {
+    if (!lessons.length) return '0h 0m'
+    
+    let totalMinutes = 0
+    lessons.forEach(lesson => {
+      const [minutes, seconds] = lesson.duration.split(':').map(Number)
+      totalMinutes += minutes + (seconds / 60)
+    })
+    
+    const hours = Math.floor(totalMinutes / 60)
+    const mins = Math.round(totalMinutes % 60)
+    
+    if (hours === 0) return `${mins}m`
+    return `${hours}h ${mins}m`
   }
 
   /**
@@ -72,107 +122,81 @@ export class CourseRepository {
   }
 
   /**
-   * Create new course
+   * Create a new course
    */
   static async create(courseData: Omit<Course, 'id' | 'rating' | 'enrollmentCount' | 'createdAt' | 'lessons'>): Promise<Course> {
-    // Check for title conflicts
-    const existingCourse = coursesDatabase.find(c => 
-      c.title.toLowerCase() === courseData.title.toLowerCase()
-    )
+    const newId = Math.max(...dbCoursesMockData.map(c => parseInt(c.id.replace('course-', ''))), 0) + 1
     
-    if (existingCourse) {
-      throw new ConflictError('Course with this title already exists')
-    }
-
-    // Generate new ID
-    const newId = Math.max(...coursesDatabase.map(c => c.id), 0) + 1
-
-    const newCourse: Course = {
-      id: newId,
-      ...courseData,
+    const newCourse: DbCourse = {
+      id: `course-${newId}`,
+      title: courseData.title,
+      description: courseData.description,
+      category: courseData.category.toLowerCase(),
+      instructor: courseData.instructor,
+      instructorPubkey: `npub1instructor${newId}`,
       rating: 0,
       enrollmentCount: 0,
+      isPremium: false,
+      image: courseData.image,
+      courseListEventId: `course-event-${newId}`,
+      courseListNaddr: `naddr1course${newId}`,
+      published: true,
       createdAt: new Date().toISOString().split('T')[0],
-      lessons: []
-    }
-
-    // Add to database
-    coursesDatabase.push(newCourse)
-
-    // Invalidate relevant caches
-    this.invalidateCache()
-    this.invalidateCategoryCache(courseData.category)
-
-    return newCourse
-  }
-
-  /**
-   * Update existing course
-   */
-  static async update(id: number, updateData: Partial<Course>): Promise<Course> {
-    const existingCourse = await this.findById(id)
-    if (!existingCourse) {
-      throw new NotFoundError('Course')
-    }
-
-    // Find index in database
-    const index = coursesDatabase.findIndex(c => c.id === id)
-    if (index === -1) {
-      throw new NotFoundError('Course')
-    }
-
-    // Check for title conflicts if title is being updated
-    if (updateData.title && updateData.title !== existingCourse.title) {
-      const titleConflict = coursesDatabase.find(c => 
-        c.id !== id && c.title.toLowerCase() === updateData.title!.toLowerCase()
-      )
-      
-      if (titleConflict) {
-        throw new ConflictError('Course with this title already exists')
-      }
-    }
-
-    // Update course
-    const updatedCourse = {
-      ...existingCourse,
-      ...updateData,
-      id, // Ensure ID cannot be changed
       updatedAt: new Date().toISOString().split('T')[0]
     }
-
-    coursesDatabase[index] = updatedCourse
-
-    // Invalidate caches
-    this.invalidateCache(id)
-    this.invalidateCategoryCache(existingCourse.category)
-    if (updateData.category && updateData.category !== existingCourse.category) {
-      this.invalidateCategoryCache(updateData.category)
-    }
-
-    return updatedCourse
+    
+    // In a real implementation, this would save to database
+    dbCoursesMockData.push(newCourse)
+    
+    // Invalidate cache
+    this.invalidateCache()
+    
+    return this.transformDbCourseToLegacy(newCourse)
   }
 
   /**
-   * Delete course
+   * Update an existing course
+   */
+  static async update(id: number, updateData: Partial<Course>): Promise<Course> {
+    const index = dbCoursesMockData.findIndex(c => parseInt(c.id.replace('course-', '')) === id)
+    if (index === -1) {
+      throw new NotFoundError('Course')
+    }
+    
+    const existingCourse = dbCoursesMockData[index]
+    const updatedCourse: DbCourse = {
+      ...existingCourse,
+      title: updateData.title || existingCourse.title,
+      description: updateData.description || existingCourse.description,
+      category: updateData.category?.toLowerCase() || existingCourse.category,
+      instructor: updateData.instructor || existingCourse.instructor,
+      image: updateData.image || existingCourse.image,
+      updatedAt: new Date().toISOString().split('T')[0]
+    }
+    
+    dbCoursesMockData[index] = updatedCourse
+    
+    // Invalidate cache
+    this.invalidateCache(id)
+    
+    const lessons = dbLessonsMockData.filter(l => l.courseId === updatedCourse.id)
+    return this.transformDbCourseToLegacy(updatedCourse, lessons)
+  }
+
+  /**
+   * Delete a course
    */
   static async delete(id: number): Promise<boolean> {
-    const course = await this.findById(id)
-    if (!course) {
-      return false
-    }
-
-    const index = coursesDatabase.findIndex(c => c.id === id)
+    const index = dbCoursesMockData.findIndex(c => parseInt(c.id.replace('course-', '')) === id)
     if (index === -1) {
       return false
     }
-
-    // Remove from database
-    coursesDatabase.splice(index, 1)
-
-    // Invalidate caches
+    
+    dbCoursesMockData.splice(index, 1)
+    
+    // Invalidate cache
     this.invalidateCache(id)
-    this.invalidateCategoryCache(course.category)
-
+    
     return true
   }
 
@@ -188,21 +212,20 @@ export class CourseRepository {
     const cacheKey = `${this.CACHE_PREFIX}:stats`
     
     return globalCache.get(cacheKey, async () => {
-      const courses = await this.findAll()
-      
-      const totalEnrollments = courses.reduce((sum, course) => sum + (course.enrollmentCount ?? 0), 0)
-      const ratingsSum = courses.reduce((sum, course) => sum + (course.rating * (course.enrollmentCount ?? 0)), 0)
-      const averageRating = totalEnrollments > 0 ? ratingsSum / totalEnrollments : 0
-      
-      const categoryCounts = courses.reduce((counts, course) => {
-        counts[course.category] = (counts[course.category] || 0) + 1
-        return counts
+      const totalCourses = dbCoursesMockData.length
+      const totalEnrollments = dbCoursesMockData.reduce((sum, course) => sum + course.enrollmentCount, 0)
+      const averageRating = dbCoursesMockData.reduce((sum, course) => sum + course.rating, 0) / totalCourses
+
+      const categoryCounts = dbCoursesMockData.reduce((acc, course) => {
+        const category = course.category.charAt(0).toUpperCase() + course.category.slice(1)
+        acc[category] = (acc[category] || 0) + 1
+        return acc
       }, {} as Record<string, number>)
 
       return {
-        totalCourses: courses.length,
+        totalCourses,
         totalEnrollments,
-        averageRating: Number(averageRating.toFixed(2)),
+        averageRating: Math.round(averageRating * 10) / 10,
         categoryCounts
       }
     }, this.CACHE_TTL)
@@ -266,19 +289,20 @@ export class CourseRepository {
   }
 
   /**
-   * Cache invalidation helpers
+   * Private method to invalidate cache
    */
   private static invalidateCache(id?: number): void {
     if (id) {
       globalCache.invalidate(`${this.CACHE_PREFIX}:${id}`)
     }
-    globalCache.invalidatePattern(`${this.CACHE_PREFIX}:all`)
-    globalCache.invalidatePattern(`${this.CACHE_PREFIX}:search`)
-    globalCache.invalidate(`${this.CACHE_PREFIX}:stats`)
+    globalCache.invalidatePattern(this.CACHE_PREFIX)
   }
 
+  /**
+   * Private method to invalidate category cache
+   */
   private static invalidateCategoryCache(category: string): void {
-    globalCache.invalidatePattern(`category:${category}`)
+    globalCache.invalidatePattern(`${this.CACHE_PREFIX}:category:${category.toLowerCase()}`)
   }
 }
 
@@ -297,21 +321,28 @@ export class LessonRepository {
     const cacheKey = `${this.CACHE_PREFIX}:course:${courseId}`
     
     return globalCache.get(cacheKey, async () => {
-      const course = await CourseRepository.findById(courseId)
-      return course?.lessons || []
+      const courseIdStr = `course-${courseId}`
+      return dbLessonsMockData
+        .filter(lesson => lesson.courseId === courseIdStr)
+        .map(lesson => ({
+          id: parseInt(lesson.id.replace(/lesson-\d+-/, ''), 10),
+          title: lesson.title,
+          duration: lesson.duration,
+          completed: false
+        }))
     }, this.CACHE_TTL)
   }
 
   /**
-   * Find lesson by ID
+   * Find specific lesson by course and lesson ID
    */
   static async findById(courseId: number, lessonId: number): Promise<Lesson | null> {
     const lessons = await this.findByCourseId(courseId)
-    return lessons.find(l => l.id === lessonId) || null
+    return lessons.find(lesson => lesson.id === lessonId) || null
   }
 
   /**
-   * Get lesson statistics
+   * Get lesson statistics for a course
    */
   static async getStats(courseId: number): Promise<{
     totalLessons: number
@@ -323,23 +354,20 @@ export class LessonRepository {
     return globalCache.get(cacheKey, async () => {
       const lessons = await this.findByCourseId(courseId)
       
-      // Calculate total duration (simplified - assumes format like "10:30")
-      const totalMinutes = lessons.reduce((total, lesson) => {
-        if (lesson.duration) {
-          const [minutes, seconds] = lesson.duration.split(':').map(Number)
-          return total + minutes + (seconds / 60)
-        }
-        return total
-      }, 0)
+      let totalMinutes = 0
+      lessons.forEach(lesson => {
+        const [minutes, seconds] = lesson.duration.split(':').map(Number)
+        totalMinutes += minutes + (seconds / 60)
+      })
       
       const hours = Math.floor(totalMinutes / 60)
-      const minutes = Math.round(totalMinutes % 60)
-      const totalDuration = `${hours}:${minutes.toString().padStart(2, '0')}`
+      const mins = Math.round(totalMinutes % 60)
+      const totalDuration = hours > 0 ? `${hours}h ${mins}m` : `${mins}m`
       
       return {
         totalLessons: lessons.length,
         totalDuration,
-        completedLessons: 0 // Would need user progress data
+        completedLessons: lessons.filter(l => l.completed).length
       }
     }, this.CACHE_TTL)
   }
@@ -354,7 +382,7 @@ export class ContentRepository {
   private static readonly CACHE_PREFIX = 'content'
 
   /**
-   * Get all content items (courses, documents, and videos in ContentItem format)
+   * Get all content items (courses converted to ContentItem format)
    */
   static async findAll(filters: { type?: string; category?: string } = {}): Promise<ContentItem[]> {
     const cacheKey = `${this.CACHE_PREFIX}:all:${JSON.stringify(filters)}`
@@ -388,67 +416,12 @@ export class ContentRepository {
         items = [...items, ...courseItems]
       }
 
-      // Add documents if type filter allows
-      if (!filters.type || filters.type === 'document' || filters.type === 'guide' || filters.type === 'cheatsheet') {
-        const { dbDocumentsMockData } = await import('@/data/documents')
-        
-        let documents = dbDocumentsMockData
-        if (filters.category) {
-          documents = documents.filter(doc => doc.category === filters.category)
-        }
-        
-        const documentItems: ContentItem[] = documents.map(doc => ({
-          id: parseInt(doc.id.replace('doc-', ''), 10) + 2000, // Offset to avoid ID conflicts
-          type: doc.type as 'document' | 'guide' | 'cheatsheet',
-          title: doc.title,
-          description: doc.description,
-          category: doc.category,
-          instructor: doc.instructor,
-          rating: doc.rating,
-          image: doc.image,
-          isPremium: doc.isPremium,
-          tags: doc.tags,
-          difficulty: doc.difficulty,
-          createdAt: doc.createdAt,
-        }))
-
-        items = [...items, ...documentItems]
-      }
-
-      // Add videos if type filter allows
-      if (!filters.type || filters.type === 'video') {
-        const { dbVideosMockData } = await import('@/data/videos')
-        
-        let videos = dbVideosMockData
-        if (filters.category) {
-          videos = videos.filter(video => video.category === filters.category)
-        }
-        
-        const videoItems: ContentItem[] = videos.map(video => ({
-          id: parseInt(video.id.replace('video-', ''), 10) + 3000, // Offset to avoid ID conflicts
-          type: 'video' as const,
-          title: video.title,
-          description: video.description,
-          category: video.category,
-          instructor: video.instructor,
-          rating: video.rating,
-          duration: video.duration,
-          image: video.thumbnailUrl,
-          isPremium: video.isPremium,
-          tags: video.tags,
-          difficulty: video.difficulty,
-          createdAt: video.createdAt,
-        }))
-
-        items = [...items, ...videoItems]
-      }
-
       return items
     }, this.CACHE_TTL)
   }
 
   /**
-   * Search across all content types with relevance scoring
+   * Search across all content types
    */
   static async search(
     query: string, 
@@ -465,54 +438,18 @@ export class ContentRepository {
 
       const searchTerm = query.toLowerCase()
       
-      // Score items by relevance
-      const scoredItems = items.map(item => {
-        let score = 0
-        
-        // Title match (highest weight)
-        if (item.title.toLowerCase().includes(searchTerm)) {
-          score += 10
-          if (item.title.toLowerCase().startsWith(searchTerm)) {
-            score += 5
-          }
-        }
-        
-        // Description match (medium weight)
-        if (item.description.toLowerCase().includes(searchTerm)) {
-          score += 5
-        }
-        
-        // Instructor match (medium weight)
-        if (item.instructor?.toLowerCase().includes(searchTerm)) {
-          score += 5
-        }
-        
-        // Category match (low weight)
-        if (item.category.toLowerCase().includes(searchTerm)) {
-          score += 2
-        }
-        
-        // Tag match (medium weight)
-        if (item.tags.some(tag => tag.toLowerCase().includes(searchTerm))) {
-          score += 3
-        }
-
-        // Boost popular content slightly
-        score += Math.min(item.rating ?? 0, 2)
-        
-        return { item, score }
-      })
-
-      // Filter out items with no relevance and sort by score
-      return scoredItems
-        .filter(({ score }) => score > 0)
-        .sort((a, b) => b.score - a.score)
-        .map(({ item }) => item)
+      return items.filter(item =>
+        item.title.toLowerCase().includes(searchTerm) ||
+        item.description.toLowerCase().includes(searchTerm) ||
+        item.instructor?.toLowerCase().includes(searchTerm) ||
+        item.category.toLowerCase().includes(searchTerm) ||
+        item.tags.some(tag => tag.toLowerCase().includes(searchTerm))
+      )
     }, this.CACHE_TTL)
   }
 
   /**
-   * Get trending content (based on views/rating across all content types)
+   * Get trending content (based on enrollment/rating)
    */
   static async findTrending(limit: number = 10): Promise<ContentItem[]> {
     const cacheKey = `${this.CACHE_PREFIX}:trending:${limit}`
@@ -520,13 +457,11 @@ export class ContentRepository {
     return globalCache.get(cacheKey, async () => {
       const items = await this.findAll()
       
-      // Sort by a combination of rating and view count/enrollment count
+      // Sort by a combination of rating and enrollment count
       return items
         .sort((a, b) => {
-          const enrollmentA = (a as ContentItem & { enrollmentCount?: number }).enrollmentCount || 0
-          const enrollmentB = (b as ContentItem & { enrollmentCount?: number }).enrollmentCount || 0
-          const scoreA = (a.rating ?? 0) * 2 + Math.min(enrollmentA, 100) / 100
-          const scoreB = (b.rating ?? 0) * 2 + Math.min(enrollmentB, 100) / 100
+          const scoreA = (a.rating ?? 0) * 2
+          const scoreB = (b.rating ?? 0) * 2
           return scoreB - scoreA
         })
         .slice(0, limit)
@@ -534,29 +469,27 @@ export class ContentRepository {
   }
 
   /**
-   * Helper to calculate course duration from lessons
+   * Calculate course duration from lessons
    */
   private static calculateCourseDuration(lessons: Lesson[]): string {
-    const totalMinutes = lessons.reduce((total, lesson) => {
-      if (lesson.duration) {
-        const [minutes, seconds] = lesson.duration.split(':').map(Number)
-        return total + minutes + (seconds / 60)
-      }
-      return total
-    }, 0)
+    if (!lessons.length) return '0m'
+    
+    let totalMinutes = 0
+    lessons.forEach(lesson => {
+      const [minutes, seconds] = lesson.duration.split(':').map(Number)
+      totalMinutes += minutes + (seconds / 60)
+    })
     
     const hours = Math.floor(totalMinutes / 60)
-    const minutes = Math.round(totalMinutes % 60)
+    const mins = Math.round(totalMinutes % 60)
     
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`
-    }
-    return `${minutes}m`
+    if (hours === 0) return `${mins}m`
+    return `${hours}h ${mins}m`
   }
 }
 
 // ============================================================================
-// REPOSITORY FACTORY (for future database implementations)
+// REPOSITORY INTERFACES AND FACTORY
 // ============================================================================
 
 export interface IRepository<T, ID = number> {

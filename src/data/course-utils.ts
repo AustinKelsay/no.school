@@ -1,6 +1,18 @@
 /**
  * Course, Document, and Video Utility Functions
  * Includes Nostr event parsing, generation, and data manipulation
+ * 
+ * NOTE: This file contains utilities for future Nostr protocol integration.
+ * These functions are NOT currently used in the application but are kept
+ * for when we implement NIP-23/99 and NIP-51 support for:
+ * - Course list events (NIP-51) 
+ * - Free content events (NIP-23)
+ * - Paid content events (NIP-99)
+ * 
+ * Current implementation uses domain-separated mock data in:
+ * - src/data/courses/
+ * - src/data/documents/
+ * - src/data/videos/
  */
 
 import type {

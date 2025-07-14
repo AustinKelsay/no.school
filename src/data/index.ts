@@ -12,7 +12,8 @@ export type * from './types'
 
 // Export main configuration and utilities
 export * from './config'
-export * from './course-utils'
+// Note: course-utils.ts contains Nostr integration utilities for future use
+// export * from './course-utils'
 
 // ============================================================================
 // DOMAIN-SPECIFIC EXPORTS
@@ -23,14 +24,15 @@ export {
   dbCoursesMockData,
   dbLessonsMockData,
   coursesWithLessons,
+  coursesDatabase,
   getCourseById,
   getLessonsByCourseId,
   getCoursesByCategory,
+  getCourseStatistics,
   getFreeCourses,
   getPaidCourses,
   getFreeLessons,
-  getPaidLessons,
-  getCourseStatistics
+  getPaidLessons
 } from './courses'
 
 // Document domain exports
@@ -78,58 +80,22 @@ export {
 } from './videos'
 
 // ============================================================================
-// LEGACY EXPORTS (for backward compatibility)
+// AGGREGATED DATA FUNCTIONS
 // ============================================================================
-
-// Legacy mock data export
-export {
-  coursesDatabase
-} from './mock-data'
-
-// ============================================================================
-// UNIFIED CONTENT EXPORTS
-// ============================================================================
-
-// Import data for internal use
-import { dbDocumentsMockData } from './documents'
-import { dbVideosMockData } from './videos'
 
 /**
- * Get all content items (documents and videos) in a unified format
+ * Get all content items for mixed content displays
+ * This is a lightweight export that can be used for content discovery
  */
-export function getAllContent() {
-  const documents = dbDocumentsMockData.map(doc => ({
-    id: doc.id,
-    type: 'document' as const,
-    title: doc.title,
-    description: doc.description,
-    category: doc.category,
-    instructor: doc.instructor,
-    rating: doc.rating,
-    viewCount: doc.viewCount,
-    isPremium: doc.isPremium,
-    price: doc.price,
-    difficulty: doc.difficulty,
-    tags: doc.tags,
-    createdAt: doc.createdAt
-  }))
-
-  const videos = dbVideosMockData.map(video => ({
-    id: video.id,
-    type: 'video' as const,
-    title: video.title,
-    description: video.description,
-    category: video.category,
-    instructor: video.instructor,
-    rating: video.rating,
-    viewCount: video.viewCount,
-    isPremium: video.isPremium,
-    price: video.price,
-    difficulty: video.difficulty,
-    tags: video.tags,
-    duration: video.duration,
-    createdAt: video.createdAt
-  }))
-
-  return [...documents, ...videos]
+export async function getAllContentSummary() {
+  const { dbCoursesMockData } = await import('./courses')
+  const { dbDocumentsMockData } = await import('./documents') 
+  const { dbVideosMockData } = await import('./videos')
+  
+  return {
+    totalCourses: dbCoursesMockData.length,
+    totalDocuments: dbDocumentsMockData.length,
+    totalVideos: dbVideosMockData.length,
+    totalContent: dbCoursesMockData.length + dbDocumentsMockData.length + dbVideosMockData.length
+  }
 } 

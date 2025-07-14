@@ -21,14 +21,9 @@ export type {
  */
 import { CourseRepository, LessonRepository, ContentRepository } from './repositories'
 import { globalCache } from './cache'
-
-/**
- * Simulate network delay for legacy functions
- */
-async function simulateDelay(ms: number): Promise<void> {
-  // Remove in production - only for compatibility
-  return new Promise(resolve => setTimeout(resolve, ms))
-}
+import { dbCoursesMockData, dbLessonsMockData } from '@/data/courses'
+import { dbDocumentsMockData } from '@/data/documents'
+import { dbVideosMockData } from '@/data/videos'
 
 /**
  * Transform DbCourse to Course format for backward compatibility
@@ -44,7 +39,7 @@ function transformDbCourseToLegacyFormat(dbCourse: import('@/data/types').DbCour
     rating: dbCourse.rating,
     image: dbCourse.image || "/placeholder.svg",
     lessons: lessons.map(lesson => ({
-      id: parseInt(lesson.id.replace('lesson-', '').split('-')[1], 10),
+      id: parseInt(lesson.id.replace(/lesson-\d+-/, ''), 10),
       title: lesson.title,
       duration: lesson.duration,
       completed: false
@@ -55,24 +50,22 @@ function transformDbCourseToLegacyFormat(dbCourse: import('@/data/types').DbCour
 }
 
 /**
- * Transform DbCourse to ContentItem format
+ * Calculate total duration from lessons
  */
-function transformDbCourseToContentItem(dbCourse: import('@/data/types').DbCourse): import('@/data/types').ContentItem {
-  return {
-    id: parseInt(dbCourse.id.replace('course-', ''), 10) + 1000,
-    title: dbCourse.title,
-    description: dbCourse.description,
-    type: 'course',
-    category: dbCourse.category,
-    tags: [dbCourse.category, dbCourse.isPremium ? 'premium' : 'free', 'course'],
-    difficulty: 'intermediate' as const, // Default difficulty
-    duration: '4 hours', // Default duration
-    instructor: dbCourse.instructor,
-    rating: dbCourse.rating,
-    image: dbCourse.image,
-    isPremium: dbCourse.isPremium,
-    createdAt: dbCourse.createdAt
-  }
+function calculateTotalDuration(lessons: import('@/data/types').DbLesson[]): string {
+  if (!lessons.length) return '0h 0m'
+  
+  let totalMinutes = 0
+  lessons.forEach(lesson => {
+    const [minutes, seconds] = lesson.duration.split(':').map(Number)
+    totalMinutes += minutes + (seconds / 60)
+  })
+  
+  const hours = Math.floor(totalMinutes / 60)
+  const mins = Math.round(totalMinutes % 60)
+  
+  if (hours === 0) return `${mins}m`
+  return `${hours}h ${mins}m`
 }
 
 /**
@@ -104,13 +97,13 @@ function transformDbVideoToContentItem(dbVideo: import('@/data/types').DbVideo):
     id: parseInt(dbVideo.id.replace('video-', ''), 10) + 3000,
     title: dbVideo.title,
     description: dbVideo.description,
-    type: 'video',
+    type: 'video' as const,
     category: dbVideo.category,
     tags: dbVideo.tags,
     difficulty: dbVideo.difficulty,
-    duration: dbVideo.duration,
     instructor: dbVideo.instructor,
     rating: dbVideo.rating,
+    duration: dbVideo.duration,
     image: dbVideo.thumbnailUrl,
     isPremium: dbVideo.isPremium,
     createdAt: dbVideo.createdAt
@@ -118,154 +111,114 @@ function transformDbVideoToContentItem(dbVideo: import('@/data/types').DbVideo):
 }
 
 /**
- * Calculate total duration from lessons
+ * Updated data layer using the repository pattern with real caching
  */
-function calculateTotalDuration(lessons: import('@/data/types').DbLesson[]): string {
-  let totalMinutes = 0
-
-  lessons.forEach(lesson => {
-    const duration = lesson.duration.toLowerCase()
-    const match = duration.match(/(\d+)\s*(min|minutes|hour|hours|h)/)
-    
-    if (match) {
-      const value = parseInt(match[1], 10)
-      const unit = match[2]
-      
-      if (unit.startsWith('h')) {
-        totalMinutes += value * 60
-      } else {
-        totalMinutes += value
-      }
-    }
-  })
-
-  if (totalMinutes < 60) {
-    return `${totalMinutes} min`
-  }
-
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-
-  if (minutes === 0) {
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
-  }
-
-  return `${hours}h ${minutes}m`
-}
 
 /**
- * Fetch all courses with caching
- * Now uses the repository layer with real caching
- */
-export async function getCourses(category?: string) {
-  return CourseRepository.findAll(category ? { category } : {})
-}
-
-/**
- * Cached version of getCourses - now truly cached
+ * Fetch all courses using repository pattern
  */
 export async function getCachedCourses(category?: string) {
   return CourseRepository.findAll(category ? { category } : {})
 }
 
 /**
- * Fetch a single course by ID with caching
- */
-export async function getCourseById(id: number) {
-  return CourseRepository.findById(id)
-}
-
-/**
- * Cached version of getCourseById - now truly cached
+ * Fetch a single course by ID using repository pattern
  */
 export async function getCachedCourseById(id: number) {
   return CourseRepository.findById(id)
 }
 
 /**
- * Fetch all documents with caching
+ * Fetch lessons for a course using repository pattern
+ */
+export async function getCachedLessons(courseId: number) {
+  return LessonRepository.findByCourseId(courseId)
+}
+
+/**
+ * Fetch course statistics using repository pattern
+ */
+export async function getCachedCourseStats() {
+  return CourseRepository.getStats()
+}
+
+/**
+ * Fetch all content items (mixed courses, documents, videos) using repository pattern
+ */
+export async function getCachedContentItems() {
+  return globalCache.get('content:all:mixed', async () => {
+    const items: import('@/data/types').ContentItem[] = []
+
+    // Add courses
+    const courses = await CourseRepository.findAll()
+    const courseItems: import('@/data/types').ContentItem[] = courses.map(course => ({
+      id: course.id,
+      type: 'course' as const,
+      title: course.title,
+      description: course.description,
+      category: course.category,
+      instructor: course.instructor,
+      rating: course.rating,
+      enrollmentCount: course.enrollmentCount ?? 0,
+      duration: course.duration,
+      image: course.image,
+      isPremium: false,
+      tags: [course.category],
+      difficulty: 'intermediate' as const,
+      createdAt: course.createdAt ?? new Date().toISOString().split('T')[0],
+    }))
+    items.push(...courseItems)
+
+    // Add documents
+    const documentItems = dbDocumentsMockData.map(transformDbDocumentToContentItem)
+    items.push(...documentItems)
+
+    // Add videos
+    const videoItems = dbVideosMockData.map(transformDbVideoToContentItem)
+    items.push(...videoItems)
+
+    return items
+  }, 300000) // 5 minute cache
+}
+
+/**
+ * Fetch all documents with optional category filtering
  */
 export async function getDocuments(category?: string) {
-  await simulateDelay(400)
-
-  const { dbDocumentsMockData } = await import('@/data/mock-data')
-
   let filteredDocuments = dbDocumentsMockData
   if (category) {
     filteredDocuments = dbDocumentsMockData.filter(doc => 
       doc.category.toLowerCase() === category.toLowerCase()
     )
   }
-
   return filteredDocuments
-}
-
-/**
- * Cached version of getDocuments - returns a promise
- */
-export async function getCachedDocuments(category?: string) {
-  return getDocuments(category)
 }
 
 /**
  * Fetch a single document by ID
  */
 export async function getDocumentById(id: number) {
-  await simulateDelay(300)
-
-  const { dbDocumentsMockData } = await import('@/data/mock-data')
-  
   return dbDocumentsMockData.find(doc => doc.id === `doc-${id}`) || null
 }
 
 /**
- * Cached version of getDocumentById - returns a promise
- */
-export async function getCachedDocumentById(id: number) {
-  return getDocumentById(id)
-}
-
-/**
- * Fetch all videos with caching
+ * Fetch all videos with optional category filtering
  */
 export async function getVideos(category?: string) {
-  await simulateDelay(400)
-
-  const { dbVideosMockData } = await import('@/data/mock-data')
-
   let filteredVideos = dbVideosMockData
   if (category) {
     filteredVideos = dbVideosMockData.filter(video => 
       video.category.toLowerCase() === category.toLowerCase()
     )
   }
-
   return filteredVideos
-}
-
-/**
- * Cached version of getVideos - returns a promise
- */
-export async function getCachedVideos(category?: string) {
-  return getVideos(category)
 }
 
 /**
  * Fetch a single video by ID
  */
 export async function getVideoById(id: number) {
-  await simulateDelay(300)
-
-  const { dbVideosMockData } = await import('@/data/mock-data')
-  
   return dbVideosMockData.find(video => video.id === `video-${id}`) || null
-}
-
-/**
- * Cached version of getVideoById - returns a promise
- */
-export async function getCachedVideoById(id: number) {
-  return getVideoById(id)
 }
 
 /**
@@ -273,8 +226,6 @@ export async function getCachedVideoById(id: number) {
  */
 export async function getContentStats() {
   return globalCache.get('content:stats', async () => {
-    const { dbCoursesMockData, dbDocumentsMockData, dbVideosMockData } = await import('@/data/mock-data')
-    
     const totalCourses = dbCoursesMockData.length
     const totalDocuments = dbDocumentsMockData.length
     const totalVideos = dbVideosMockData.length
@@ -310,112 +261,36 @@ export async function getContentStats() {
 }
 
 /**
- * Fetch course statistics with caching
+ * Search functionality using repository pattern
  */
-export async function getCourseStats() {
-  return CourseRepository.getStats()
+export async function searchContent(query: string, filters?: { type?: string; category?: string }) {
+  return ContentRepository.search(query, filters)
 }
 
 /**
- * Cached version of getCourseStats - now truly cached
+ * Get trending content using repository pattern
  */
-export async function getCachedCourseStats() {
-  return CourseRepository.getStats()
-}
-
-/**
- * Search courses with caching and relevance scoring
- */
-export async function searchCourses(query: string, category?: string) {
-  const results = await CourseRepository.search(query, category ? { category } : {})
-  
-  return {
-    results,
-    total: results.length,
-    query,
-    category,
-  }
-}
-
-/**
- * Search all content with caching
- */
-export async function searchContent(query: string, type?: string, category?: string) {
-  const results = await ContentRepository.search(query, { type, category })
-  
-  return {
-    results,
-    total: results.length,
-    query,
-    type,
-    category,
-  }
-}
-
-/**
- * Fetch mixed content items with caching
- */
-export async function getContentItems() {
-  return ContentRepository.findAll()
-}
-
-/**
- * Cached version of getContentItems - now truly cached
- */
-export async function getCachedContentItems() {
-  return ContentRepository.findAll()
+export async function getTrendingContent(limit: number = 10) {
+  return ContentRepository.findTrending(limit)
 }
 
 /**
  * Fetch database courses directly (new function)
  */
 export async function getDbCourses(category?: string) {
-  await simulateDelay(300)
-
-  const { dbCoursesMockData } = await import('@/data/mock-data')
-  
   if (category) {
     return dbCoursesMockData.filter(course => 
       course.category.toLowerCase() === category.toLowerCase()
     )
   }
-
   return dbCoursesMockData
 }
 
 /**
- * Fetch database courses with lessons (new function)
- */
-export async function getDbCoursesWithLessons(category?: string) {
-  await simulateDelay(300)
-
-  const { coursesWithLessons } = await import('@/data/mock-data')
-  
-  if (category) {
-    return coursesWithLessons.filter(course => 
-      course.category.toLowerCase() === category.toLowerCase()
-    )
-  }
-
-  return coursesWithLessons
-}
-
-/**
- * Fetch a single database course by ID with lessons
+ * Fetch a single database course by ID
  */
 export async function getDbCourseById(id: string) {
-  await simulateDelay(300)
-
-  const { coursesWithLessons } = await import('@/data/mock-data')
-  
-  return coursesWithLessons.find(course => course.id === id) || null
-}
-
-/**
- * Cached version of getDbCourseById - returns a promise
- */
-export async function getCachedDbCourseById(id: string) {
-  return getDbCourseById(id)
+  return dbCoursesMockData.find(course => course.id === id) || null
 }
 
 /**
@@ -429,21 +304,16 @@ export async function getContentByType(
     difficulty?: string
   }
 ) {
-  await simulateDelay(300)
-
   let items: (import('@/data/types').DbCourse | import('@/data/types').DbDocument | import('@/data/types').DbVideo)[] = []
 
   switch (type) {
     case 'course':
-      const { dbCoursesMockData } = await import('@/data/mock-data')
       items = dbCoursesMockData
       break
     case 'document':
-      const { dbDocumentsMockData } = await import('@/data/mock-data')
       items = dbDocumentsMockData
       break
     case 'video':
-      const { dbVideosMockData } = await import('@/data/mock-data')
       items = dbVideosMockData
       break
   }
@@ -468,11 +338,4 @@ export async function getContentByType(
   }
 
   return filteredItems
-}
-
-/**
- * Get trending content with caching
- */
-export async function getTrendingContent(limit: number = 10) {
-  return ContentRepository.findTrending(limit)
 } 

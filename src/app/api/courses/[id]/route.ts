@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { coursesDatabase } from '@/data/mock-data';
+import { CourseRepository } from '@/lib/repositories';
 
 /**
  * GET /api/courses/[id] - Fetch a specific course
@@ -19,7 +19,7 @@ export async function GET(
       );
     }
 
-    const course = coursesDatabase.find(c => c.id === courseId);
+    const course = await CourseRepository.findById(courseId);
     
     if (!course) {
       return NextResponse.json(
@@ -56,22 +56,12 @@ export async function PUT(
       );
     }
 
-    const courseIndex = coursesDatabase.findIndex(c => c.id === courseId);
-    
-    if (courseIndex === -1) {
-      return NextResponse.json(
-        { error: 'Course not found' },
-        { status: 404 }
-      );
-    }
-
-    // Update course (in real app, update database)
-    const updatedCourse = { ...coursesDatabase[courseIndex], ...body };
+    const updatedCourse = await CourseRepository.update(courseId, body);
     
     return NextResponse.json(
       { course: updatedCourse, message: 'Course updated successfully' }
     );
-  } catch {
+  } catch (error) {
     return NextResponse.json(
       { error: 'Failed to update course' },
       { status: 500 }
@@ -97,16 +87,15 @@ export async function DELETE(
       );
     }
 
-    const courseIndex = coursesDatabase.findIndex(c => c.id === courseId);
+    const deleted = await CourseRepository.delete(courseId);
     
-    if (courseIndex === -1) {
+    if (!deleted) {
       return NextResponse.json(
         { error: 'Course not found' },
         { status: 404 }
       );
     }
 
-    // In real app, delete from database
     return NextResponse.json(
       { message: 'Course deleted successfully' }
     );

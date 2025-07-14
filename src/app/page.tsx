@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { ContentCard } from "@/components/ui/content-card"
+import { HeroAnimated } from "@/components/ui/hero-animated"
 import { MainLayout, Section } from "@/components/layout"
 import { 
   BookOpen, 
@@ -62,13 +63,10 @@ export default function Home() {
                 Bitcoin Development Platform
               </Badge>
               
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-                Learn Bitcoin Development on{" "}
-                <span className="text-primary">Lightning</span>
-              </h1>
+              <HeroAnimated />
               
               <p className="text-lg text-muted-foreground max-w-2xl">
-                Master Bitcoin, Lightning Network, and Nostr development with our comprehensive courses, video tutorials, guides, and documentation. Built by developers, for developers.
+                Master the fundamentals of coding, build real projects on Bitcoin protocols, and join the next generation of developers shaping the future of money and communication.
               </p>
             </div>
 
