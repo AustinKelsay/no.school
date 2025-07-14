@@ -1,8 +1,9 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card } from "@/components/ui/card"
 import { ContentCard } from "@/components/ui/content-card"
 import { HeroAnimated } from "@/components/ui/hero-animated"
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import { MainLayout, Section } from "@/components/layout"
 import { 
   BookOpen, 
@@ -11,20 +12,11 @@ import {
   Zap, 
   Star,
   Clock,
-  User,
-  ArrowRight,
   Play,
   ExternalLink,
-  Calendar,
   Users,
-  Award,
   Sparkles,
-  Code,
-  Lightbulb,
-  Target,
-  TrendingUp,
-  CheckCircle,
-  ArrowUp
+  CheckCircle
 } from "lucide-react"
 
 import { getCachedContentItems } from "@/lib/data"
@@ -129,41 +121,6 @@ export default function Home() {
         </div>
       </Section>
 
-      {/* Features Section */}
-      <Section spacing="lg">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <Card className="text-center p-6">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <Code className="h-8 w-8 text-primary" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Hands-on Learning</h3>
-            <p className="text-muted-foreground">
-              Build real projects with Bitcoin, Lightning, and Nostr protocols through courses, videos, and guides
-            </p>
-          </Card>
-
-          <Card className="text-center p-6">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <Lightbulb className="h-8 w-8 text-primary" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Comprehensive Content</h3>
-            <p className="text-muted-foreground">
-              Access structured courses, video tutorials, quick reference guides, and detailed documentation
-            </p>
-          </Card>
-
-          <Card className="text-center p-6">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <Target className="h-8 w-8 text-primary" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Career Ready</h3>
-            <p className="text-muted-foreground">
-              Get job-ready skills for the Bitcoin and Lightning ecosystem from beginner to advanced levels
-            </p>
-          </Card>
-        </div>
-      </Section>
-
       {/* Dynamic Content Sections */}
       <HomepageContent />
       
@@ -201,11 +158,11 @@ async function HomepageContent() {
   const contentItems = await getCachedContentItems()
   
   // Filter content by type
-  const courses = contentItems.filter(item => item.type === 'course').slice(0, 3)
-  const videos = contentItems.filter(item => item.type === 'video').slice(0, 3)
+  const courses = contentItems.filter(item => item.type === 'course')
+  const videos = contentItems.filter(item => item.type === 'video')
   const documents = contentItems.filter(item => 
     item.type === 'document' || item.type === 'guide' || item.type === 'cheatsheet'
-  ).slice(0, 3)
+  )
 
   return (
     <>
@@ -213,17 +170,29 @@ async function HomepageContent() {
       <Section spacing="lg" className="bg-muted/30">
         <div className="space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">Featured Courses</h2>
+            <h2 className="text-3xl font-bold">Courses</h2>
             <p className="text-muted-foreground">
               Structured learning paths from Bitcoin fundamentals to advanced Lightning Network development
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courses.map((course) => (
-              <ContentCard key={course.id} item={course} variant="content" />
-            ))}
-          </div>
+          <Carousel 
+            opts={{
+              align: "start",
+              loop: false,
+            }}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-2 md:-ml-4">
+              {courses.map((course) => (
+                <CarouselItem key={course.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+                  <ContentCard item={course} variant="content" />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="-left-12" />
+            <CarouselNext className="-right-12" />
+          </Carousel>
         </div>
       </Section>
 
@@ -240,11 +209,23 @@ async function HomepageContent() {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {videos.map((video) => (
-              <ContentCard key={video.id} item={video} variant="content" />
-            ))}
-          </div>
+          <Carousel 
+            opts={{
+              align: "start",
+              loop: false,
+            }}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-2 md:-ml-4">
+              {videos.map((video) => (
+                <CarouselItem key={video.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+                  <ContentCard item={video} variant="content" />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="-left-12" />
+            <CarouselNext className="-right-12" />
+          </Carousel>
         </div>
       </Section>
 
@@ -261,11 +242,23 @@ async function HomepageContent() {
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {documents.map((document) => (
-              <ContentCard key={document.id} item={document} variant="content" />
-            ))}
-          </div>
+          <Carousel 
+            opts={{
+              align: "start",
+              loop: false,
+            }}
+            className="w-full"
+          >
+            <CarouselContent className="-ml-2 md:-ml-4">
+              {documents.map((document) => (
+                <CarouselItem key={document.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+                  <ContentCard item={document} variant="content" />
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious className="-left-12" />
+            <CarouselNext className="-right-12" />
+          </Carousel>
         </div>
       </Section>
     </>
