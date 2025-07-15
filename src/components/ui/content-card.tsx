@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -150,19 +151,42 @@ export function ContentCard({
       className={`overflow-hidden transition-all duration-200 hover:shadow-lg hover:scale-[1.02] cursor-pointer group ${className}`}
       onClick={handleCardClick}
     >
-      {/* Thumbnail/Image Area */}
-      <div className="relative h-48 bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10 overflow-hidden">
+      {/* Thumbnail/Image Area - 16:9 aspect ratio like YouTube */}
+      <div className="relative aspect-video bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10 overflow-hidden">
         {/* Background pattern for visual interest */}
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.15)_1px,transparent_0)] bg-[size:20px_20px]" />
+        <div className="absolute inset-0 opacity-20 pointer-events-none">
+          <div 
+            className="absolute inset-0" 
+            style={{
+              backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)',
+              backgroundSize: '20px 20px'
+            } as React.CSSProperties}
+          />
         </div>
+        
+        {/* Actual image if available */}
+        {(() => {
+          if (isContent && (item.image || ('thumbnailUrl' in item && item.thumbnailUrl))) {
+            const imageSrc = item.image || ('thumbnailUrl' in item ? item.thumbnailUrl : '') || '/placeholder.svg';
+            return (
+              <Image 
+                src={imageSrc as string} 
+                alt={item.title}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+            );
+          }
+          return null;
+        })()}
         
         {/* Content type icon overlay */}
         <div className="absolute top-3 left-3 p-2 rounded-lg bg-transparent backdrop-blur-sm border shadow-sm">
-          {React.createElement(
-            isContent ? (contentTypeIcons[item.type] || BookOpen) : BookOpen, 
-            { className: "h-4 w-4 text-foreground" }
-          )}
+          {(() => {
+            const IconComponent = isContent ? (contentTypeIcons[item.type] || BookOpen) : BookOpen
+            return <IconComponent className="h-4 w-4 text-foreground" />
+          })()}
         </div>
         
         {/* Premium badge */}
@@ -210,17 +234,17 @@ export function ContentCard({
           </div>
         </div>
         
-        {/* Central content icon */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          {variant === 'course' ? (
-            <BookOpen className="h-12 w-12 text-primary/60" />
-          ) : (
-            React.createElement(
-              isContent ? (contentTypeIcons[item.type] || BookOpen) : BookOpen, 
-              { className: "h-12 w-12 text-primary/60" }
-            )
-          )}
-        </div>
+        {/* Central content icon - only show if no image */}
+        {!isContent || (!item.image && !('thumbnailUrl' in item && item.thumbnailUrl)) ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            {variant === 'course' ? (
+              <BookOpen className="h-12 w-12 text-primary/60" />
+            ) : (() => {
+              const IconComponent = isContent ? (contentTypeIcons[item.type] || BookOpen) : BookOpen
+              return <IconComponent className="h-12 w-12 text-primary/60" />
+            })()}
+          </div>
+        ) : null}
       </div>
       
       <CardHeader className="pb-3">

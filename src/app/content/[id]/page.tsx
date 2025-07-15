@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import React from 'react'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -202,7 +203,7 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
       <Section spacing="lg">
         <div className="space-y-8">
           {/* Resource Header */}
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
             <div className="space-y-6">
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
@@ -286,13 +287,26 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
             </div>
 
             <div className="relative">
-              <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20">
+              <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10">
+                {/* Background pattern for visual interest */}
+                <div className="absolute inset-0 opacity-20 pointer-events-none">
+                  <div 
+                    className="absolute inset-0" 
+                    style={{
+                      backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)',
+                      backgroundSize: '20px 20px'
+                    } as React.CSSProperties}
+                  />
+                </div>
+                
                 {resource.image || resource.thumbnailUrl ? (
                   <Image 
                     src={resource.image || resource.thumbnailUrl || '/placeholder.svg'} 
                     alt={resource.title}
                     fill
                     className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    priority
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -300,9 +314,10 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
                       <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20">
                         {getResourceTypeIcon(resource.type)}
                       </div>
-                      <p className="text-muted-foreground">
+                      <p className="text-lg font-medium text-foreground">
                         {resource.type === 'video' ? 'Video Preview' : 'Resource Preview'}
                       </p>
+                      <p className="text-sm text-muted-foreground capitalize">{resource.type} • {resource.category}</p>
                     </div>
                   </div>
                 )}

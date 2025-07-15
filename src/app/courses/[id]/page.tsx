@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import React from 'react'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -149,7 +150,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
       <Section spacing="lg">
         <div className="space-y-8">
           {/* Course Header */}
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
             <div className="space-y-6">
               <div className="space-y-2">
                 <Badge variant="secondary" className="capitalize">{course.category}</Badge>
@@ -200,13 +201,26 @@ export default async function CoursePage({ params }: CoursePageProps) {
             </div>
 
             <div className="relative">
-              <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20">
+              <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10">
+                {/* Background pattern for visual interest */}
+                <div className="absolute inset-0 opacity-20 pointer-events-none">
+                  <div 
+                    className="absolute inset-0" 
+                    style={{
+                      backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)',
+                      backgroundSize: '20px 20px'
+                    } as React.CSSProperties}
+                  />
+                </div>
+                
                 {course.image ? (
                   <Image 
                     src={course.image} 
                     alt={course.title}
                     fill
                     className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 50vw"
+                    priority
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -214,7 +228,8 @@ export default async function CoursePage({ params }: CoursePageProps) {
                       <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20">
                         <BookOpen className="h-10 w-10 text-primary" />
                       </div>
-                      <p className="text-muted-foreground">Course Preview</p>
+                      <p className="text-lg font-medium text-foreground">Course Preview</p>
+                      <p className="text-sm text-muted-foreground">{course.category}</p>
                     </div>
                   </div>
                 )}
