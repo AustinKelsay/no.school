@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import React from 'react'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -155,9 +156,11 @@ async function CourseLessons({ courseId }: { courseId: string }) {
                     </div>
                   </div>
                 </div>
-                <Button variant="outline" size="sm">
-                  <Play className="h-4 w-4 mr-2" />
-                  Start
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/courses/${courseId}/lessons/${lesson.id}/details`}>
+                    <Play className="h-4 w-4 mr-2" />
+                    Start
+                  </Link>
                 </Button>
               </div>
             ))}

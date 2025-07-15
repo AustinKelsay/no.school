@@ -2,6 +2,7 @@ import { Suspense } from 'react'
 import React from 'react'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -254,11 +255,13 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
               </div>
 
               <div className="flex items-center space-x-4">
-                <Button size="lg" className="bg-primary hover:bg-primary/90">
-                  {getResourceTypeIcon(resource.type)}
-                  <span className="ml-2">
-                    {resource.type === 'video' ? 'Watch Now' : 'Read Now'}
-                  </span>
+                <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+                  <Link href={`/content/${resource.id}/details`}>
+                    {getResourceTypeIcon(resource.type)}
+                    <span className="ml-2">
+                      {resource.type === 'video' ? 'Watch Now' : 'Read Now'}
+                    </span>
+                  </Link>
                 </Button>
                 {resource.isPremium && (
                   <Button variant="outline" size="lg">
