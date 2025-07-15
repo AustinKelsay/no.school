@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
-import { getCachedResourceById } from '@/lib/data'
+import { ResourceRepository } from '@/lib/repositories'
 import { 
   Star, 
   Clock, 
@@ -35,7 +35,7 @@ interface ResourcePageProps {
  */
 export async function generateMetadata({ params }: ResourcePageProps): Promise<Metadata> {
   const { id } = await params
-  const resource = await getCachedResourceById(id)
+  const resource = await ResourceRepository.findById(id)
 
   if (!resource) {
     return {
@@ -96,7 +96,7 @@ function ResourceContentSkeleton() {
  * Resource content component
  */
 async function ResourceContent({ resourceId }: { resourceId: string }) {
-  const resource = await getCachedResourceById(resourceId)
+  const resource = await ResourceRepository.findById(resourceId)
 
   if (!resource) {
     return <div>Resource content not available</div>
@@ -164,7 +164,7 @@ async function ResourceContent({ resourceId }: { resourceId: string }) {
 export default async function ResourcePage({ params }: ResourcePageProps) {
   const { id } = await params
   
-  const resource = await getCachedResourceById(id)
+  const resource = await ResourceRepository.findById(id)
 
   if (!resource) {
     notFound()
@@ -241,7 +241,7 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
                 
                 <div className="flex items-center space-x-2">
                   <Eye className="h-5 w-5 text-muted-foreground" />
-                  <span>{resource.viewCount?.toLocaleString()} views</span>
+                  <span>{resource.viewCount?.toLocaleString() || 0} views</span>
                 </div>
                 
                 {resource.duration && (
@@ -348,12 +348,12 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
                   )}
                   <div>
                     <h4 className="font-semibold mb-2">Views</h4>
-                    <p className="text-sm text-muted-foreground">{resource.viewCount?.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">{resource.viewCount?.toLocaleString() || 0}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Price</h4>
                     <p className="text-sm text-muted-foreground">
-                      {resource.isPremium ? `${resource.price} ${resource.currency || 'sats'}` : 'Free'}
+                      {resource.price > 0 ? `${resource.price} sats` : 'Free'}
                     </p>
                   </div>
                   <div>

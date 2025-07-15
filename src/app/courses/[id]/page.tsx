@@ -1,12 +1,12 @@
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
 import Image from 'next/image'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
-import { getCachedCourseById, getCachedCourseWithLessons } from '@/lib/data'
+import { CourseRepository, LessonRepository } from '@/lib/repositories'
 import { CourseEnrollmentForm } from '@/components/forms/course-enrollment-form'
 import { Star, Clock, Users, BookOpen, Play } from 'lucide-react'
 import type { Metadata } from 'next'
@@ -23,7 +23,7 @@ interface CoursePageProps {
  */
 export async function generateMetadata({ params }: CoursePageProps): Promise<Metadata> {
   const { id } = await params
-  const course = await getCachedCourseById(id)
+  const course = await CourseRepository.findById(id)
 
   if (!course) {
     return {
@@ -80,32 +80,30 @@ function LessonsSkeleton() {
  * Course lessons component
  */
 async function CourseLessons({ courseId }: { courseId: string }) {
-  const courseWithLessons = await getCachedCourseWithLessons(courseId)
+  const lessons = await LessonRepository.findByCourseId(courseId)
 
-  if (!courseWithLessons || !courseWithLessons.lessons) {
+  if (!lessons || lessons.length === 0) {
     return <div>No lessons available</div>
   }
 
   return (
     <div className="space-y-4">
       <h2 className="text-2xl font-bold">Course Lessons</h2>
-      {courseWithLessons.lessons.map((lesson, index) => (
+      {lessons.map((lesson, index) => (
         <Card key={lesson.id}>
           <CardHeader>
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle className="text-lg">
-                  {index + 1}. {lesson.title || 'Untitled Lesson'}
+                  {index + 1}. Lesson {lesson.index + 1}
                 </CardTitle>
-                <CardDescription className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" />
-                  <span>{lesson.duration || '30 min'}</span>
-                  {lesson.isPremium && (
-                    <Badge variant="secondary" className="ml-2">
-                      Premium
-                    </Badge>
-                  )}
-                </CardDescription>
+                  <span>30 min</span>
+                  <Badge variant="secondary" className="ml-2">
+                    Free
+                  </Badge>
+                </div>
               </div>
               <Button variant="outline" size="sm">
                 <Play className="h-4 w-4 mr-2" />
@@ -125,25 +123,18 @@ async function CourseLessons({ courseId }: { courseId: string }) {
 export default async function CoursePage({ params }: CoursePageProps) {
   const { id } = await params
   
-  const course = await getCachedCourseById(id)
+  const course = await CourseRepository.findById(id)
 
   if (!course) {
     notFound()
   }
 
-  // Calculate total duration from lessons
-  const courseWithLessons = await getCachedCourseWithLessons(id)
-  const totalDuration = courseWithLessons?.lessons?.reduce((total, lesson) => {
-    if (!lesson.duration) return total
-    
-    const match = lesson.duration.match(/(\d+):(\d+)/)
-    if (match) {
-      const hours = parseInt(match[1], 10)
-      const minutes = parseInt(match[2], 10)
-      return total + hours * 60 + minutes
-    }
-    return total
-  }, 0) || 0
+  // Get lessons for the course
+  const lessons = await LessonRepository.findByCourseId(id)
+  const lessonCount = lessons.length
+  
+  // Estimate total duration based on lesson count
+  const estimatedDuration = lessonCount * 30 // 30 minutes per lesson
 
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) return `${minutes} min`
@@ -152,8 +143,6 @@ export default async function CoursePage({ params }: CoursePageProps) {
     if (mins === 0) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
     return `${hours}h ${mins}m`
   }
-
-  const lessonCount = courseWithLessons?.lessons?.length || 0
 
   return (
     <MainLayout>
@@ -194,7 +183,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                 
                 <div className="flex items-center space-x-2">
                   <Clock className="h-5 w-5 text-muted-foreground" />
-                  <span>{formatDuration(totalDuration)}</span>
+                  <span>{formatDuration(estimatedDuration)}</span>
                 </div>
               </div>
 
@@ -253,7 +242,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Duration</h4>
-                    <p className="text-sm text-muted-foreground">{formatDuration(totalDuration)}</p>
+                    <p className="text-sm text-muted-foreground">{formatDuration(estimatedDuration)}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Category</h4>
@@ -266,7 +255,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                   <div>
                     <h4 className="font-semibold mb-2">Price</h4>
                     <p className="text-sm text-muted-foreground">
-                      {course.isPremium ? `${course.price} ${course.currency || 'sats'}` : 'Free'}
+                      {course.price > 0 ? `${course.price} sats` : 'Free'}
                     </p>
                   </div>
                 </CardContent>

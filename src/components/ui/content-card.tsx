@@ -116,11 +116,11 @@ export function ContentCard({
   const handleCardClick = () => {
     if (!isContent) return
     
-    // Navigate to appropriate detail page based on content type
-    if (variant === 'course') {
+    // Navigate to appropriate detail page based on actual content type
+    if (item.type === 'course') {
       router.push(`/courses/${item.id}`)
     } else {
-      // For resources (documents and videos), navigate to content detail page
+      // For resources (documents, videos, guides, etc.), navigate to content detail page
       router.push(`/content/${item.id}`)
     }
   }
@@ -306,9 +306,15 @@ export function ContentCard({
                 className="flex-1" 
                 size="sm" 
                 variant="outline"
-                onClick={() => router.push(`/courses/${item.id}`)}
+                onClick={() => {
+                  if (item.type === 'course') {
+                    router.push(`/courses/${item.id}`)
+                  } else {
+                    router.push(`/content/${item.id}`)
+                  }
+                }}
               >
-                View Course
+                {item.type === 'course' ? 'View Course' : 'View Content'}
               </Button>
               <CourseEnrollmentForm 
                 courseId={item.id} 
@@ -322,7 +328,7 @@ export function ContentCard({
               variant={isContent && item.isPremium ? "default" : "outline"}
               onClick={() => {
                 if (isContent) {
-                  if (variant === 'course') {
+                  if (item.type === 'course') {
                     router.push(`/courses/${item.id}`)
                   } else {
                     router.push(`/content/${item.id}`)
@@ -338,7 +344,7 @@ export function ContentCard({
               ) : (
                 <>
                   <Eye className="h-4 w-4 mr-2" />
-                  {variant === 'course' ? 'Start Learning' : 'View Content'}
+                  {item.type === 'course' ? 'Start Learning' : 'View Content'}
                 </>
               )}
             </Button>
