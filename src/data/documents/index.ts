@@ -15,12 +15,6 @@ export {
   getFreeDocuments,
   getPaidDocuments,
   getDocumentsByDifficulty,
-  getDocumentsByInstructor,
-  searchDocuments,
-  getDocumentStatistics,
-  getPopularDocuments,
-  getRecentDocuments,
-  getTopRatedDocuments,
-  getDocumentsByTag,
-  getRelatedDocuments
+  getDocumentsByUserId,
+  mockUserIds
 } from './mock-documents'

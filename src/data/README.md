@@ -1,6 +1,6 @@
 # Course, Document, and Video Data Model
 
-This document explains the comprehensive content data model for the no.school platform, which separates database metadata from Nostr content according to the specified architecture. The platform supports three main content types: **Courses**, **Documents**, and **Videos** with a rich library of **50+ educational resources** covering Bitcoin, Lightning Network, Nostr, and modern web development.
+This document explains the comprehensive content data model for the no.school platform, which separates database metadata from Nostr content according to the specified architecture. The platform supports three main content types: **Courses**, **Documents**, and **Videos** with a curated library of **31 educational resources** covering Bitcoin, Lightning Network, Nostr, and modern web development.
 
 ## ✅ **Current Status**
 
@@ -8,6 +8,7 @@ This document explains the comprehensive content data model for the no.school pl
 **Type Safety**: ✅ **Complete** - All TypeScript errors fixed  
 **Data Models**: ✅ **Validated** - All mock data properly typed  
 **API Integration**: ✅ **Working** - String ID support throughout  
+**Data Parsing**: ✅ **Fixed** - Malformed data issue resolved, all resources now properly parse with correct titles  
 
 ## Architecture Overview
 
@@ -51,6 +52,7 @@ The actual content is stored on Nostr using established NIPs:
 - **Simplified Interfaces**: Focused on working, maintainable structures
 - **Fixed Mock Data**: All sample data now properly typed and validated
 - **Consistent Naming**: Unified naming conventions across all data types
+- **Resolved Malformed Data**: Fixed noteId references to match actual Nostr events, eliminating "Unknown Resource" fallbacks
 
 ### Build System Fixes
 - **Zero Compilation Errors**: All TypeScript issues resolved
@@ -70,35 +72,36 @@ Database (Metadata) ←→ Nostr (Content)
 
 ## Content Types
 
-### Courses (5 items)
+### Courses (6 items)
 Structured learning paths with multiple lessons, designed for comprehensive education:
+- **PlebDevs Starter Course** - Complete beginner-friendly development course
 - **Bitcoin Development Fundamentals** - Core concepts and practical implementation
 - **Lightning Network Development** - Channel management and routing protocols
 - **Nostr Protocol Development** - Building decentralized applications
 - **Frontend Development for Bitcoin** - React applications with Bitcoin integration
 - **Lightning Network API Integration** - RESTful APIs and payment processing
 
-### Documents (20 items)
+### Documents (13 items)
 Reference materials, guides, cheatsheets, and documentation for quick lookup and learning:
-- **Bitcoin**: Script programming, API reference, node setup, security checklists
-- **Lightning**: Implementation guides, routing algorithms, command references
-- **Nostr**: Protocol fundamentals, client building, NIPs comprehensive reference
-- **Frontend**: React optimization, CSS Grid mastery, JavaScript ES2024 features
-- **Backend**: Node.js security, database design patterns, microservices architecture
-- **Mobile**: React Native wallets, state management, iOS development
-- **Security**: Cryptographic key management, testing frameworks, vulnerability assessments
-- **Web3**: Smart contract security, DeFi protocols, blockchain integration
+- **Bitcoin**: API reference, fundamentals, security checklists
+- **Lightning**: Routing algorithms, basics guides
+- **React**: Setup guides, optimization techniques
+- **JavaScript**: Modern ES6+ features and best practices
+- **Git & GitHub**: Version control and collaboration fundamentals
+- **Nostr**: Protocol fundamentals and implementation guides
+- **Mobile**: Bitcoin wallet development
+- **Security**: Cryptographic key management, vulnerability assessments
+- **Web3**: Smart contract security, DeFi protocols
 
-### Videos (25 items)
+### Videos (12 items)
 Visual learning content including tutorials, explanations, and demonstrations:
-- **Bitcoin Development**: Transaction deep dives, script programming, mining pool setup
-- **Lightning Network**: Channel lifecycle, routing explained, LND development
-- **Nostr Protocol**: Fundamentals, client building, relay implementation
-- **Frontend Development**: React performance optimization, modern CSS techniques
-- **Backend Architecture**: API security, database design, microservices deployment
-- **Mobile Development**: Bitcoin wallet creation, Flutter/Riverpod patterns
-- **Security Practices**: Key management, penetration testing, security auditing
-- **Web3 Integration**: Smart contract auditing, DeFi protocol development
+- **Bitcoin Development**: Fundamentals, node setup, script programming
+- **Lightning Network**: Basics, commands, implementation, payment flows
+- **Nostr Protocol**: Fundamentals, client building patterns
+- **Git & GitHub**: Version control and collaboration
+- **Frontend**: React optimization, JavaScript integration
+- **Backend**: Node.js security, API development
+- **Advanced Topics**: Paid content for in-depth technical skills
 
 ## Usage Examples
 
@@ -382,9 +385,10 @@ interface NostrPaidContentEvent {
 ## 🛠️ **Available Data Sources**
 
 ### ✅ **Working Mock Data**
-- `coursesMockData` - 5 comprehensive courses
+- `coursesMockData` - 6 comprehensive courses
 - `lessonsMockData` - 8 detailed lessons
-- `dbDocumentsMockData` - 20 comprehensive documents (Resource type)
+- `dbDocumentsMockData` - 13 comprehensive documents (Resource type)
+- `dbVideosMockData` - 12 curated videos (Resource type)
 - `coursesWithLessons` - Combined course and lesson data
 
 ### ✅ **Utility Functions**
@@ -393,6 +397,9 @@ interface NostrPaidContentEvent {
 - `getDocumentById()` - Get document by ID
 - `getDocumentsByCategory()` - Get documents by category
 - `getCoursesByCategory()` - Get courses by category
+- `getVideoById()` - Get video by ID
+- `getVideosByCategory()` - Get videos by category
+- `getFreeVideos()` / `getPaidVideos()` - Filter videos by price
 
 ### ✅ **Repository Layer**
 - `CourseRepository` - CRUD operations for courses
@@ -400,11 +407,16 @@ interface NostrPaidContentEvent {
 - Integrated caching with `globalCache`
 - Proper error handling with structured errors
 
-### ⚠️ **Video Data Status**
-- Basic placeholder functions available
-- `dbVideosMockData` - Empty array (placeholder)
-- Video utility functions return empty arrays
-- Ready for future implementation
+### ✅ **Video Data Status**
+- **Complete Implementation** - 12 videos with proper Nostr event references
+- `dbVideosMockData` - Curated array of working videos
+- Video utility functions fully functional
+- All videos have corresponding Nostr events (no "Unknown Resource" issues)
+
+### ✅ **Recent Data Fixes**
+- **Created Missing Nostr Events**: Added comprehensive events for Git & GitHub, Bitcoin Fundamentals, Lightning Network Basics, JavaScript Fundamentals, and Nostr Fundamentals
+- **Fixed noteId References**: Updated all mock data to use proper Nostr event IDs instead of placeholder strings
+- **Resolved Parsing Issues**: Resources now properly match their corresponding Nostr events for accurate title and description display
 
 ## 🔄 **Migration Status**
 

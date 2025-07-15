@@ -7,7 +7,7 @@ import { MainLayout } from "@/components/layout/main-layout"
 import { Section } from "@/components/layout/section"
 import { ContentCard } from "@/components/ui/content-card"
 
-import { getCachedContentItems } from '@/lib/data'
+import { getAllContentItems } from '@/lib/data'
 import type { ContentItem } from '@/lib/data'
 import { 
   contentTypeFilters, 
@@ -31,7 +31,7 @@ export default function ContentPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const items = await getCachedContentItems()
+        const items = await getAllContentItems()
         setContentItems(items)
       } catch (error) {
         console.error('Error fetching content items:', error)

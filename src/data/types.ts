@@ -1,100 +1,58 @@
-import type { LucideIcon } from "lucide-react"
-
 /**
  * Core data types matching the database schema from content_data_models.md
- * Database models (Course, Resource, Lesson) + Nostr event types
+ * Database models store minimal data, full content comes from Nostr events
  */
 
+import type { LucideIcon } from "lucide-react"
+
 // ============================================================================
-// DATABASE MODELS (matching Prisma schema from content_data_models.md)
+// DATABASE MODELS (minimal fields only - matching Prisma schema)
 // ============================================================================
 
 /**
- * Course model - matches Prisma schema
+ * Course model - minimal database fields only
+ * Full content comes from NIP-51 course list events (kind 30004)
  */
 export interface Course {
-  id: string          // @id (client generates UUID)
-  userId: string      // User relation
-  price: number       // @default(0)
-  noteId?: string     // @unique (optional)
+  id: string              // @id (client generates UUID)
+  userId: string          // User relation
+  price: number           // @default(0) - price in sats
+  noteId?: string         // @unique (optional) - references Nostr event
   submissionRequired: boolean // @default(false)
-  createdAt: string   // @default(now())
-  updatedAt: string   // @updatedAt
-  
-  // UI-specific fields (not in Prisma but needed for display)
-  title: string
-  description: string
-  category: string
-  instructor: string
-  instructorPubkey: string
-  rating: number
-  enrollmentCount: number
-  isPremium: boolean
-  currency?: string
-  image?: string
-  published: boolean
+  createdAt: string       // @default(now())
+  updatedAt: string       // @updatedAt
 }
 
 /**
- * Resource model - matches Prisma schema
+ * Resource model - minimal database fields only
  * Both videos and documents are stored as Resources
+ * Full content comes from NIP-23 (free) or NIP-99 (paid) events
  */
 export interface Resource {
-  id: string          // @id (client generates UUID)
-  userId: string      // User relation
-  price: number       // @default(0)
-  noteId?: string     // @unique (optional)
-  videoId?: string    // Optional video ID
-  createdAt: string   // @default(now())
-  updatedAt: string   // @updatedAt
-  
-  // UI-specific fields (not in Prisma but needed for display)
-  title: string
-  description: string
-  category: string
-  type: 'document' | 'video' | 'guide' | 'cheatsheet' | 'reference' | 'tutorial' | 'documentation'
-  instructor: string
-  instructorPubkey: string
-  rating: number
-  viewCount: number
-  isPremium: boolean
-  currency?: string
-  image?: string
-  tags: string[]
-  difficulty: 'beginner' | 'intermediate' | 'advanced'
-  published: boolean
-  
-  // Video-specific fields
-  duration?: string
-  thumbnailUrl?: string
-  videoUrl?: string
+  id: string              // @id (client generates UUID)  
+  userId: string          // User relation
+  price: number           // @default(0) - price in sats
+  noteId?: string         // @unique (optional) - references Nostr event
+  videoId?: string        // Optional video ID for video resources
+  createdAt: string       // @default(now())
+  updatedAt: string       // @updatedAt
 }
 
 /**
- * Lesson model - matches Prisma schema
- * Connects courses to resources
+ * Lesson model - connects courses to resources
  */
 export interface Lesson {
-  id: string          // @id @default(uuid())
-  courseId?: string   // Optional course relation
-  resourceId?: string // Optional resource relation
-  draftId?: string    // Optional draft relation
-  index: number       // Lesson order in course
-  createdAt: string   // @default(now())
-  updatedAt: string   // @updatedAt
-  
-  // UI-specific fields (derived from resource)
-  title?: string
-  description?: string
-  duration?: string
-  isPremium?: boolean
-  price?: number
-  currency?: string
-  published?: boolean
+  id: string              // @id @default(uuid())
+  courseId?: string       // Optional course relation
+  resourceId?: string     // Optional resource relation
+  draftId?: string        // Optional draft relation (for future use)
+  index: number           // Lesson order in course
+  createdAt: string       // @default(now())
+  updatedAt: string       // @updatedAt
 }
 
 // ============================================================================
-// NOSTR EVENT TYPES (NIP-51, NIP-23, NIP-99)
+// NOSTR EVENT TYPES (matching content_data_models.md)
 // ============================================================================
 
 /**
@@ -111,12 +69,12 @@ export interface NostrEvent {
 }
 
 /**
- * NIP-51 Course List Event (kind 30001)
- * Courses are lists of resources (lessons)
+ * NIP-51 Course List Event (kind 30004) - CORRECTED KIND
+ * Courses as curation sets referencing lesson resources
  */
 export interface NostrCourseListEvent extends NostrEvent {
-  kind: 30001
-  content: string // Empty for lists
+  kind: 30004
+  content: string // Course description (usually empty)
 }
 
 /**
@@ -125,7 +83,7 @@ export interface NostrCourseListEvent extends NostrEvent {
  */
 export interface NostrFreeContentEvent extends NostrEvent {
   kind: 30023
-  content: string // Markdown content
+  content: string // Full markdown content
 }
 
 /**
@@ -134,15 +92,15 @@ export interface NostrFreeContentEvent extends NostrEvent {
  */
 export interface NostrPaidContentEvent extends NostrEvent {
   kind: 30402
-  content: string // Markdown content
+  content: string // Full markdown content
 }
 
 // ============================================================================
-// PARSED EVENT DATA (from Nostr to UI)
+// PARSED EVENT DATA (from Nostr events to UI) - matching content_data_models.md
 // ============================================================================
 
 /**
- * Parsed course data from NIP-51 events
+ * Parsed course event data (from parseCourseEvent function)
  */
 export interface ParsedCourseEvent {
   id: string
@@ -158,11 +116,10 @@ export interface ParsedCourseEvent {
   d: string
   tags: string[][]
   type: 'course'
-  price?: string
 }
 
 /**
- * Parsed resource data from NIP-23/NIP-99 events
+ * Parsed resource event data (from parseEvent function)
  */
 export interface ParsedResourceEvent {
   id: string
@@ -178,144 +135,22 @@ export interface ParsedResourceEvent {
   type: 'document' | 'video'
   author?: string
   price?: string
-  d?: string
+  d: string
 }
 
 // ============================================================================
-// LEGACY TYPES (for backward compatibility)
-// ============================================================================
-
-export interface ContentItem {
-  id: string
-  title: string
-  description: string
-  type: 'course' | 'video' | 'document' | 'guide' | 'cheatsheet'
-  category: string
-  tags: string[]
-  difficulty: 'beginner' | 'intermediate' | 'advanced'
-  duration?: string
-  instructor?: string
-  instructorPubkey?: string
-  rating?: number
-  enrollmentCount?: number
-  price?: number
-  currency?: string
-  image?: string
-  isPremium: boolean
-  createdAt: string
-  lessons?: {
-    id: string
-    title: string
-    description: string
-    type: string
-    duration: string
-    order: number
-    isPremium: boolean
-    price: number
-    currency: string
-    videoUrl: string
-    documentUrl: string
-    createdAt: string
-  }[]
-}
-
-export interface Video {
-  id: number
-  title: string
-  description: string
-  duration: string
-  instructor: string
-  rating: number
-  category: string
-  tags: string[]
-  isPremium: boolean
-  createdAt: string
-}
-
-export interface Document {
-  id: number
-  title: string
-  description: string
-  type: 'cheatsheet' | 'guide' | 'cookbook' | 'checklist' | 'reference'
-  category: string
-  tags: string[]
-  isPremium: boolean
-  createdAt: string
-}
-
-// ============================================================================
-// UTILITY TYPES
-// ============================================================================
-
-export interface CategoryConfig {
-  id: string
-  name: string
-  icon: LucideIcon
-  color: string
-  description: string
-}
-
-export interface ApiResponse<T> {
-  data: T
-  message?: string
-  success: boolean
-}
-
-export interface PaginatedResponse<T> {
-  data: T[]
-  total: number
-  page: number
-  pageSize: number
-  totalPages: number
-}
-
-export interface SearchFilters {
-  category?: string
-  difficulty?: string
-  type?: string
-  isPremium?: boolean
-  query?: string
-}
-
-export interface SortOptions {
-  field: string
-  direction: 'asc' | 'desc'
-}
-
-// ============================================================================
-// COMBINED DATA STRUCTURES
+// UTILITY TYPES AND FUNCTIONS
 // ============================================================================
 
 /**
- * Course with its lessons (resources)
+ * Parse course event function signature (from content_data_models.md)
  */
-export interface CourseWithLessons {
-  course: Course
-  lessons: (Lesson & { resource?: Resource })[]
-}
-
-/**
- * Full course data with Nostr events
- */
-export interface NostrCourseData {
-  courseListEvent: NostrCourseListEvent
-  resourceEvents: (NostrFreeContentEvent | NostrPaidContentEvent)[]
-}
-
-// ============================================================================
-// PARSING FUNCTIONS (from content_data_models.md)
-// ============================================================================
-
-/**
- * Parse NIP-51 course list event to UI-friendly format
- * Based on parseCourseEvent from content_data_models.md
- */
-export function parseCourseEvent(event: NostrEvent): ParsedCourseEvent {
+export function parseCourseEvent(event: NostrCourseListEvent): ParsedCourseEvent {
   const eventData: ParsedCourseEvent = {
     id: event.id,
     pubkey: event.pubkey || '',
     content: event.content || '',
-    kind: event.kind || 0,
+    kind: event.kind || 30004,
     name: '',
     description: '',
     image: '',
@@ -327,6 +162,7 @@ export function parseCourseEvent(event: NostrEvent): ParsedCourseEvent {
     type: 'course',
   }
 
+  // Iterate over the tags array to extract data
   event.tags.forEach(tag => {
     switch (tag[0]) {
       case 'name':
@@ -354,18 +190,18 @@ export function parseCourseEvent(event: NostrEvent): ParsedCourseEvent {
         eventData.d = tag[1]
         break
       case 'price':
-        eventData.price = tag[1]
+        // Price is handled in database model
         break
       case 'l':
+        // Grab index 1 and any subsequent elements in the array
         tag.slice(1).forEach(topic => {
           eventData.topics.push(topic)
         })
         break
-      case 'r':
-        // Additional links - not used in course events but keeping for completeness
-        break
       case 't':
         eventData.topics.push(tag[1])
+        break
+      default:
         break
     }
   })
@@ -374,15 +210,14 @@ export function parseCourseEvent(event: NostrEvent): ParsedCourseEvent {
 }
 
 /**
- * Parse NIP-23/NIP-99 resource event to UI-friendly format
- * Based on parseEvent from content_data_models.md
+ * Parse resource event function signature (from content_data_models.md)
  */
-export function parseResourceEvent(event: NostrEvent): ParsedResourceEvent {
+export function parseEvent(event: NostrFreeContentEvent | NostrPaidContentEvent): ParsedResourceEvent {
   const eventData: ParsedResourceEvent = {
     id: event.id,
     pubkey: event.pubkey || '',
     content: event.content || '',
-    kind: event.kind || 0,
+    kind: event.kind || 30023,
     additionalLinks: [],
     title: '',
     summary: '',
@@ -390,8 +225,10 @@ export function parseResourceEvent(event: NostrEvent): ParsedResourceEvent {
     published_at: '',
     topics: [],
     type: 'document', // Default type
+    d: ''
   }
 
+  // Iterate over the tags array to extract data
   event.tags.forEach(tag => {
     switch (tag[0]) {
       case 'title':
@@ -419,6 +256,7 @@ export function parseResourceEvent(event: NostrEvent): ParsedResourceEvent {
         eventData.price = tag[1]
         break
       case 'l':
+        // Grab index 1 and any subsequent elements in the array
         tag.slice(1).forEach(topic => {
           eventData.topics.push(topic)
         })
@@ -437,13 +275,145 @@ export function parseResourceEvent(event: NostrEvent): ParsedResourceEvent {
       case 'r':
         eventData.additionalLinks.push(tag[1])
         break
+      default:
+        break
     }
   })
 
-  // If published_at is empty, use created_at
+  // if published_at is an empty string, then set it to event.created_at
   if (!eventData.published_at) {
     eventData.published_at = event.created_at.toString()
   }
 
   return eventData
 }
+
+// ============================================================================
+// DISPLAY INTERFACES (for UI components)
+// ============================================================================
+
+// Keep existing display interfaces for backwards compatibility
+export interface CourseDisplay extends Course {
+  title: string
+  description: string
+  category: string
+  instructor: string
+  instructorPubkey: string
+  rating: number
+  enrollmentCount: number
+  isPremium: boolean
+  currency?: string
+  image?: string
+  published: boolean
+  topics: string[]
+  lessonReferences: string[]
+  additionalLinks?: string[]
+}
+
+export interface ResourceDisplay extends Resource {
+  title: string
+  description: string
+  category: string
+  type: 'document' | 'video' | 'guide' | 'cheatsheet' | 'reference' | 'tutorial' | 'documentation'
+  instructor: string
+  instructorPubkey: string
+  rating: number
+  viewCount: number
+  isPremium: boolean
+  currency?: string
+  image?: string
+  tags: string[]
+  difficulty: 'beginner' | 'intermediate' | 'advanced'
+  published: boolean
+  topics: string[]
+  additionalLinks: string[]
+  duration?: string
+  thumbnailUrl?: string
+  videoUrl?: string
+}
+
+export interface LessonDisplay extends Lesson {
+  title: string
+  description: string
+  duration?: string
+  type: 'video' | 'document'
+  isPremium: boolean
+  completed?: boolean
+}
+
+export interface CourseWithLessons extends CourseDisplay {
+  lessons: LessonDisplay[]
+}
+
+export interface ContentItem {
+  id: string
+  type: 'course' | 'document' | 'video'
+  title: string
+  description: string
+  category: string
+  instructor: string
+  instructorPubkey: string
+  rating: number
+  isPremium: boolean
+  price: number
+  currency?: string
+  image?: string
+  published: boolean
+  tags: string[]
+  difficulty?: 'beginner' | 'intermediate' | 'advanced'
+  createdAt: string
+  updatedAt: string
+  duration?: string
+  enrollmentCount?: number
+  viewCount?: number
+  topics: string[]
+  additionalLinks: string[]
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+export function createCourseDisplay(course: Course, parsedEvent: ParsedCourseEvent): CourseDisplay {
+  return {
+    ...course,
+    title: parsedEvent.name || 'Unknown Course',
+    description: parsedEvent.description || 'No description available',
+    category: parsedEvent.topics[0] || 'general',
+    instructor: 'Unknown', // Would come from user table in real implementation
+    instructorPubkey: parsedEvent.pubkey,
+    rating: 0, // Would come from ratings table
+    enrollmentCount: 0, // Would come from enrollments table
+    isPremium: course.price > 0,
+    currency: 'sats',
+    image: parsedEvent.image || '',
+    published: true,
+    topics: parsedEvent.topics,
+    lessonReferences: [], // Would extract from 'a' tags
+    additionalLinks: []
+  }
+}
+
+export function createResourceDisplay(resource: Resource, parsedEvent: ParsedResourceEvent): ResourceDisplay {
+  return {
+    ...resource,
+    title: parsedEvent.title || 'Unknown Resource',
+    description: parsedEvent.summary || 'No description available',
+    category: parsedEvent.topics[0] || 'general',
+    type: parsedEvent.type === 'video' ? 'video' : 'document',
+    instructor: parsedEvent.author || 'Unknown',
+    instructorPubkey: parsedEvent.pubkey,
+    rating: 0, // Would come from ratings table
+    viewCount: 0, // Would come from views table
+    isPremium: resource.price > 0,
+    currency: 'sats',
+    image: parsedEvent.image || '',
+    tags: parsedEvent.topics,
+    difficulty: 'intermediate', // Would need to be inferred or stored
+    published: true,
+    topics: parsedEvent.topics,
+    additionalLinks: parsedEvent.additionalLinks
+  }
+}
+
+// Types are already exported above

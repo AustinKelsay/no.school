@@ -33,6 +33,14 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'api.dicebear.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'miro.medium.com',
+      },
     ],
     // Optimize images for better performance
     formats: ['image/avif', 'image/webp'],

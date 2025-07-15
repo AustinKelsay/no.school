@@ -54,6 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     // In a real app, you'd save to database
+    // Note: UI fields like title, description, category would be stored in Nostr events
     const newCourse: Course = {
       id: `course-${Date.now()}`, // Generate a simple ID for now
       userId: 'user-admin', // Default user ID
@@ -61,16 +62,7 @@ export async function POST(request: NextRequest) {
       submissionRequired: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      title,
-      description,
-      category,
-      instructor: body.instructor || "Unknown",
-      instructorPubkey: 'npub1defaultinstructor1234567890abcdef1234567890abcdef1234567890',
-      rating: 0,
-      enrollmentCount: 0,
-      isPremium: false,
-      image: body.image || "/api/placeholder/default-course.jpg",
-      published: true
+      noteId: `course-${Date.now()}-note` // Reference to Nostr event
     };
 
     const createdCourse = await CourseRepository.create(newCourse);

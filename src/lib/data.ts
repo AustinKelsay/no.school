@@ -1,312 +1,411 @@
 /**
- * Data access layer with caching and repository patterns
- * Updated to use new database schema from content_data_models.md
+ * Data access layer for the application
+ * Uses unified data access functions that combine database + Nostr data
+ * This is the main interface for frontend components
  */
 
-// Import all types from centralized location (new structure)
+import { 
+  getAllCoursesWithContent,
+  getCourseWithContentById,
+  getCourseWithLessonsById,
+  getAllResourcesWithContent,
+  getResourceWithContentById,
+  getAllContentItems as getContentItems,
+  searchAllContent,
+  getTrendingContent,
+  getFeaturedContent,
+  getContentStats,
+  getCoursesByContentCategory,
+  getResourcesByContentCategory,
+  getResourcesByType,
+  getContentByInstructor,
+  getContentByDifficulty,
+  getPremiumContent,
+  getFreeContent
+} from '@/data'
+
 import type { 
-  Course, 
-  Lesson, 
-  Resource,
-  ContentItem, 
-  CourseWithLessons,
-  NostrCourseData,
-  SearchFilters,
-  SortOptions,
-  ParsedCourseEvent,
-  ParsedResourceEvent
+  CourseDisplay, 
+  ResourceDisplay, 
+  CourseWithLessons, 
+  ContentItem 
 } from '@/data/types'
 
 // Re-export types for consumers
 export type { 
-  Course, 
-  Lesson, 
-  Resource,
-  ContentItem, 
-  CourseWithLessons,
-  NostrCourseData,
-  SearchFilters,
-  SortOptions,
-  ParsedCourseEvent,
-  ParsedResourceEvent
+  CourseDisplay, 
+  ResourceDisplay, 
+  CourseWithLessons, 
+  ContentItem 
 } from '@/data/types'
 
-/**
- * Import the new caching and repository layers
- */
-import { CourseRepository, LessonRepository } from './repositories'
-import { globalCache } from './cache'
-import { 
-  coursesMockData, 
-  lessonsMockData, 
-  coursesWithLessons,
-  getCourseById,
-  getCoursesByCategory,
-  getFreeCourses,
-  getPaidCourses,
-  getLessonsByCourseId,
-  getCourseWithLessons
-} from '@/data/courses/mock-courses'
-import { 
-  resourcesMockData,
-  getResourceById,
-  getResourcesByCategory,
-  getResourcesByType,
-  getDocumentResources,
-  getVideoResources,
-  getFreeResources,
-  getPaidResources,
-  searchResources
-} from '@/data/resources/mock-resources'
-import { getContentStats, getAllContentItems, searchAllContent } from '@/data/index'
-
 // ============================================================================
-// COURSE DATA ACCESS
+// CACHED DATA ACCESS FUNCTIONS
 // ============================================================================
 
 /**
- * Get all courses with caching
+ * Get all courses with full content data (cached)
  */
-export async function getCachedCourses(category?: string): Promise<Course[]> {
-  const cacheKey = category ? `courses:category:${category}` : 'courses:all'
+export async function getCachedCourses(category?: string): Promise<CourseDisplay[]> {
+  // Simulate async operation (in real app this would use actual caching)
+  await new Promise(resolve => setTimeout(resolve, 10))
   
-  return globalCache.get(cacheKey, async () => {
-    if (category) {
-      return getCoursesByCategory(category)
-    }
-    return coursesMockData
-  })
+  const courses = getAllCoursesWithContent()
+  
+  if (category) {
+    return courses.filter(course => course.category === category)
+  }
+  
+  return courses
 }
 
 /**
- * Get course by ID with caching
+ * Get course by ID with full content data (cached)
  */
-export async function getCachedCourseById(id: string): Promise<Course | null> {
-  return globalCache.get(`course:${id}`, async () => {
-    return getCourseById(id) || null
-  })
+export async function getCachedCourseById(id: string): Promise<CourseDisplay | null> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getCourseWithContentById(id)
 }
 
 /**
- * Get course with lessons by ID with caching
+ * Get course with lessons by ID (cached)
  */
 export async function getCachedCourseWithLessons(id: string): Promise<CourseWithLessons | null> {
-  return globalCache.get(`course:lessons:${id}`, async () => {
-    return getCourseWithLessons(id) || null
-  })
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getCourseWithLessonsById(id)
 }
 
 /**
- * Get course statistics with caching
+ * Get all resources with full content data (cached)
+ */
+export async function getCachedResources(type?: 'document' | 'video', category?: string): Promise<ResourceDisplay[]> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  
+  let resources = getAllResourcesWithContent()
+  
+  if (type) {
+    resources = resources.filter(resource => resource.type === type)
+  }
+  
+  if (category) {
+    resources = resources.filter(resource => resource.category === category)
+  }
+  
+  return resources
+}
+
+/**
+ * Get resource by ID with full content data (cached)
+ */
+export async function getCachedResourceById(id: string): Promise<ResourceDisplay | null> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getResourceWithContentById(id)
+}
+
+/**
+ * Get all content items for display (cached)
+ */
+export async function getCachedAllContentItems(): Promise<ContentItem[]> {
+  // Simulate async operation (in real app this would use actual caching)
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getContentItems()
+}
+
+/**
+ * Search all content (cached)
+ */
+export async function searchContent(query: string): Promise<(CourseDisplay | ResourceDisplay)[]> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return searchAllContent(query)
+}
+
+/**
+ * Get trending content (cached)
+ */
+export async function getTrendingContentCached(limit: number = 10): Promise<(CourseDisplay | ResourceDisplay)[]> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getTrendingContent(limit)
+}
+
+/**
+ * Get featured content (cached)
+ */
+export async function getFeaturedContentCached(type: 'course' | 'resource' | 'all' = 'all'): Promise<(CourseDisplay | ResourceDisplay)[]> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getFeaturedContent(type)
+}
+
+/**
+ * Get content statistics (cached)
+ */
+export async function getCachedContentStats() {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getContentStats()
+}
+
+/**
+ * Get course statistics (cached)
  */
 export async function getCachedCourseStats() {
-  return globalCache.get('course:stats', async () => {
-    const stats = getContentStats()
-    return {
-      totalCourses: stats.totalCourses,
-      totalEnrollments: stats.totalEnrollments,
-      averageRating: stats.averageRating,
-      freeCourses: stats.freeCourses,
-      paidCourses: stats.paidCourses
-    }
-  })
-}
-
-// ============================================================================
-// RESOURCE DATA ACCESS (Documents + Videos)
-// ============================================================================
-
-/**
- * Get all resources with caching
- */
-export async function getCachedResources(type?: Resource['type'], category?: string): Promise<Resource[]> {
-  const cacheKey = `resources:${type || 'all'}:${category || 'all'}`
+  await new Promise(resolve => setTimeout(resolve, 10))
   
-  return globalCache.get(cacheKey, async () => {
-    let resources = resourcesMockData
-    
-    if (type) {
-      resources = resources.filter(r => r.type === type)
-    }
-    
-    if (category) {
-      resources = resources.filter(r => r.category === category)
-    }
-    
-    return resources
-  })
-}
-
-/**
- * Get resource by ID with caching
- */
-export async function getCachedResourceById(id: string): Promise<Resource | null> {
-  return globalCache.get(`resource:${id}`, async () => {
-    return getResourceById(id) || null
-  })
-}
-
-/**
- * Get documents with caching
- */
-export async function getCachedDocuments(category?: string): Promise<Resource[]> {
-  const cacheKey = category ? `documents:category:${category}` : 'documents:all'
+  const courses = getAllCoursesWithContent()
+  const totalCourses = courses.length
+  const totalEnrollments = courses.reduce((sum, course) => sum + course.enrollmentCount, 0)
+  const averageRating = courses.reduce((sum, course) => sum + course.rating, 0) / totalCourses
   
-  return globalCache.get(cacheKey, async () => {
-    let documents = getDocumentResources()
-    
-    if (category) {
-      documents = documents.filter(d => d.category === category)
-    }
-    
-    return documents
-  })
+  return {
+    totalCourses,
+    totalEnrollments,
+    averageRating: Math.round(averageRating * 10) / 10
+  }
 }
 
 /**
- * Get videos with caching
+ * Get videos by category (cached)
  */
-export async function getCachedVideos(category?: string): Promise<Resource[]> {
-  const cacheKey = category ? `videos:category:${category}` : 'videos:all'
+export async function getCachedVideosByCategory(category: string): Promise<ResourceDisplay[]> {
+  await new Promise(resolve => setTimeout(resolve, 10))
   
-  return globalCache.get(cacheKey, async () => {
-    let videos = getVideoResources()
-    
-    if (category) {
-      videos = videos.filter(v => v.category === category)
-    }
-    
-    return videos
-  })
+  const resources = getAllResourcesWithContent()
+  return resources.filter(resource => resource.type === 'video' && resource.category === category)
+}
+
+/**
+ * Get documents by category (cached)
+ */
+export async function getCachedDocumentsByCategory(category: string): Promise<ResourceDisplay[]> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  
+  const resources = getAllResourcesWithContent()
+  return resources.filter(resource => resource.type === 'document' && resource.category === category)
+}
+
+/**
+ * Get content by instructor (cached)
+ */
+export async function getCachedContentByInstructor(pubkey: string): Promise<(CourseDisplay | ResourceDisplay)[]> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getContentByInstructor(pubkey)
+}
+
+/**
+ * Get content by difficulty (cached)
+ */
+export async function getCachedContentByDifficulty(difficulty: 'beginner' | 'intermediate' | 'advanced'): Promise<ResourceDisplay[]> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getContentByDifficulty(difficulty)
+}
+
+/**
+ * Get premium content (cached)
+ */
+export async function getCachedPremiumContent(): Promise<(CourseDisplay | ResourceDisplay)[]> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getPremiumContent()
+}
+
+/**
+ * Get free content (cached)
+ */
+export async function getCachedFreeContent(): Promise<(CourseDisplay | ResourceDisplay)[]> {
+  await new Promise(resolve => setTimeout(resolve, 10))
+  return getFreeContent()
 }
 
 // ============================================================================
-// CONTENT DISCOVERY
+// LEGACY EXPORT FUNCTIONS (for backward compatibility)
 // ============================================================================
 
 /**
- * Get all content items (courses + resources) with caching
+ * Get all content items (legacy)
  */
-export async function getCachedContentItems(): Promise<ContentItem[]> {
-  return globalCache.get('content:all', async () => {
-    const allContent = getAllContentItems()
-    
-    // Transform to ContentItem format for backward compatibility
-    return allContent.map(item => {
-      const baseItem = {
-        id: item.id, // Keep string ID
-        title: item.title,
-        description: item.description,
-        category: item.category,
-        tags: 'tags' in item ? item.tags : [],
-        difficulty: ('difficulty' in item ? item.difficulty : 'beginner') as ContentItem['difficulty'],
-        instructor: item.instructor,
-        rating: item.rating,
-        image: item.image,
-        isPremium: item.isPremium,
-        createdAt: item.createdAt
-      }
-      
-      if (item.type === 'course') {
-        return {
-          ...baseItem,
-          type: 'course' as const,
-          duration: undefined // Courses don't have direct duration
-        }
-      } else {
-        return {
-          ...baseItem,
-          type: item.type as ContentItem['type'],
-          duration: item.duration || undefined
-        }
-      }
+export async function getAllContentItems(): Promise<ContentItem[]> {
+  return getContentItems()
+}
+
+/**
+ * Get content by type (legacy)
+ */
+export async function getContentByType(type: 'course' | 'video' | 'document'): Promise<ContentItem[]> {
+  const allContent = getContentItems()
+  return allContent.filter(item => item.type === type)
+}
+
+/**
+ * Get content by category (legacy)
+ */
+export async function getContentByCategory(category: string): Promise<ContentItem[]> {
+  const allContent = getContentItems()
+  return allContent.filter(item => item.category === category)
+}
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Check if content is premium
+ */
+export function isContentPremium(content: CourseDisplay | ResourceDisplay): boolean {
+  return content.isPremium
+}
+
+/**
+ * Get content price display
+ */
+export function getContentPriceDisplay(content: CourseDisplay | ResourceDisplay): string {
+  if (!content.isPremium) return 'Free'
+  return `${content.price} ${content.currency}`
+}
+
+/**
+ * Get content type display
+ */
+export function getContentTypeDisplay(content: CourseDisplay | ResourceDisplay): string {
+  if ('enrollmentCount' in content) return 'Course'
+  if ('type' in content) return content.type === 'video' ? 'Video' : 'Document'
+  return 'Content'
+}
+
+/**
+ * Get content duration display
+ */
+export function getContentDurationDisplay(content: ResourceDisplay): string {
+  if (!content.duration) return 'Unknown duration'
+  return content.duration
+}
+
+/**
+ * Get content rating display
+ */
+export function getContentRatingDisplay(content: CourseDisplay | ResourceDisplay): string {
+  return `${content.rating}/5`
+}
+
+/**
+ * Get content engagement display
+ */
+export function getContentEngagementDisplay(content: CourseDisplay | ResourceDisplay): string {
+  if ('enrollmentCount' in content) {
+    return `${content.enrollmentCount.toLocaleString()} students`
+  }
+  if ('viewCount' in content) {
+    return `${content.viewCount.toLocaleString()} views`
+  }
+  return 'No engagement data'
+}
+
+/**
+ * Format content date
+ */
+export function formatContentDate(dateString: string): string {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+/**
+ * Get content categories
+ */
+export function getContentCategories(): string[] {
+  const allContent = getContentItems()
+  const categories = new Set<string>()
+  
+  allContent.forEach(item => {
+    categories.add(item.category)
+  })
+  
+  return Array.from(categories).sort()
+}
+
+/**
+ * Get content difficulties
+ */
+export function getContentDifficulties(): string[] {
+  const allContent = getContentItems()
+  const difficulties = new Set<string>()
+  
+  allContent.forEach(item => {
+    if (item.difficulty) {
+      difficulties.add(item.difficulty)
+    }
+  })
+  
+  return Array.from(difficulties).sort()
+}
+
+/**
+ * Get content tags
+ */
+export function getContentTags(): string[] {
+  const allContent = getContentItems()
+  const tags = new Set<string>()
+  
+  allContent.forEach(item => {
+    item.tags.forEach(tag => tags.add(tag))
+    item.topics?.forEach(topic => tags.add(topic))
+  })
+  
+  return Array.from(tags).sort()
+}
+
+/**
+ * Get popular tags
+ */
+export function getPopularTags(limit: number = 20): string[] {
+  const allContent = getContentItems()
+  const tagCounts = new Map<string, number>()
+  
+  allContent.forEach(item => {
+    item.tags.forEach(tag => {
+      tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
+    })
+    item.topics?.forEach(topic => {
+      tagCounts.set(topic, (tagCounts.get(topic) || 0) + 1)
     })
   })
-}
-
-/**
- * Search content with caching
- */
-export async function getCachedSearchResults(query: string): Promise<{
-  courses: Course[]
-  resources: Resource[]
-  total: number
-}> {
-  const cacheKey = `search:${query.toLowerCase()}`
   
-  return globalCache.get(cacheKey, async () => {
-    return searchAllContent(query)
-  })
+  return Array.from(tagCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([tag]) => tag)
 }
 
 /**
- * Get trending content with caching
+ * Get related content
  */
-export async function getCachedTrendingContent(limit: number = 10): Promise<ContentItem[]> {
-  return globalCache.get(`trending:${limit}`, async () => {
-    const trending = await import('@/data/index').then(m => m.getTrendingContent(limit))
+export function getRelatedContent(content: CourseDisplay | ResourceDisplay, limit: number = 5): (CourseDisplay | ResourceDisplay)[] {
+  const allContent = [...getAllCoursesWithContent(), ...getAllResourcesWithContent()]
+  
+  // Filter out the current content
+  const otherContent = allContent.filter(item => item.id !== content.id)
+  
+  // Score based on shared topics and category
+  const scoredContent = otherContent.map(item => {
+    let score = 0
     
-    // Transform to ContentItem format for backward compatibility
-    return trending.map(item => ({
-      id: item.id,
-      title: item.title,
-      description: item.description,
-      type: item.type as ContentItem['type'],
-      category: item.category,
-      tags: 'tags' in item ? item.tags : [],
-      difficulty: ('difficulty' in item ? item.difficulty : 'beginner') as ContentItem['difficulty'],
-      duration: item.type === 'course' ? undefined : item.duration || undefined,
-      instructor: item.instructor,
-      rating: item.rating,
-      image: item.image,
-      isPremium: item.isPremium,
-      createdAt: item.createdAt
-    }))
-  })
-}
-
-// ============================================================================
-// LEGACY COMPATIBILITY FUNCTIONS
-// ============================================================================
-
-/**
- * Legacy function for backward compatibility - maps to new getCachedCourseById
- * @deprecated Use getCachedCourseById with string ID instead
- */
-export async function getCachedCourseByIdLegacy(id: number): Promise<Course | null> {
-  // Try to find course by converting number to string format
-  const courseId = `course-${id}`
-  return getCachedCourseById(courseId)
-}
-
-/**
- * Calculate total duration from lessons
- */
-function calculateTotalDuration(lessons: { duration?: string }[]): string {
-  let totalMinutes = 0
-
-  lessons.forEach(lesson => {
-    if (!lesson.duration) return
+    // Same category = +3 points
+    if (item.category === content.category) score += 3
     
-    const duration = lesson.duration
-    const match = duration.match(/(\d+):(\d+)/)
-    if (match) {
-      const hours = parseInt(match[1], 10)
-      const minutes = parseInt(match[2], 10)
-      totalMinutes += hours * 60 + minutes
+    // Shared topics = +1 point each
+    const sharedTopics = item.topics.filter(topic => content.topics.includes(topic))
+    score += sharedTopics.length
+    
+    // Same difficulty (for resources) = +1 point
+    if ('difficulty' in item && 'difficulty' in content && item.difficulty === content.difficulty) {
+      score += 1
     }
+    
+    return { content: item, score }
   })
-
-  if (totalMinutes < 60) {
-    return `${totalMinutes} min`
-  }
-
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-
-  if (minutes === 0) {
-    return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
-  }
-
-  return `${hours}h ${minutes}m`
+  
+  // Sort by score and return top results
+  return scoredContent
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(item => item.content)
 } 

@@ -4,7 +4,7 @@ A **production-ready** Next.js 15 application showcasing enterprise-grade archit
 
 ## 🎯 **Project Overview**
 
-**PlebDevs** is a developer education platform that demonstrates every major Next.js 15 feature in a **real-world, production-ready** context. This isn't just another template – it's a comprehensive showcase of modern web development best practices with **enterprise-grade architecture** and a **rich content library** of 50+ educational resources.
+**PlebDevs** is a developer education platform that demonstrates every major Next.js 15 feature in a **real-world, production-ready** context. This isn't just another template – it's a comprehensive showcase of modern web development best practices with **enterprise-grade architecture** and a **rich content library** of 31 educational resources.
 
 ### ✨ **Key Features & Achievements**
 
@@ -337,16 +337,16 @@ if (error instanceof ValidationError) {
 ## 🎨 **Content Management**
 
 ### **Comprehensive Content Library**
-The platform features a **rich educational ecosystem** with 50+ carefully curated resources following **NIP-23 (free)** and **NIP-99 (paid)** specifications:
+The platform features a **rich educational ecosystem** with 31 carefully curated resources following **NIP-23 (free)** and **NIP-99 (paid)** specifications:
 
-- **Courses (5)**: Structured learning paths with lessons covering Bitcoin development, Lightning Network, Nostr protocol, frontend development, and Lightning API integration
-- **Documents (20)**: Professional-grade educational materials including:
+- **Courses (6)**: Structured learning paths with lessons covering Bitcoin development, Lightning Network, Nostr protocol, frontend development, and Lightning API integration
+- **Documents (13)**: Professional-grade educational materials including:
   - **Implementation Guides**: Step-by-step tutorials for complex integrations
   - **API References**: Comprehensive documentation with examples and parameters  
   - **Cheatsheets**: Quick reference materials for developers
   - **Tutorials**: Hands-on learning content with practical examples
   - **Documentation**: Technical specifications and best practices
-- **Videos (25)**: High-quality video content ranging from 15-67 minutes covering visual tutorials, deep technical dives, and practical demonstrations
+- **Videos (12)**: High-quality video content ranging from 15-67 minutes covering visual tutorials, deep technical dives, and practical demonstrations
 
 ### **Content Categories & Expertise**
 - **Bitcoin**: Core protocol development, script programming, node setup, mining pools, transaction mechanics
@@ -452,7 +452,7 @@ try {
 - `src/data/videos/` - Video domain with duration parsing
 
 ### **🆕 Enhanced Features**
-- **Comprehensive Content Library**: 50+ educational resources (5 courses, 20 documents, 25 videos)
+- **Comprehensive Content Library**: 31 educational resources (6 courses, 13 documents, 12 videos)
 - **Advanced Search**: Relevance scoring with popularity boosts across all content types
 - **Content Statistics**: Real-time analytics and reporting with comprehensive metrics
 - **Cache Management**: Pattern invalidation and memory management

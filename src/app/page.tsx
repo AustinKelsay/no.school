@@ -19,7 +19,7 @@ import {
   CheckCircle
 } from "lucide-react"
 
-import { getCachedContentItems } from "@/lib/data"
+import { getAllContentItems } from "@/lib/data"
 
 interface HeroStat {
   value: string
@@ -155,14 +155,12 @@ export default function Home() {
  * Shows featured courses, videos, and documents
  */
 async function HomepageContent() {
-  const contentItems = await getCachedContentItems()
+  const contentItems = await getAllContentItems()
   
   // Filter content by type
   const courses = contentItems.filter(item => item.type === 'course')
   const videos = contentItems.filter(item => item.type === 'video')
-  const documents = contentItems.filter(item => 
-    item.type === 'document' || item.type === 'guide' || item.type === 'cheatsheet'
-  )
+  const documents = contentItems.filter(item => item.type === 'document')
 
   return (
     <>

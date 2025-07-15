@@ -30,9 +30,33 @@ function CourseCardSkeleton() {
 async function CourseCards({ category }: { category?: string }) {
   const courses = await getCachedCourses(category)
 
+  // Convert CourseDisplay to ContentItem for the ContentCard component
+  const courseItems = courses.map(course => ({
+    id: course.id,
+    title: course.title,
+    description: course.description,
+    type: 'course' as const,
+    category: course.category,
+    tags: course.topics,
+    difficulty: 'intermediate' as const,
+    instructor: course.instructor,
+    instructorPubkey: course.instructorPubkey,
+    rating: course.rating,
+    enrollmentCount: course.enrollmentCount,
+    price: course.price,
+    currency: course.currency,
+    image: course.image,
+    isPremium: course.isPremium,
+    createdAt: course.createdAt,
+    updatedAt: course.updatedAt,
+    published: course.published,
+    topics: course.topics,
+    additionalLinks: course.additionalLinks || []
+  }))
+
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {courses.map((course) => (
+      {courseItems.map((course) => (
         <ContentCard 
           key={course.id} 
           item={course} 

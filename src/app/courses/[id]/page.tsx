@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { notFound } from 'next/navigation'
+import Image from 'next/image'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -212,10 +213,11 @@ export default async function CoursePage({ params }: CoursePageProps) {
             <div className="relative">
               <div className="aspect-video rounded-lg overflow-hidden bg-gradient-to-br from-primary/20 to-secondary/20">
                 {course.image ? (
-                  <img 
+                  <Image 
                     src={course.image} 
                     alt={course.title}
-                    className="w-full h-full object-cover"
+                    fill
+                    className="object-cover"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">

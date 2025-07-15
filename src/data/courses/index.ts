@@ -10,7 +10,6 @@ export type * from './types'
 export {
   coursesMockData,
   lessonsMockData,
-  coursesWithLessons,
   getCourseById,
   getLessonsByCourseId,
   getCoursesByCategory,
@@ -18,6 +17,5 @@ export {
   getPaidCourses,
   getLessonById,
   getCourseWithLessons,
-  mockInstructorPubkeys,
   mockUserIds
 } from './mock-courses'

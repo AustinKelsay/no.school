@@ -1,580 +1,199 @@
 /**
  * Document domain mock data
- * Contains all document-related data structures and samples
- * Represents NIP-23 (free) and NIP-99 (paid) content events
+ * Minimal Resource database fields only - UI data comes from Nostr events
+ * Based on content_data_models.md Resource model
  */
 
 import type { Resource } from '../types'
 
+// Mock user IDs (same as in courses/mock-courses.ts)
+export const mockUserIds = {
+  austinKelsay: 'f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741',
+  alexJohnson: '7e7e9c42a91bfef19fa929e5fda1b72e0ebc1a4c1141673e2794234d86addf4e',
+  mariaSantos: '3bf0c63fcb93463407af97a5e5ee64fa883d107ef9e558472c4eb9aaaefa459d',
+  davidWilson: '67dea2ed018072d675f5415ecfaed7d2597555e202d85b3d65ea4e58d2d92ffa',
+  sarahLee: '82341f882b6eabcd2ba7f1ef90aad961cf074af15b9ef44a09f9d2a8fbfbe6a2',
+  mikeTaylor: '91451f9928b7fecde3ca8g2f01bed062cf175bg26c0g55b10a0a3e9d3c9gbh7b3',
+  sarahChen: 'user-sarah-chen',
+  mikeRodriguez: 'user-mike-rodriguez',
+  lisaPark: 'user-lisa-park',
+  davidKim: 'user-david-kim',
+  emilyWatson: 'user-emily-watson',
+  jackMorrison: 'user-jack-morrison',
+  annaLee: 'user-anna-lee'
+}
+
 // ============================================================================
-// DATABASE-STYLE DOCUMENT DATA (Primary Data Source)
+// DATABASE RESOURCE DATA (Documents - Minimal fields only)
 // ============================================================================
 
 export const dbDocumentsMockData: Resource[] = [
-  // Bitcoin Documents
+  // PlebDevs Starter Course Lessons (as resources)
   {
-    id: 'doc-1',
-    userId: 'user-alex-johnson',
+    id: 'f93827ed-68ad-4b5e-af33-f7424b37f0d6',
+    userId: mockUserIds.austinKelsay,
     price: 0,
-    noteId: 'doc-1-note',
+    noteId: 'd3ac1f40bf07c045e97c43b6cbdf6f274de464d1c9d5a5c04d04d50fc12156c0',
+    createdAt: '2024-01-16T10:00:00Z',
+    updatedAt: '2024-01-16T10:00:00Z',
+  },
+  {
+    id: '6d8260b3-c902-46ec-8aed-f3b8c8f1229b',
+    userId: mockUserIds.austinKelsay,
+    price: 0,
+    noteId: 'git-github-lesson-event-id',
+    createdAt: '2024-01-17T10:00:00Z',
+    updatedAt: '2024-01-17T10:00:00Z',
+  },
+  {
+    id: '80aac9d4-8bef-4a92-9ee9-dea1c2d66c3a',
+    userId: mockUserIds.austinKelsay,
+    price: 0,
+    noteId: 'bitcoin-fundamentals-event-id',
+    createdAt: '2024-01-18T10:00:00Z',
+    updatedAt: '2024-01-18T10:00:00Z',
+  },
+  {
+    id: '6fe3cb4b-2571-4e3b-9159-db78325ee5cc',
+    userId: mockUserIds.austinKelsay,
+    price: 0,
+    noteId: 'lightning-basics-event-id',
+    createdAt: '2024-01-19T10:00:00Z',
+    updatedAt: '2024-01-19T10:00:00Z',
+  },
+  {
+    id: 'e5399c72-9b95-46d6-a594-498e673b6c58',
+    userId: mockUserIds.austinKelsay,
+    price: 0,
+    noteId: 'javascript-fundamentals-event-id',
+    createdAt: '2024-01-20T10:00:00Z',
+    updatedAt: '2024-01-20T10:00:00Z',
+  },
+  {
+    id: 'a3083ab5-0187-4b77-83d1-29ae1f644559',
+    userId: mockUserIds.austinKelsay,
+    price: 0,
+    noteId: 'nostr-fundamentals-event-id',
+    createdAt: '2024-01-21T10:00:00Z',
+    updatedAt: '2024-01-21T10:00:00Z',
+  },
+
+  // Free document resources
+  {
+    id: 'e25f3d3b-f28b-4edd-a325-380564e6db7d',
+    userId: mockUserIds.austinKelsay,
+    price: 0,
+    noteId: '758149694299ce464c299f9b97a2c6a3e94536eeeeb939fa981d3b09dbf1cf11',
     createdAt: '2024-01-20T10:00:00Z',
     updatedAt: '2024-01-21T15:00:00Z',
-    title: 'Bitcoin Development Cheatsheet',
-    description: 'Quick reference for Bitcoin Core development including RPC commands, data structures, and common patterns. Essential commands for working with bitcoind, wallet operations, and blockchain queries.',
-    category: 'bitcoin',
-    type: 'cheatsheet',
-    instructor: 'Alex Johnson',
-    instructorPubkey: 'npub1alexjohnson1234567890abcdef1234567890abcdef1234567890abcdef12',
-    rating: 4.7,
-    viewCount: 1247,
-    isPremium: false,
-    image: '/images/documents/bitcoin-cheatsheet.jpg',
-    tags: ['bitcoin', 'development', 'rpc', 'core', 'reference'],
-    difficulty: 'intermediate',
-    published: true
   },
   {
-    id: 'doc-2',
-    userId: 'user-sarah-chen',
-    price: 15000,
-    noteId: 'doc-2-note',
-    createdAt: '2024-01-15T00:00:00Z',
-    updatedAt: '2024-01-18T00:00:00Z',
-    title: 'Bitcoin Script Deep Dive',
-    description: 'Comprehensive guide to Bitcoin Script - the stack-based programming language used in Bitcoin transactions. Learn opcodes, script patterns, and security considerations.',
-    category: 'bitcoin',
-    type: 'guide',
-    instructor: 'Sarah Chen',
-    instructorPubkey: 'npub1sarahchen1234567890abcdef1234567890abcdef1234567890abcdef123',
-    rating: 4.9,
-    viewCount: 892,
-    isPremium: true,
-    currency: 'sats',
-    image: '/images/documents/bitcoin-script.jpg',
-    tags: ['bitcoin', 'script', 'opcodes', 'transactions', 'programming'],
-    difficulty: 'advanced',
-    published: true
-  },
-  {
-    id: 'doc-3',
-    userId: 'user-mike-rodriguez',
+    id: 'bitcoin-fundamentals',
+    userId: mockUserIds.alexJohnson,
     price: 0,
-    noteId: 'doc-3-note',
-    createdAt: '2024-01-25T00:00:00Z',
-    updatedAt: '2024-01-25T00:00:00Z',
-    title: 'Setting Up Your First Bitcoin Node',
-    description: 'Step-by-step tutorial for setting up and running a Bitcoin full node. Covers installation, configuration, initial sync, and ongoing maintenance.',
-    category: 'bitcoin',
-    type: 'tutorial',
-    instructor: 'Mike Rodriguez',
-    instructorPubkey: 'npub1mikerodriguez1234567890abcdef1234567890abcdef1234567890abcdef',
-    rating: 4.5,
-    viewCount: 2341,
-    isPremium: false,
-    image: '/images/documents/bitcoin-node-setup.jpg',
-    tags: ['bitcoin', 'node', 'setup', 'tutorial', 'infrastructure'],
-    difficulty: 'beginner',
-    published: true
+    noteId: 'bitcoin-fundamentals-event-id',
+    createdAt: '2024-01-20T10:00:00Z',
+    updatedAt: '2024-01-21T15:00:00Z',
   },
   {
-    id: 'doc-4',
-    userId: 'user-lisa-park',
-    price: 8000,
-    noteId: 'doc-4-note',
-    createdAt: '2024-01-10T00:00:00Z',
-    updatedAt: '2024-01-12T00:00:00Z',
-    title: 'Bitcoin Core API Reference',
-    description: 'Complete reference documentation for Bitcoin Core JSON-RPC API. Includes all endpoints, parameters, return values, and practical examples.',
-    category: 'bitcoin',
-    type: 'reference',
-    instructor: 'Lisa Park',
-    instructorPubkey: 'npub1lisapark1234567890abcdef1234567890abcdef1234567890abcdef1234',
-    rating: 4.8,
-    viewCount: 1567,
-    isPremium: true,
-    currency: 'sats',
-    image: '/images/documents/bitcoin-api-reference.jpg',
-    tags: ['bitcoin', 'api', 'rpc', 'reference', 'documentation'],
-    difficulty: 'intermediate',
-    published: true
-  },
-
-  // Lightning Network Documents
-  {
-    id: 'doc-5',
-    userId: 'user-maria-santos',
-    price: 25000,
-    noteId: 'doc-5-note',
-    createdAt: '2024-01-08T00:00:00Z',
-    updatedAt: '2024-01-10T00:00:00Z',
-    title: 'Lightning Network Implementation Guide',
-    description: 'Comprehensive guide to implementing Lightning Network features in your applications. Covers LND integration, channel management, and payment flows.',
-    category: 'lightning',
-    type: 'guide',
-    instructor: 'Maria Santos',
-    instructorPubkey: 'npub1mariasantos1234567890abcdef1234567890abcdef1234567890abcdef12',
-    rating: 4.9,
-    viewCount: 1892,
-    isPremium: true,
-    currency: 'sats',
-    image: '/images/documents/lightning-guide.jpg',
-    tags: ['lightning', 'implementation', 'guide', 'payments', 'lnd'],
-    difficulty: 'advanced',
-    published: true
-  },
-  {
-    id: 'doc-6',
-    userId: 'user-david-kim',
+    id: 'lightning-basics',
+    userId: mockUserIds.alexJohnson,
     price: 0,
-    noteId: 'doc-6-note',
+    noteId: 'lightning-basics-event-id',
     createdAt: '2024-01-12T00:00:00Z',
     updatedAt: '2024-01-14T00:00:00Z',
-    title: 'Lightning Network Routing Algorithms',
-    description: 'Deep dive into pathfinding and routing algorithms used in Lightning Network. Understanding how payments find their way across the network.',
-    category: 'lightning',
-    type: 'documentation',
-    instructor: 'David Kim',
-    instructorPubkey: 'npub1davidkim1234567890abcdef1234567890abcdef1234567890abcdef123',
-    rating: 4.6,
-    viewCount: 743,
-    isPremium: false,
-    image: '/images/documents/lightning-routing.jpg',
-    tags: ['lightning', 'routing', 'pathfinding', 'algorithms', 'network'],
-    difficulty: 'advanced',
-    published: true
   },
   {
-    id: 'doc-7',
-    userId: 'user-emily-watson',
+    id: 'nostr-fundamentals',
+    userId: mockUserIds.jackMorrison,
     price: 0,
-    noteId: 'doc-7-note',
-    createdAt: '2024-01-28T00:00:00Z',
-    updatedAt: '2024-01-28T00:00:00Z',
-    title: 'Lightning Network Quick Commands',
-    description: 'Essential LND, CLN, and Eclair commands for Lightning Network node operators. Quick reference for common operations and troubleshooting.',
-    category: 'lightning',
-    type: 'cheatsheet',
-    instructor: 'Emily Watson',
-    instructorPubkey: 'npub1emilywatson1234567890abcdef1234567890abcdef1234567890abcdef1',
-    rating: 4.4,
-    viewCount: 1156,
-    isPremium: false,
-    image: '/images/documents/lightning-commands.jpg',
-    tags: ['lightning', 'commands', 'lnd', 'cln', 'reference'],
-    difficulty: 'beginner',
-    published: true
+    noteId: 'nostr-fundamentals-event-id',
+    createdAt: '2024-01-12T00:00:00Z',
+    updatedAt: '2024-01-14T00:00:00Z',
   },
 
-  // Nostr Documents
+  // Paid document resources
   {
-    id: 'doc-8',
-    userId: 'user-jack-morrison',
-    price: 0,
-    noteId: 'doc-8-note',
-    createdAt: '2024-01-30T00:00:00Z',
-    updatedAt: '2024-02-01T00:00:00Z',
-    title: 'Nostr Protocol Fundamentals',
-    description: 'Introduction to the Nostr protocol - a simple, open protocol for decentralized social networks. Learn about events, relays, and NIPs.',
-    category: 'nostr',
-    type: 'guide',
-    instructor: 'Jack Morrison',
-    instructorPubkey: 'npub1jackmorrison1234567890abcdef1234567890abcdef1234567890abcdef',
-    rating: 4.7,
-    viewCount: 2890,
-    isPremium: false,
-    image: '/images/documents/nostr-fundamentals.jpg',
-    tags: ['nostr', 'protocol', 'decentralized', 'social', 'fundamentals'],
-    difficulty: 'beginner',
-    published: true
+    id: 'bitcoin-api-integration',
+    userId: mockUserIds.lisaPark,
+    price: 8000,
+    noteId: 'bitcoin-api-integration-event',
+    createdAt: '2024-01-10T00:00:00Z',
+    updatedAt: '2024-01-12T00:00:00Z',
   },
   {
-    id: 'doc-9',
-    userId: 'user-anna-lee',
-    price: 18000,
-    noteId: 'doc-9-note',
-    createdAt: '2024-02-02T00:00:00Z',
-    updatedAt: '2024-02-04T00:00:00Z',
-    title: 'Building Nostr Clients',
-    description: 'Complete guide to building Nostr clients from scratch. Covers WebSocket connections, event handling, and user interface patterns.',
-    category: 'nostr',
-    type: 'tutorial',
-    instructor: 'Anna Lee',
-    instructorPubkey: 'npub1annalee1234567890abcdef1234567890abcdef1234567890abcdef1234',
-    rating: 4.8,
-    viewCount: 1234,
-    isPremium: true,
-    currency: 'sats',
-    image: '/images/documents/nostr-clients.jpg',
-    tags: ['nostr', 'client', 'development', 'websockets', 'ui'],
-    difficulty: 'intermediate',
-    published: true
+    id: 'advanced-bitcoin-dev',
+    userId: mockUserIds.mikeTaylor,
+    price: 32000,
+    noteId: 'advanced-bitcoin-dev-event',
+    createdAt: '2024-01-20T00:00:00Z',
+    updatedAt: '2024-01-22T00:00:00Z',
   },
   {
-    id: 'doc-10',
-    userId: 'user-carlos-mendez',
-    price: 0,
-    noteId: 'doc-10-note',
-    createdAt: '2024-02-05T00:00:00Z',
-    updatedAt: '2024-02-07T00:00:00Z',
-    title: 'Nostr NIPs Reference',
-    description: 'Comprehensive reference of all Nostr Implementation Possibilities (NIPs). Quick lookup for event kinds, tags, and protocol specifications.',
-    category: 'nostr',
-    type: 'reference',
-    instructor: 'Carlos Mendez',
-    instructorPubkey: 'npub1carlosmendez1234567890abcdef1234567890abcdef1234567890abcdef',
-    rating: 4.9,
-    viewCount: 987,
-    isPremium: false,
-    image: '/images/documents/nostr-nips.jpg',
-    tags: ['nostr', 'nips', 'reference', 'specification', 'protocol'],
-    difficulty: 'intermediate',
-    published: true
-  },
-
-  // Frontend Development Documents
-  {
-    id: 'doc-11',
-    userId: 'user-sophie-turner',
-    price: 22000,
-    noteId: 'doc-11-note',
-    createdAt: '2024-02-08T00:00:00Z',
-    updatedAt: '2024-02-10T00:00:00Z',
-    title: 'React Performance Optimization',
-    description: 'Advanced techniques for optimizing React applications. Covers memoization, virtualization, code splitting, and performance monitoring.',
-    category: 'frontend',
-    type: 'guide',
-    instructor: 'Sophie Turner',
-    instructorPubkey: 'npub1sophieturner1234567890abcdef1234567890abcdef1234567890abcdef',
-    rating: 4.8,
-    viewCount: 3456,
-    isPremium: true,
-    currency: 'sats',
-    image: '/images/documents/react-performance.jpg',
-    tags: ['react', 'performance', 'optimization', 'frontend', 'javascript'],
-    difficulty: 'advanced',
-    published: true
-  },
-  {
-    id: 'doc-12',
-    userId: 'user-tom-wilson',
-    price: 0,
-    noteId: 'doc-12-note',
-    createdAt: '2024-02-12T00:00:00Z',
-    updatedAt: '2024-02-12T00:00:00Z',
-    title: 'CSS Grid Layout Cheatsheet',
-    description: 'Quick reference for CSS Grid properties and values. Visual examples of common layout patterns and responsive design techniques.',
-    category: 'frontend',
-    type: 'cheatsheet',
-    instructor: 'Tom Wilson',
-    instructorPubkey: 'npub1tomwilson1234567890abcdef1234567890abcdef1234567890abcdef123',
-    rating: 4.5,
-    viewCount: 2789,
-    isPremium: false,
-    image: '/images/documents/css-grid.jpg',
-    tags: ['css', 'grid', 'layout', 'responsive', 'design'],
-    difficulty: 'intermediate',
-    published: true
-  },
-  {
-    id: 'doc-13',
-    userId: 'user-rachel-green',
-    price: 0,
-    noteId: 'doc-13-note',
-    createdAt: '2024-02-15T00:00:00Z',
-    updatedAt: '2024-02-17T00:00:00Z',
-    title: 'Modern JavaScript ES2024 Features',
-    description: 'Comprehensive overview of the latest JavaScript features including async/await improvements, decorators, and new array methods.',
-    category: 'frontend',
-    type: 'documentation',
-    instructor: 'Rachel Green',
-    instructorPubkey: 'npub1rachelgreen1234567890abcdef1234567890abcdef1234567890abcdef1',
-    rating: 4.6,
-    viewCount: 1890,
-    isPremium: false,
-    image: '/images/documents/js-es2024.jpg',
-    tags: ['javascript', 'es2024', 'features', 'modern', 'programming'],
-    difficulty: 'intermediate',
-    published: true
-  },
-
-  // Backend Development Documents
-  {
-    id: 'doc-14',
-    userId: 'user-marcus-johnson',
-    price: 20000,
-    noteId: 'doc-14-note',
-    createdAt: '2024-02-18T00:00:00Z',
-    updatedAt: '2024-02-20T00:00:00Z',
-    title: 'Node.js API Security Best Practices',
-    description: 'Essential security practices for Node.js APIs. Covers authentication, authorization, input validation, and common vulnerability prevention.',
-    category: 'backend',
-    type: 'guide',
-    instructor: 'Marcus Johnson',
-    instructorPubkey: 'npub1marcusjohnson1234567890abcdef1234567890abcdef1234567890abcde',
-    rating: 4.9,
-    viewCount: 2156,
-    isPremium: true,
-    currency: 'sats',
-    image: '/images/documents/nodejs-security.jpg',
-    tags: ['nodejs', 'security', 'api', 'authentication', 'backend'],
-    difficulty: 'advanced',
-    published: true
-  },
-  {
-    id: 'doc-15',
-    userId: 'user-jennifer-davis',
-    price: 0,
-    noteId: 'doc-15-note',
-    createdAt: '2024-02-22T00:00:00Z',
-    updatedAt: '2024-02-24T00:00:00Z',
-    title: 'Database Schema Design Patterns',
-    description: 'Common database design patterns for web applications. Covers normalization, indexing strategies, and performance considerations.',
-    category: 'backend',
-    type: 'documentation',
-    instructor: 'Jennifer Davis',
-    instructorPubkey: 'npub1jenniferdavis1234567890abcdef1234567890abcdef1234567890abcde',
-    rating: 4.7,
-    viewCount: 1678,
-    isPremium: false,
-    image: '/images/documents/database-patterns.jpg',
-    tags: ['database', 'schema', 'design', 'patterns', 'sql'],
-    difficulty: 'intermediate',
-    published: true
-  },
-
-  // Mobile Development Documents
-  {
-    id: 'doc-16',
-    userId: 'user-kevin-zhang',
-    price: 35000,
-    noteId: 'doc-16-note',
-    createdAt: '2024-02-25T00:00:00Z',
-    updatedAt: '2024-02-28T00:00:00Z',
-    title: 'React Native Bitcoin Wallet Tutorial',
-    description: 'Step-by-step guide to building a Bitcoin wallet app with React Native. Covers key generation, transaction signing, and security best practices.',
-    category: 'mobile',
-    type: 'tutorial',
-    instructor: 'Kevin Zhang',
-    instructorPubkey: 'npub1kevinzhang1234567890abcdef1234567890abcdef1234567890abcdef12',
-    rating: 4.8,
-    viewCount: 1345,
-    isPremium: true,
-    currency: 'sats',
-    image: '/images/documents/rn-bitcoin-wallet.jpg',
-    tags: ['react-native', 'bitcoin', 'wallet', 'mobile', 'tutorial'],
-    difficulty: 'advanced',
-    published: true
-  },
-  {
-    id: 'doc-17',
-    userId: 'user-laura-martinez',
-    price: 0,
-    noteId: 'doc-17-note',
-    createdAt: '2024-03-01T00:00:00Z',
-    updatedAt: '2024-03-03T00:00:00Z',
-    title: 'Mobile App State Management',
-    description: 'Comprehensive guide to state management in mobile applications. Covers Redux, Context API, and modern patterns for React Native and Flutter.',
-    category: 'mobile',
-    type: 'guide',
-    instructor: 'Laura Martinez',
-    instructorPubkey: 'npub1lauramartinez1234567890abcdef1234567890abcdef1234567890abcd',
-    rating: 4.6,
-    viewCount: 987,
-    isPremium: false,
-    image: '/images/documents/mobile-state.jpg',
-    tags: ['mobile', 'state-management', 'redux', 'react-native', 'flutter'],
-    difficulty: 'intermediate',
-    published: true
-  },
-
-  // Security Documents
-  {
-    id: 'doc-18',
-    userId: 'user-robert-chen',
-    price: 30000,
-    noteId: 'doc-18-note',
-    createdAt: '2024-03-05T00:00:00Z',
-    updatedAt: '2024-03-07T00:00:00Z',
-    title: 'Cryptographic Key Management',
-    description: 'Best practices for managing cryptographic keys in applications. Covers key generation, storage, rotation, and security considerations.',
-    category: 'security',
-    type: 'guide',
-    instructor: 'Dr. Robert Chen',
-    instructorPubkey: 'npub1robertchen1234567890abcdef1234567890abcdef1234567890abcdef12',
-    rating: 4.9,
-    viewCount: 765,
-    isPremium: true,
-    currency: 'sats',
-    image: '/images/documents/key-management.jpg',
-    tags: ['security', 'cryptography', 'keys', 'management', 'best-practices'],
-    difficulty: 'advanced',
-    published: true
-  },
-  {
-    id: 'doc-19',
-    userId: 'user-amy-foster',
-    price: 0,
-    noteId: 'doc-19-note',
-    createdAt: '2024-03-08T00:00:00Z',
-    updatedAt: '2024-03-10T00:00:00Z',
-    title: 'Web Application Security Checklist',
-    description: 'Comprehensive security checklist for web applications. Covers OWASP Top 10, secure coding practices, and vulnerability assessment.',
-    category: 'security',
-    type: 'cheatsheet',
-    instructor: 'Amy Foster',
-    instructorPubkey: 'npub1amyfoster1234567890abcdef1234567890abcdef1234567890abcdef123',
-    rating: 4.7,
-    viewCount: 2234,
-    isPremium: false,
-    image: '/images/documents/security-checklist.jpg',
-    tags: ['security', 'web', 'checklist', 'owasp', 'vulnerabilities'],
-    difficulty: 'intermediate',
-    published: true
-  },
-
-  // Web3 Documents
-  {
-    id: 'doc-20',
-    userId: 'user-alex-blockchain',
-    price: 28000,
-    noteId: 'doc-20-note',
-    createdAt: '2024-03-12T00:00:00Z',
-    updatedAt: '2024-03-14T00:00:00Z',
-    title: 'Smart Contract Security Patterns',
-    description: 'Common security patterns and anti-patterns in smart contract development. Learn to write secure and gas-efficient contracts.',
-    category: 'web3',
-    type: 'documentation',
-    instructor: 'Alex Blockchain',
-    instructorPubkey: 'npub1alexblockchain1234567890abcdef1234567890abcdef1234567890abcd',
-    rating: 4.8,
-    viewCount: 1456,
-    isPremium: true,
-    currency: 'sats',
-    image: '/images/documents/smart-contract-security.jpg',
-    tags: ['web3', 'smart-contracts', 'security', 'solidity', 'ethereum'],
-    difficulty: 'advanced',
-    published: true
+    id: 'bitcoin-js-integration',
+    userId: mockUserIds.alexJohnson,
+    price: 24000,
+    noteId: 'bitcoin-js-integration-event',
+    createdAt: '2024-01-22T00:00:00Z',
+    updatedAt: '2024-01-24T00:00:00Z',
   }
 ]
 
 // ============================================================================
-// HELPER FUNCTIONS
+// UTILITY FUNCTIONS
 // ============================================================================
 
+/**
+ * Get document by ID
+ */
 export function getDocumentById(id: string): Resource | undefined {
   return dbDocumentsMockData.find(doc => doc.id === id)
 }
 
+/**
+ * Get documents by category (requires parsing Nostr events)
+ */
 export function getDocumentsByCategory(category: string): Resource[] {
-  return dbDocumentsMockData.filter(doc => 
-    doc.category.toLowerCase() === category.toLowerCase()
-  )
+  // This would need to be implemented with Nostr event parsing
+  // For now, returning all documents
+  return dbDocumentsMockData
 }
 
-export function getDocumentsByType(type: Resource['type']): Resource[] {
-  return dbDocumentsMockData.filter(doc => doc.type === type)
+/**
+ * Get documents by type (requires parsing Nostr events)
+ */
+export function getDocumentsByType(type: string): Resource[] {
+  // This would need to be implemented with Nostr event parsing
+  // For now, returning all documents
+  return dbDocumentsMockData
 }
 
+/**
+ * Get free documents
+ */
 export function getFreeDocuments(): Resource[] {
-  return dbDocumentsMockData.filter(doc => !doc.isPremium)
+  return dbDocumentsMockData.filter(doc => doc.price === 0)
 }
 
+/**
+ * Get paid documents
+ */
 export function getPaidDocuments(): Resource[] {
-  return dbDocumentsMockData.filter(doc => doc.isPremium)
+  return dbDocumentsMockData.filter(doc => doc.price > 0)
 }
 
-export function getDocumentsByDifficulty(difficulty: Resource['difficulty']): Resource[] {
-  return dbDocumentsMockData.filter(doc => doc.difficulty === difficulty)
-}
-
-export function getDocumentsByInstructor(instructorPubkey: string): Resource[] {
-  return dbDocumentsMockData.filter(doc => doc.instructorPubkey === instructorPubkey)
-}
-
-export function searchDocuments(query: string): Resource[] {
-  const searchTerm = query.toLowerCase()
-  return dbDocumentsMockData.filter(doc =>
-    doc.title.toLowerCase().includes(searchTerm) ||
-    doc.description.toLowerCase().includes(searchTerm) ||
-    doc.tags.some((tag: string) => tag.toLowerCase().includes(searchTerm))
-  )
-}
-
-export function getDocumentStatistics(documents: Resource[]) {
-  const totalDocuments = documents.length
-  const totalViews = documents.reduce((sum, doc) => sum + doc.viewCount, 0)
-  const averageRating = documents.reduce((sum, doc) => sum + doc.rating, 0) / totalDocuments
-
-  const typeCounts = documents.reduce((acc, doc) => {
-    if (doc.type) {
-      acc[doc.type] = (acc[doc.type] || 0) + 1
-    }
-    return acc
-  }, {} as Record<string, number>)
-
-  const categoryCounts = documents.reduce((acc, doc) => {
-    acc[doc.category] = (acc[doc.category] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-
-  const difficultyCounts = documents.reduce((acc, doc) => {
-    acc[doc.difficulty] = (acc[doc.difficulty] || 0) + 1
-    return acc
-  }, {} as Record<string, number>)
-
-  const premiumDocuments = documents.filter(doc => doc.isPremium).length
-  const freeDocuments = documents.filter(doc => !doc.isPremium).length
-
-  return {
-    totalDocuments,
-    totalViews,
-    averageRating: Math.round(averageRating * 10) / 10,
-    typeCounts,
-    categoryCounts,
-    difficultyCounts,
-    premiumDocuments,
-    freeDocuments
-  }
-}
-
-export function getPopularDocuments(limit: number = 10): Resource[] {
+/**
+ * Get documents by difficulty (requires parsing Nostr events)
+ */
+export function getDocumentsByDifficulty(difficulty: string): Resource[] {
+  // This would need to be implemented with Nostr event parsing
+  // For now, returning all documents
   return dbDocumentsMockData
-    .sort((a, b) => b.viewCount - a.viewCount)
-    .slice(0, limit)
 }
 
-export function getRecentDocuments(limit: number = 10): Resource[] {
-  return dbDocumentsMockData
-    .sort((a, b) => {
-      const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0
-      const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0
-      return bDate - aDate
-    })
-    .slice(0, limit)
-}
-
-export function getTopRatedDocuments(limit: number = 10): Resource[] {
-  return dbDocumentsMockData
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, limit)
-}
-
-export function getDocumentsByTag(tag: string): Resource[] {
-  return dbDocumentsMockData.filter(doc => 
-    doc.tags.some((docTag: string) => docTag.toLowerCase() === tag.toLowerCase())
-  )
-}
-
-export function getRelatedDocuments(documentId: string, limit: number = 5): Resource[] {
-  const document = getDocumentById(documentId)
-  if (!document) return []
-
-  return dbDocumentsMockData
-    .filter(doc => 
-      doc.id !== documentId && 
-      (doc.category === document.category ||
-       doc.tags.some((tag: string) => document.tags.includes(tag)))
-    )
-    .sort((a, b) => b.rating - a.rating)
-    .slice(0, limit)
+/**
+ * Get documents by user ID
+ */
+export function getDocumentsByUserId(userId: string): Resource[] {
+  return dbDocumentsMockData.filter(doc => doc.userId === userId)
 }
