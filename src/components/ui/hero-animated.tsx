@@ -7,7 +7,9 @@ export function HeroAnimated() {
   
   return (
     <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-      Learn how to code Build on{" "}
+      Learn how to code 
+      <br />
+      Build on{" "}
       <span className="text-primary">
         <AnimatedText words={animatedWords} duration={2500} />
       </span>

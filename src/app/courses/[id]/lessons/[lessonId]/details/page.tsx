@@ -8,7 +8,9 @@ import { Progress } from '@/components/ui/progress'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
 import { CourseRepository, LessonRepository, ResourceRepository } from '@/lib/repositories'
+import { CourseAdapter, ResourceAdapter } from '@/lib/db-adapter'
 import { getResourceContent, getEstimatedReadingTime, formatContentForDisplay, type ResourceContent } from '@/lib/content-utils'
+import { parseCourseEvent, parseEvent } from '@/data/types'
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
 import { VideoPlayer } from '@/components/ui/video-player'
 import { ResourceActions } from '@/components/ui/resource-actions'
@@ -54,21 +56,33 @@ export async function generateMetadata({ params }: LessonDetailsPageProps): Prom
   }
 
   const resource = lesson.resourceId ? getResourceWithContentById(lesson.resourceId) : null
+  // Get the raw resource from the adapter to access the note
+  const resourceWithNote = resource ? await ResourceAdapter.findByIdWithNote(resource.id) : null
+  const parsedNote = resourceWithNote?.note ? parseEvent(resourceWithNote.note) : null
+  const title = parsedNote?.title || 'Unknown Lesson'
+  const description = parsedNote?.summary || 'No description available'
   const content = resource ? getResourceContent(resource) : null
-  const title = resource?.title || 'Lesson'
-  const description = content ? content.content.substring(0, 160) + '...' : resource?.description || 'Learn with this lesson'
+  const contentDescription = content ? content.content.substring(0, 160) + '...' : description
 
+  // Get the raw course from the adapter to access the note for metadata
+  const courseWithNote = await CourseAdapter.findByIdWithNote(id)
+  const parsedCourseNote = courseWithNote?.note ? parseCourseEvent(courseWithNote.note) : null
+  const courseTitle = parsedCourseNote?.name || 'Unknown Course'
+  const courseCategory = parsedCourseNote?.topics[0] || 'general'
+  const courseImage = parsedCourseNote?.image || '/placeholder.svg'
+  const resourceImage = parsedNote?.image || '/placeholder.svg'
+    
   return {
-    title: `${title} - ${course.title} - no.school`,
-    description,
-    keywords: [course.category, 'lesson', 'course', 'learning', 'bitcoin', 'lightning', 'nostr', 'development'],
+    title: `${title} - ${courseTitle} - no.school`,
+    description: contentDescription,
+    keywords: [courseCategory, 'lesson', 'course', 'learning', 'bitcoin', 'lightning', 'nostr', 'development'],
     openGraph: {
-      title: `${title} - ${course.title}`,
-      description,
+      title: `${title} - ${courseTitle}`,
+      description: contentDescription,
       type: 'article',
       images: [
         {
-          url: resource?.image || course.image || '/placeholder.svg',
+          url: resourceImage || courseImage || '/placeholder.svg',
           width: 1200,
           height: 630,
           alt: title,
@@ -77,9 +91,9 @@ export async function generateMetadata({ params }: LessonDetailsPageProps): Prom
     },
     twitter: {
       card: 'summary_large_image',
-      title: `${title} - ${course.title}`,
-      description,
-      images: [resource?.image || course.image || '/placeholder.svg'],
+      title: `${title} - ${courseTitle}`,
+      description: contentDescription,
+      images: [resourceImage || courseImage || '/placeholder.svg'],
     },
   }
 }
@@ -237,6 +251,25 @@ async function LessonContent({
     )
   }
 
+  // Get the raw resource from the adapter to access the note
+  const resourceWithNote = await ResourceAdapter.findByIdWithNote(resource.id)
+  const parsedResourceNote = resourceWithNote?.note ? parseEvent(resourceWithNote.note) : null
+  const resourceTitle = parsedResourceNote?.title || 'Unknown Lesson'
+  const resourceDescription = parsedResourceNote?.summary || 'No description available'
+  const resourceType = parsedResourceNote?.type || 'document'
+  const resourceDifficulty = 'intermediate' // Default or inferred
+  const resourceAuthor = parsedResourceNote?.author || 'Unknown'
+  const resourceAdditionalLinks = parsedResourceNote?.additionalLinks || []
+  const resourceIsPremium = resource.price > 0
+
+  // Get the raw course from the adapter to access the note
+  const courseWithNote = await CourseAdapter.findByIdWithNote(courseId)
+  const parsedCourseNote = courseWithNote?.note ? parseCourseEvent(courseWithNote.note) : null
+  const courseTitle = parsedCourseNote?.name || 'Unknown Course'
+  const courseDescription = parsedCourseNote?.description || 'No description available'
+  const courseCategory = parsedCourseNote?.topics[0] || 'general'
+  const courseInstructor = 'Unknown' // Would come from user table
+
   const content = getResourceContent(resource)
   
   if (!content) {
@@ -289,13 +322,13 @@ async function LessonContent({
               <BookOpen className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h3 className="font-semibold">{course.title}</h3>
-              <p className="text-sm text-muted-foreground">{course.instructor}</p>
+              <h3 className="font-semibold">{courseTitle}</h3>
+              <p className="text-sm text-muted-foreground">{courseInstructor}</p>
             </div>
           </div>
           <div className="flex items-center space-x-2">
             <Badge variant="secondary" className="capitalize">
-              {course.category}
+              {courseCategory}
             </Badge>
             <ResourceActions resource={resource} content={content} />
           </div>
@@ -305,17 +338,17 @@ async function LessonContent({
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              {getContentTypeIcon(resource.type)}
-              <h1 className="text-3xl font-bold">{content.title}</h1>
+              {getContentTypeIcon(resourceType)}
+              <h1 className="text-3xl font-bold">{resourceTitle}</h1>
             </div>
             <div className="flex items-center space-x-2">
               <Badge variant="outline" className="capitalize">
-                {resource.type}
+                {resourceType}
               </Badge>
               <Badge variant="outline" className="capitalize">
-                {resource.difficulty}
+                {resourceDifficulty}
               </Badge>
-              {resource.isPremium && (
+              {resourceIsPremium && (
                 <Badge variant="outline" className="border-amber-500 text-amber-600">
                   Premium
                 </Badge>
@@ -325,11 +358,11 @@ async function LessonContent({
           
           <LessonMetadata resource={resource} content={content} lesson={{
             ...lesson,
-            title: resource.title,
-            description: resource.description,
+            title: resourceTitle,
+            description: resourceDescription,
             duration: resource.duration,
-            type: resource.type === 'video' ? 'video' : 'document',
-            isPremium: resource.isPremium
+            type: resourceType === 'video' ? 'video' : 'document',
+            isPremium: resourceIsPremium
           }} />
         </div>
       </div>
@@ -467,6 +500,11 @@ export default async function LessonDetailsPage({ params }: LessonDetailsPagePro
     notFound()
   }
 
+  // Get the raw course from the adapter to access the note for breadcrumb
+  const courseWithNote = await CourseAdapter.findByIdWithNote(id)
+  const parsedCourseNote = courseWithNote?.note ? parseCourseEvent(courseWithNote.note) : null
+  const courseTitle = parsedCourseNote?.name || 'Unknown Course'
+
   return (
     <MainLayout>
       <Section spacing="lg">
@@ -478,7 +516,7 @@ export default async function LessonDetailsPage({ params }: LessonDetailsPagePro
             </Link>
             <span>•</span>
             <Link href={`/courses/${id}`} className="hover:text-foreground">
-              {course.title}
+              {courseTitle}
             </Link>
             <span>•</span>
             <span>Lesson Details</span>

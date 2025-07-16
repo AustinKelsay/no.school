@@ -42,7 +42,30 @@ export function getResourceContent(resource: ResourceDisplay): ResourceContent |
     return parseNostrEventContent(paidEvent, resource)
   }
   
-  return null
+  // Fallback for resources without Nostr events - create basic content structure
+  return {
+    id: resource.id,
+    title: resource.title || 'Unknown Resource',
+    content: resource.type === 'video' ? 
+      `<div class="video-placeholder">
+        <h2>${resource.title}</h2>
+        <p>${resource.description}</p>
+        <div class="video-info">
+          <p><strong>Duration:</strong> ${resource.duration || 'Unknown'}</p>
+          <p><strong>Category:</strong> ${resource.category}</p>
+          <p><strong>Instructor:</strong> ${resource.instructor}</p>
+        </div>
+      </div>` : 
+      resource.description || 'Content not available',
+    type: resource.type === 'video' ? 'video' : 'document',
+    isMarkdown: resource.type !== 'video',
+    hasVideo: resource.type === 'video',
+    videoUrl: resource.type === 'video' && resource.videoId ? `/videos/${resource.videoId}` : undefined,
+    additionalLinks: resource.additionalLinks || [],
+    author: resource.instructor || 'Unknown',
+    pubkey: resource.instructorPubkey || resource.userId || '',
+    publishedAt: resource.createdAt
+  }
 }
 
 /**

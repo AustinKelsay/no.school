@@ -81,7 +81,8 @@ async function fetchDocumentsWithNotes(relayPool: RelayPool): Promise<DocumentRe
   try {
     notes = await relayPool.querySync(
       ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'],
-      { "#d": noteIds, kinds: [30023, 30403] } // Batch query by IDs
+      { "#d": noteIds, kinds: [30023, 30403] }, // Batch query by IDs
+      { timeout: 10000 }
     )
     console.log(`Successfully fetched ${notes.length} resource notes`);
   } catch (error) {
@@ -110,8 +111,6 @@ async function fetchDocumentsWithNotes(relayPool: RelayPool): Promise<DocumentRe
         noteError: resource.noteId && !note ? noteError : undefined,
       }
     }))
-
-  console.log("resourcesWithNotes", resourcesWithNotes);
 
   const documentsWithNotes = resourcesWithNotes
     .filter(resource => resource !== null && isDocumentResource(resource.note)) as DocumentResourceWithNote[]

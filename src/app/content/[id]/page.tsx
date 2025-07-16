@@ -1,75 +1,34 @@
-import { Suspense } from 'react'
+'use client'
+
+import { Suspense, useEffect, useState } from 'react'
 import React from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
-import { ResourceRepository } from '@/lib/repositories'
+import { parseEvent } from '@/data/types'
+import { useNostr } from '@/hooks/useNostr'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { 
   Star, 
   Clock, 
-  Users, 
   FileText, 
   Play, 
   ExternalLink,
-  Download,
   Eye,
   BookOpen,
   Video,
-  Calendar,
   Tag
 } from 'lucide-react'
-import type { Metadata } from 'next'
+import type { NostrEvent } from 'snstr'
 
 interface ResourcePageProps {
   params: Promise<{
     id: string
   }>
-}
-
-/**
- * Generate metadata for SEO
- * Demonstrates dynamic metadata generation for resources
- */
-export async function generateMetadata({ params }: ResourcePageProps): Promise<Metadata> {
-  const { id } = await params
-  const resource = await ResourceRepository.findById(id)
-
-  if (!resource) {
-    return {
-      title: 'Resource Not Found',
-      description: 'The requested resource could not be found.',
-    }
-  }
-
-  return {
-    title: `${resource.title} - no.school`,
-    description: resource.description,
-    keywords: [resource.category, resource.type, 'bitcoin', 'lightning', 'nostr', 'development', 'programming', 'learning'],
-    openGraph: {
-      title: resource.title,
-      description: resource.description,
-      type: 'article',
-      images: [
-        {
-          url: resource.image || '/placeholder.svg',
-          width: 800,
-          height: 600,
-          alt: resource.title,
-        },
-      ],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: resource.title,
-      description: resource.description,
-      images: [resource.image || '/placeholder.svg'],
-    },
-  }
 }
 
 /**
@@ -95,64 +54,35 @@ function ResourceContentSkeleton() {
 }
 
 /**
- * Resource content component
+ * Resource overview component - shows metadata and description, not the actual content
  */
-async function ResourceContent({ resourceId }: { resourceId: string }) {
-  const resource = await ResourceRepository.findById(resourceId)
-
-  if (!resource) {
-    return <div>Resource content not available</div>
-  }
-
+function ResourceOverview({ resourceId }: { resourceId: string }) {
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
-            {resource.type === 'video' ? (
-              <Video className="h-5 w-5" />
-            ) : (
-              <FileText className="h-5 w-5" />
-            )}
-            <span>Content</span>
+            <BookOpen className="h-5 w-5" />
+            <span>About this Resource</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="prose prose-sm max-w-none">
-            <p className="text-muted-foreground mb-4">
-              {resource.description}
+          <div className="text-center py-8">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/20">
+              <BookOpen className="h-8 w-8 text-primary" />
+            </div>
+            <p className="text-lg font-medium text-foreground mb-2">
+              Ready to dive into the content?
             </p>
-            
-            {resource.type === 'video' && resource.videoUrl && (
-              <div className="mb-4">
-                <Button className="w-full">
-                  <Play className="h-4 w-4 mr-2" />
-                  Watch Video
-                </Button>
-              </div>
-            )}
-            
-            {resource.additionalLinks && resource.additionalLinks.length > 0 && (
-              <div className="border-t pt-4">
-                <h4 className="font-semibold mb-2">Additional Resources</h4>
-                <div className="space-y-2">
-                  {resource.additionalLinks.map((link, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-start"
-                      asChild
-                    >
-                      <a href={link} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="h-4 w-4 mr-2" />
-                        External Resource {index + 1}
-                      </a>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
+            <p className="text-sm text-muted-foreground mb-6">
+              Click below to access the full resource content.
+            </p>
+            <Button size="lg" asChild>
+              <Link href={`/content/${resourceId}/details`}>
+                <Eye className="h-4 w-4 mr-2" />
+                View Content
+              </Link>
+            </Button>
           </div>
         </CardContent>
       </Card>
@@ -161,19 +91,84 @@ async function ResourceContent({ resourceId }: { resourceId: string }) {
 }
 
 /**
- * Resource detail page with dynamic routing
+ * Main resource page component
  */
-export default async function ResourcePage({ params }: ResourcePageProps) {
-  const { id } = await params
-  
-  const resource = await ResourceRepository.findById(id)
+function ResourcePageContent({ resourceId }: { resourceId: string }) {
+  const { fetchSingleEvent } = useNostr()
+  const [event, setEvent] = useState<NostrEvent | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  if (!resource) {
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const nostrEvent = await fetchSingleEvent({
+          kinds: [30023, 30403], // Long-form content and drafts
+          '#d': [resourceId]
+        })
+        
+        if (nostrEvent) {
+          setEvent(nostrEvent)
+        } else {
+          setError('Resource not found')
+        }
+      } catch (err) {
+        console.error('Error fetching Nostr event:', err)
+        setError('Failed to fetch resource')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (resourceId) {
+      fetchEvent()
+    }
+  }, [resourceId, fetchSingleEvent])
+
+  if (loading) {
+    return (
+      <MainLayout>
+        <Section spacing="lg">
+          <div className="space-y-8">
+            <div className="animate-pulse">
+              <div className="h-8 bg-muted rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-muted rounded w-1/2 mb-8"></div>
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <div className="space-y-4">
+                  <div className="h-4 bg-muted rounded"></div>
+                  <div className="h-4 bg-muted rounded w-2/3"></div>
+                </div>
+                <div className="aspect-video bg-muted rounded-lg"></div>
+              </div>
+            </div>
+          </div>
+        </Section>
+      </MainLayout>
+    )
+  }
+
+  if (error || !event) {
     notFound()
   }
 
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleDateString('en-US', {
+  const parsedEvent = parseEvent(event)
+  const title = parsedEvent.title || 'Unknown Resource'
+  const description = parsedEvent.summary || 'No description available'
+  const topics = parsedEvent.topics || []
+  const additionalLinks = parsedEvent.additionalLinks || []
+  const image = parsedEvent.image || '/placeholder.svg'
+  const author = parsedEvent.author || event.pubkey.slice(0, 8) + '...'
+  const type = parsedEvent.type || 'document'
+  const difficulty = 'intermediate' // Default since it's not in parseEvent
+  const rating = 4.5 // Mock data
+  const viewCount = 1250 // Mock data
+  const duration = type === 'video' ? '15 min' : undefined
+
+  const formatDate = (timestamp: number): string => {
+    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -209,18 +204,18 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Badge variant="secondary" className="capitalize">
-                    {resource.category}
+                    {topics[0] || 'general'}
                   </Badge>
                   <Badge variant="outline" className="capitalize">
-                    {resource.type}
+                    {type}
                   </Badge>
                   <Badge variant="outline" className="capitalize">
-                    {resource.difficulty}
+                    {difficulty}
                   </Badge>
                 </div>
-                <h1 className="text-4xl font-bold">{resource.title}</h1>
+                <h1 className="text-4xl font-bold">{title}</h1>
                 <p className="text-lg text-muted-foreground">
-                  {resource.description}
+                  {description}
                 </p>
               </div>
 
@@ -229,57 +224,51 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
                   <div className="flex items-center">
                     {[...Array(5)].map((_, i) => (
                       <Star 
-                        key={`resource-${resource.id}-star-${i}`} 
+                        key={`resource-${resourceId}-star-${i}`} 
                         className={`h-5 w-5 ${
-                          i < Math.floor(resource.rating) 
+                          i < Math.floor(rating) 
                             ? 'fill-rating text-rating' 
                             : 'text-muted-foreground'
                         }`} 
                       />
                     ))}
                   </div>
-                  <span className="font-medium">{resource.rating}</span>
+                  <span className="font-medium">{rating}</span>
                 </div>
                 
                 <div className="flex items-center space-x-2">
                   <Eye className="h-5 w-5 text-muted-foreground" />
-                  <span>{resource.viewCount?.toLocaleString() || 0} views</span>
+                  <span>{viewCount?.toLocaleString() || 0} views</span>
                 </div>
                 
-                {resource.duration && (
+                {duration && (
                   <div className="flex items-center space-x-2">
                     <Clock className="h-5 w-5 text-muted-foreground" />
-                    <span>{resource.duration}</span>
+                    <span>{duration}</span>
                   </div>
                 )}
               </div>
 
               <div className="flex items-center space-x-4">
                 <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
-                  <Link href={`/content/${resource.id}/details`}>
-                    {getResourceTypeIcon(resource.type)}
+                  <Link href={`/content/${resourceId}/details`}>
+                    {getResourceTypeIcon(type)}
                     <span className="ml-2">
-                      {resource.type === 'video' ? 'Watch Now' : 'Read Now'}
+                      {type === 'video' ? 'Watch Now' : 'Read Now'}
                     </span>
                   </Link>
                 </Button>
-                {resource.isPremium && (
-                  <Button variant="outline" size="lg">
-                    <Download className="h-5 w-5 mr-2" />
-                    Access Premium
-                  </Button>
-                )}
               </div>
 
               {/* Tags */}
-              {resource.tags && resource.tags.length > 0 && (
+              {topics && topics.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="font-semibold flex items-center">
                     <Tag className="h-4 w-4 mr-2" />
                     Topics
                   </h4>
                   <div className="flex flex-wrap gap-2">
-                    {resource.tags.map((tag, index) => (
+                    {topics.map((tag, index) => (
                       <Badge key={index} variant="secondary" className="text-xs">
                         {tag}
                       </Badge>
@@ -302,10 +291,10 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
                   />
                 </div>
                 
-                {resource.image || resource.thumbnailUrl ? (
+                {image && image !== '/placeholder.svg' ? (
                   <OptimizedImage 
-                    src={resource.image || resource.thumbnailUrl || '/placeholder.svg'} 
-                    alt={resource.title}
+                    src={image} 
+                    alt={title}
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 50vw"
@@ -315,12 +304,12 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
                   <div className="w-full h-full flex items-center justify-center">
                     <div className="text-center">
                       <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20">
-                        {getResourceTypeIcon(resource.type)}
+                        {getResourceTypeIcon(type)}
                       </div>
                       <p className="text-lg font-medium text-foreground">
-                        {resource.type === 'video' ? 'Video Preview' : 'Resource Preview'}
+                        {type === 'video' ? 'Video Preview' : 'Resource Preview'}
                       </p>
-                      <p className="text-sm text-muted-foreground capitalize">{resource.type} • {resource.category}</p>
+                      <p className="text-sm text-muted-foreground capitalize">{type} • {topics[0] || 'general'}</p>
                     </div>
                   </div>
                 )}
@@ -328,56 +317,50 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
             </div>
           </div>
 
-          {/* Resource Content */}
+          {/* Resource Overview */}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <Suspense fallback={<ResourceContentSkeleton />}>
-                <ResourceContent resourceId={id} />
+                <ResourceOverview resourceId={resourceId} />
               </Suspense>
             </div>
 
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>About this {resource.type}</CardTitle>
+                  <CardTitle>About this {type}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
                     <h4 className="font-semibold mb-2">Author</h4>
-                    <p className="text-sm text-muted-foreground">{resource.instructor}</p>
+                    <p className="text-sm text-muted-foreground">{author}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Type</h4>
-                    <p className="text-sm text-muted-foreground capitalize">{resource.type}</p>
+                    <p className="text-sm text-muted-foreground capitalize">{type}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Category</h4>
-                    <p className="text-sm text-muted-foreground capitalize">{resource.category}</p>
+                    <p className="text-sm text-muted-foreground capitalize">{topics[0] || 'general'}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Difficulty</h4>
-                    <p className="text-sm text-muted-foreground capitalize">{resource.difficulty}</p>
+                    <p className="text-sm text-muted-foreground capitalize">{difficulty}</p>
                   </div>
-                  {resource.duration && (
+                  {duration && (
                     <div>
                       <h4 className="font-semibold mb-2">Duration</h4>
-                      <p className="text-sm text-muted-foreground">{resource.duration}</p>
+                      <p className="text-sm text-muted-foreground">{duration}</p>
                     </div>
                   )}
                   <div>
                     <h4 className="font-semibold mb-2">Views</h4>
-                    <p className="text-sm text-muted-foreground">{resource.viewCount?.toLocaleString() || 0}</p>
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Price</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {resource.price > 0 ? `${resource.price} sats` : 'Free'}
-                    </p>
+                    <p className="text-sm text-muted-foreground">{viewCount?.toLocaleString() || 0}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Created</h4>
                     <p className="text-sm text-muted-foreground">
-                      {formatDate(resource.createdAt)}
+                      {formatDate(event.created_at)}
                     </p>
                   </div>
                 </CardContent>
@@ -400,4 +383,29 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
       </Section>
     </MainLayout>
   )
+}
+
+/**
+ * Resource detail page with dynamic routing
+ */
+export default function ResourcePage({ params }: ResourcePageProps) {
+  const [resourceId, setResourceId] = useState<string>('')
+
+  useEffect(() => {
+    params.then(p => setResourceId(p.id))
+  }, [params])
+
+  if (!resourceId) {
+    return (
+      <MainLayout>
+        <Section spacing="lg">
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded w-3/4"></div>
+          </div>
+        </Section>
+      </MainLayout>
+    )
+  }
+
+  return <ResourcePageContent resourceId={resourceId} />
 } 

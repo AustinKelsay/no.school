@@ -75,8 +75,9 @@ async function fetchCoursesWithNotes(relayPool: RelayPool): Promise<CourseWithNo
 
   try {
     notes = await relayPool.querySync(
-      ['wss://relay.primal.net', 'wss://relay.damus.io'],
-      { ids: noteIds } // Batch query by IDs
+      ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'],
+      { ids: noteIds }, // Batch query by IDs
+      { timeout: 10000 }
     )
     console.log(`Successfully fetched ${notes.length} notes`);
   } catch (error) {

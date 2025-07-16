@@ -13,6 +13,7 @@ const DEFAULT_RELAYS = [
 // Types for the context
 interface SnstrContextType {
   relayPool: RelayPool;
+  relays: string[];
   subscribe: (
     filters: Filter[], 
     onEvent: (event: NostrEvent, relayUrl: string) => void, 
@@ -55,6 +56,7 @@ export function SnstrProvider({ children, relays = DEFAULT_RELAYS }: { children:
 
   const contextValue: SnstrContextType = {
     relayPool: poolRef.current,
+    relays,
     subscribe,
     publish
   };

@@ -4,7 +4,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { OptimizedImage } from "@/components/ui/optimized-image"
-import { CourseEnrollmentForm } from "@/components/forms/course-enrollment-form"
 import { 
   BookOpen, 
   Star,
@@ -15,10 +14,10 @@ import {
   Zap,
   Calendar,
   Lock,
-  Eye,
   Unlock,
   MessageCircle,
-  Heart
+  Heart,
+  Eye
 } from "lucide-react"
 import type { ContentItem } from "@/data/types"
 import { contentTypeIcons, difficultyVariants } from "@/data/config"
@@ -37,7 +36,6 @@ interface HomepageItem {
 interface ContentCardProps {
   item: ContentItem | HomepageItem
   variant?: 'content' | 'course' | 'homepage'
-  showEnrollment?: boolean
   onTagClick?: (tag: string) => void
   className?: string
 }
@@ -107,7 +105,6 @@ function generateMockReactionsCount(itemId: string): number {
 export function ContentCard({ 
   item, 
   variant = 'content', 
-  showEnrollment = false,
   onTagClick,
   className = ""
 }: ContentCardProps) {
@@ -121,6 +118,7 @@ export function ContentCard({
     if (item.type === 'course') {
       router.push(`/courses/${item.id}`)
     } else {
+      console.log("pushinggg", item);
       // For resources (documents, videos, guides, etc.), navigate to content detail page
       router.push(`/content/${item.id}`)
     }
@@ -324,53 +322,33 @@ export function ContentCard({
 
         {/* Action Button */}
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          {variant === 'course' && showEnrollment && isContent ? (
-            <>
-              <Button 
-                className="flex-1" 
-                size="sm" 
-                variant="outline"
-                onClick={() => {
-                  if (item.type === 'course') {
-                    router.push(`/courses/${item.id}`)
-                  } else {
-                    router.push(`/content/${item.id}`)
-                  }
-                }}
-              >
-                {item.type === 'course' ? 'View Course' : 'View Content'}
-              </Button>
-              <CourseEnrollmentForm 
-                courseId={item.id} 
-                courseTitle={item.title}
-              />
-            </>
+          {isContent && !item.isPremium ? (
+            <Button 
+              className="w-full" 
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (item.type === 'course') {
+                  router.push(`/courses/${item.id}`)
+                } else {
+                  router.push(`/content/${item.id}`)
+                }
+              }}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              {item.type === 'course' ? 'Start Learning' : 'View Content'}
+            </Button>
           ) : (
             <Button 
               className="w-full" 
               size="sm"
-              variant={isContent && item.isPremium ? "default" : "outline"}
+              variant="outline"
               onClick={() => {
-                if (isContent) {
-                  if (item.type === 'course') {
-                    router.push(`/courses/${item.id}`)
-                  } else {
-                    router.push(`/content/${item.id}`)
-                  }
-                }
+                router.push('/auth/signin')
               }}
             >
-              {isContent && item.isPremium ? (
-                <>
-                  <Lock className="h-4 w-4 mr-2" />
-                  Buy for {item.price?.toLocaleString()} sats
-                </>
-              ) : (
-                <>
-                  <Eye className="h-4 w-4 mr-2" />
-                  {item.type === 'course' ? 'Start Learning' : 'View Content'}
-                </>
-              )}
+              <User className="h-4 w-4 mr-2" />
+              Login
             </Button>
           )}
         </div>

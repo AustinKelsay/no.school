@@ -1,4 +1,6 @@
-import { Suspense } from 'react'
+'use client'
+
+import { Suspense, useEffect, useState } from 'react'
 import React from 'react'
 import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -6,9 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
-import { ResourceRepository } from '@/lib/repositories'
-import { getResourceContent, getEstimatedReadingTime, formatContentForDisplay, type ResourceContent } from '@/lib/content-utils'
-import { ResourceDisplay } from '@/data/types'
+import { parseEvent } from '@/data/types'
+import { useNostr } from '@/hooks/useNostr'
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
 import { VideoPlayer } from '@/components/ui/video-player'
 import { ResourceActions } from '@/components/ui/resource-actions'
@@ -26,55 +27,12 @@ import {
   User
 } from 'lucide-react'
 import Link from 'next/link'
-import type { Metadata } from 'next'
+import type { NostrEvent } from 'snstr'
 
 interface ResourceDetailsPageProps {
   params: Promise<{
     id: string
   }>
-}
-
-/**
- * Generate metadata for SEO
- */
-export async function generateMetadata({ params }: ResourceDetailsPageProps): Promise<Metadata> {
-  const { id } = await params
-  const resource = await ResourceRepository.findById(id)
-
-  if (!resource) {
-    return {
-      title: 'Resource Not Found',
-      description: 'The requested resource could not be found.',
-    }
-  }
-
-  const content = getResourceContent(resource)
-  const description = content ? content.content.substring(0, 160) + '...' : resource.description
-
-  return {
-    title: `${resource.title} - Details - no.school`,
-    description,
-    keywords: [resource.category, resource.type, 'details', 'content', 'bitcoin', 'lightning', 'nostr', 'development', 'learning'],
-    openGraph: {
-      title: resource.title,
-      description,
-      type: 'article',
-      images: [
-        {
-          url: resource.image || '/placeholder.svg',
-          width: 1200,
-          height: 630,
-          alt: resource.title,
-        },
-      ],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: resource.title,
-      description,
-      images: [resource.image || '/placeholder.svg'],
-    },
-  }
 }
 
 /**
@@ -100,29 +58,41 @@ function ContentSkeleton() {
   )
 }
 
-
-
 /**
  * Content metadata component
  */
-function ContentMetadata({ resource, content }: { resource: ResourceDisplay; content: ResourceContent }) {
-  const readingTime = content?.isMarkdown ? getEstimatedReadingTime(content.content) : null
+function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEvent: ReturnType<typeof parseEvent> }) {
+  const formatDate = (timestamp: number): string => {
+    return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
+
+  const getReadingTime = (content: string): number => {
+    const wordsPerMinute = 200
+    const words = content.trim().split(/\s+/).length
+    return Math.ceil(words / wordsPerMinute)
+  }
+
+  const readingTime = parsedEvent.type !== 'video' ? getReadingTime(event.content) : null
   
   return (
     <div className="flex items-center space-x-6 flex-wrap text-sm text-muted-foreground">
       <div className="flex items-center space-x-1">
         <User className="h-4 w-4" />
-        <span>{resource.instructor}</span>
+        <span>{parsedEvent.author || event.pubkey.slice(0, 8) + '...'}</span>
       </div>
       
       <div className="flex items-center space-x-1">
         <Calendar className="h-4 w-4" />
-        <span>{new Date(resource.createdAt).toLocaleDateString()}</span>
+        <span>{formatDate(event.created_at)}</span>
       </div>
       
       <div className="flex items-center space-x-1">
         <Eye className="h-4 w-4" />
-        <span>{resource.viewCount || 0} views</span>
+        <span>1,250 views</span>
       </div>
       
       {readingTime && (
@@ -132,10 +102,10 @@ function ContentMetadata({ resource, content }: { resource: ResourceDisplay; con
         </div>
       )}
       
-      {resource.duration && (
+      {parsedEvent.type === 'video' && (
         <div className="flex items-center space-x-1">
           <Play className="h-4 w-4" />
-          <span>{resource.duration}</span>
+          <span>15 min</span>
         </div>
       )}
     </div>
@@ -143,22 +113,56 @@ function ContentMetadata({ resource, content }: { resource: ResourceDisplay; con
 }
 
 /**
- * Resource content component
+ * Resource content component that fetches and displays the actual content
  */
-async function ResourceContent({ resourceId }: { resourceId: string }) {
-  const resource = await ResourceRepository.findById(resourceId)
-  
-  if (!resource) {
+function ResourceContent({ resourceId }: { resourceId: string }) {
+  const { fetchSingleEvent } = useNostr()
+  const [event, setEvent] = useState<NostrEvent | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchEvent = async () => {
+      try {
+        setLoading(true)
+        setError(null)
+        
+        const nostrEvent = await fetchSingleEvent({
+          kinds: [30023, 30403], // Long-form content and drafts
+          '#d': [resourceId]
+        })
+        
+        if (nostrEvent) {
+          setEvent(nostrEvent)
+        } else {
+          setError('Resource not found')
+        }
+      } catch (err) {
+        console.error('Error fetching Nostr event:', err)
+        setError('Failed to fetch resource')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    if (resourceId) {
+      fetchEvent()
+    }
+  }, [resourceId, fetchSingleEvent])
+
+  if (loading) {
+    return <ContentSkeleton />
+  }
+
+  if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-muted-foreground">Resource not found</p>
+        <p className="text-muted-foreground">{error}</p>
       </div>
     )
   }
 
-  const content = getResourceContent(resource)
-  
-  if (!content) {
+  if (!event) {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">Content not available</p>
@@ -166,7 +170,14 @@ async function ResourceContent({ resourceId }: { resourceId: string }) {
     )
   }
 
-  const formattedContent = formatContentForDisplay(content.content)
+  const parsedEvent = parseEvent(event)
+  const title = parsedEvent.title || 'Unknown Resource'
+  const description = parsedEvent.summary || 'No description available'
+  const category = parsedEvent.topics[0] || 'general'
+  const type = parsedEvent.type || 'document'
+  const additionalLinks = parsedEvent.additionalLinks || []
+  const difficulty = 'intermediate' // Default
+  const isPremium = false // Default
 
   return (
     <div className="space-y-6">
@@ -175,44 +186,59 @@ async function ResourceContent({ resourceId }: { resourceId: string }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <Badge variant="secondary" className="capitalize">
-              {resource.category}
+              {category}
             </Badge>
             <Badge variant="outline" className="capitalize">
-              {resource.type}
+              {type}
             </Badge>
             <Badge variant="outline" className="capitalize">
-              {resource.difficulty}
+              {difficulty}
             </Badge>
-            {resource.isPremium && (
+            {isPremium && (
               <Badge variant="outline" className="border-amber-500 text-amber-600">
                 Premium
               </Badge>
             )}
           </div>
           
-          <ResourceActions resource={resource} content={content} />
+          <div className="flex items-center space-x-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/content/${resourceId}`}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Overview
+              </Link>
+            </Button>
+          </div>
         </div>
 
-        <h1 className="text-4xl font-bold">{content.title}</h1>
+        <h1 className="text-4xl font-bold">{title}</h1>
         
-        <ContentMetadata resource={resource} content={content} />
+        <ContentMetadata event={event} parsedEvent={parsedEvent} />
       </div>
 
       {/* Main Content */}
-      {content.type === 'video' && content.hasVideo ? (
-        <VideoPlayer
-          content={formattedContent}
-          title={content.title}
-          videoUrl={content.videoUrl}
-          duration={resource.duration}
-          thumbnailUrl={resource.thumbnailUrl}
-        />
-      ) : (
-        <MarkdownRenderer content={formattedContent} />
-      )}
+      <div className="space-y-6">
+        {type === 'video' ? (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="prose prose-lg max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: event.content }} />
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardContent className="pt-6">
+              <div className="prose prose-lg max-w-none">
+                <MarkdownRenderer content={event.content} />
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
       
       {/* Additional Links */}
-      {content.additionalLinks && content.additionalLinks.length > 0 && (
+      {additionalLinks && additionalLinks.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
@@ -222,7 +248,7 @@ async function ResourceContent({ resourceId }: { resourceId: string }) {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {content.additionalLinks.map((link, index) => (
+              {additionalLinks.map((link, index) => (
                 <Button
                   key={index}
                   variant="outline"
@@ -246,15 +272,7 @@ async function ResourceContent({ resourceId }: { resourceId: string }) {
 /**
  * Resource details page with full content display
  */
-export default async function ResourceDetailsPage({ params }: ResourceDetailsPageProps) {
-  const { id } = await params
-  
-  const resource = await ResourceRepository.findById(id)
-
-  if (!resource) {
-    notFound()
-  }
-
+function ResourceDetailsContent({ resourceId }: { resourceId: string }) {
   const getResourceTypeIcon = (type: string) => {
     switch (type) {
       case 'video':
@@ -281,26 +299,48 @@ export default async function ResourceDetailsPage({ params }: ResourceDetailsPag
           {/* Navigation */}
           <div className="flex items-center space-x-2">
             <Button variant="ghost" size="sm" asChild>
-              <Link href={`/content/${id}`}>
+              <Link href={`/content/${resourceId}`}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Overview
               </Link>
             </Button>
             <span className="text-muted-foreground">•</span>
             <div className="flex items-center space-x-2">
-              {getResourceTypeIcon(resource.type)}
-              <span className="text-sm text-muted-foreground capitalize">
-                {resource.type} Details
+              <FileText className="h-4 w-4" />
+              <span className="text-sm text-muted-foreground">
+                Content Details
               </span>
             </div>
           </div>
 
           {/* Content */}
           <Suspense fallback={<ContentSkeleton />}>
-            <ResourceContent resourceId={id} />
+            <ResourceContent resourceId={resourceId} />
           </Suspense>
         </div>
       </Section>
     </MainLayout>
   )
+}
+
+export default function ResourceDetailsPage({ params }: ResourceDetailsPageProps) {
+  const [resourceId, setResourceId] = useState<string>('')
+
+  useEffect(() => {
+    params.then(p => setResourceId(p.id))
+  }, [params])
+
+  if (!resourceId) {
+    return (
+      <MainLayout>
+        <Section spacing="lg">
+          <div className="animate-pulse">
+            <div className="h-8 bg-muted rounded w-3/4"></div>
+          </div>
+        </Section>
+      </MainLayout>
+    )
+  }
+
+  return <ResourceDetailsContent resourceId={resourceId} />
 } 

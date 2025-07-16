@@ -145,7 +145,7 @@ export interface ParsedResourceEvent {
 /**
  * Parse course event function signature (from content_data_models.md)
  */
-export function parseCourseEvent(event: NostrCourseListEvent): ParsedCourseEvent {
+export function parseCourseEvent(event: NostrCourseListEvent | NostrEvent): ParsedCourseEvent {
   const eventData: ParsedCourseEvent = {
     id: event.id,
     pubkey: event.pubkey || '',
@@ -212,7 +212,7 @@ export function parseCourseEvent(event: NostrCourseListEvent): ParsedCourseEvent
 /**
  * Parse resource event function signature (from content_data_models.md)
  */
-export function parseEvent(event: NostrFreeContentEvent | NostrPaidContentEvent): ParsedResourceEvent {
+export function parseEvent(event: NostrFreeContentEvent | NostrPaidContentEvent | NostrEvent): ParsedResourceEvent {
   const eventData: ParsedResourceEvent = {
     id: event.id,
     pubkey: event.pubkey || '',

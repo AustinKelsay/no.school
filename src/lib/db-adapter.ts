@@ -4,9 +4,22 @@
  */
 
 import { Course, Resource, Lesson } from '@/data/types'
+import { NostrEvent } from 'snstr'
+import { nostrCourseListEvents, nostrFreeContentEvents, nostrPaidContentEvents } from '@/data/nostr-events'
 import courseSeedData from '@/data/mockDb/Course.json'
 import resourceSeedData from '@/data/mockDb/Resource.json'
 import lessonSeedData from '@/data/mockDb/Lesson.json'
+
+// Extended types with Nostr note data
+export interface CourseWithNote extends Course {
+  note?: NostrEvent
+  noteError?: string
+}
+
+export interface ResourceWithNote extends Resource {
+  note?: NostrEvent
+  noteError?: string
+}
 
 // Type the imported JSON data with proper transformations
 const courseData: Course[] = courseSeedData.map(course => ({
@@ -41,6 +54,20 @@ export class CourseAdapter {
   static async findById(id: string): Promise<Course | null> {
     await new Promise(resolve => setTimeout(resolve, 20))
     return coursesInMemory.find(course => course.id === id) || null
+  }
+
+  static async findByIdWithNote(id: string): Promise<CourseWithNote | null> {
+    await new Promise(resolve => setTimeout(resolve, 20))
+    const course = coursesInMemory.find(course => course.id === id)
+    if (!course) return null
+    
+    // Find the associated Nostr note - for demo purposes, we'll use the first available note
+    const note = nostrCourseListEvents.find(event => event.id === id) || nostrCourseListEvents[0]
+    
+    return {
+      ...course,
+      note: note || undefined
+    }
   }
 
   static async create(courseData: Omit<Course, 'id'>): Promise<Course> {
@@ -99,6 +126,20 @@ export class ResourceAdapter {
   static async findById(id: string): Promise<Resource | null> {
     await new Promise(resolve => setTimeout(resolve, 20))
     return resourcesInMemory.find(resource => resource.id === id) || null
+  }
+
+  static async findByIdWithNote(id: string): Promise<ResourceWithNote | null> {
+    await new Promise(resolve => setTimeout(resolve, 20))
+    const resource = resourcesInMemory.find(resource => resource.id === id)
+    if (!resource) return null
+    
+    // Find the associated Nostr note - for demo purposes, we'll use the first available note
+    const note = [...nostrFreeContentEvents, ...nostrPaidContentEvents].find(event => event.id === id) || nostrFreeContentEvents[0]
+    
+    return {
+      ...resource,
+      note: note || undefined
+    }
   }
 
   static async create(resourceData: Omit<Resource, 'id'>): Promise<Resource> {

@@ -83,7 +83,8 @@ async function fetchVideosWithNotes(relayPool: RelayPool): Promise<VideoResource
   try {
     notes = await relayPool.querySync(
       ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'],
-      { "#d": noteIds, kinds: [30023, 30403] } // Batch query by IDs
+      { "#d": noteIds, kinds: [30023, 30403] }, // Batch query by IDs
+      { timeout: 10000 }
     )
     console.log(`Successfully fetched ${notes.length} resource notes`);
   } catch (error) {

@@ -10,6 +10,7 @@ import { Menu, Search, Zap } from "lucide-react"
 import { Container } from "./container"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ThemeSelector } from "@/components/theme-selector"
+import Link from "next/link"
 
 /**
  * Header component for the main navigation
@@ -22,10 +23,12 @@ export function Header() {
       <Container className="flex h-16 items-center">
         {/* Left Section */}
         <div className="flex flex-1 items-center space-x-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
-            <Zap className="h-4 w-4 text-primary-foreground" />
-          </div>
-          <span className="text-xl font-bold">PlebDevs</span>
+          <Link href="/" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
+              <Zap className="h-4 w-4 text-primary-foreground" />
+            </div>
+            <span className="text-xl font-bold">no.school</span>
+          </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon">

@@ -8,20 +8,18 @@ import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
 import { CourseRepository, LessonRepository } from '@/lib/repositories'
-import { CourseEnrollmentForm } from '@/components/forms/course-enrollment-form'
+import { CourseAdapter } from '@/lib/db-adapter'
+import { parseCourseEvent } from '@/data/types'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { 
   Star, 
   Clock, 
-  Users, 
   BookOpen, 
   Play,
-  Eye,
-  Calendar,
   Tag,
   ExternalLink,
-  Download,
-  GraduationCap
+  GraduationCap,
+  User
 } from 'lucide-react'
 import type { Metadata } from 'next'
 
@@ -45,28 +43,36 @@ export async function generateMetadata({ params }: CoursePageProps): Promise<Met
     }
   }
 
+  // Get the raw course from the adapter to access the note
+  const courseWithNote = await CourseAdapter.findByIdWithNote(id)
+  const parsedNote = courseWithNote?.note ? parseCourseEvent(courseWithNote.note) : null
+  const title = parsedNote?.name || 'Unknown Course'
+  const description = parsedNote?.description || 'No description available'
+  const category = parsedNote?.topics[0] || 'general'
+  const image = parsedNote?.image || '/placeholder.svg'
+
   return {
-    title: `${course.title} - no.school`,
-    description: course.description,
-    keywords: [course.category, 'course', 'bitcoin', 'lightning', 'nostr', 'development', 'programming', 'learning'],
+    title: `${title} - no.school`,
+    description: description,
+    keywords: [category, 'course', 'bitcoin', 'lightning', 'nostr', 'development', 'programming', 'learning'],
     openGraph: {
-      title: course.title,
-      description: course.description,
+      title: title,
+      description: description,
       type: 'article',
       images: [
         {
-          url: course.image || '/placeholder.svg',
+          url: image || '/placeholder.svg',
           width: 800,
           height: 600,
-          alt: course.title,
+          alt: title,
         },
       ],
     },
     twitter: {
       card: 'summary_large_image',
-      title: course.title,
-      description: course.description,
-      images: [course.image || '/placeholder.svg'],
+      title: title,
+      description: description,
+      images: [image || '/placeholder.svg'],
     },
   }
 }
@@ -190,6 +196,20 @@ export default async function CoursePage({ params }: CoursePageProps) {
   // Estimate total duration based on lesson count
   const estimatedDuration = lessonCount * 30 // 30 minutes per lesson
 
+  // Get the raw course from the adapter to access the note
+  const courseWithNote = await CourseAdapter.findByIdWithNote(id)
+  const parsedNote = courseWithNote?.note ? parseCourseEvent(courseWithNote.note) : null
+  const title = parsedNote?.name || course.title || 'Unknown Course'
+  const description = parsedNote?.description || course.description || 'No description available'
+  const category = parsedNote?.topics[0] || course.category || 'general'
+  const topics = parsedNote?.topics || course.topics || []
+  const additionalLinks = course.additionalLinks || []
+  const image = parsedNote?.image || course.image || '/placeholder.svg'
+  const instructor = course.instructor || 'Unknown'
+  const rating = course.rating || 0
+  const isPremium = course.isPremium || course.price > 0
+  const currency = course.currency || 'sats'
+
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) return `${minutes} min`
     const hours = Math.floor(minutes / 60)
@@ -216,20 +236,20 @@ export default async function CoursePage({ params }: CoursePageProps) {
               <div className="space-y-2">
                 <div className="flex items-center space-x-2">
                   <Badge variant="secondary" className="capitalize">
-                    {course.category}
+                    {category}
                   </Badge>
                   <Badge variant="outline">
                     Course
                   </Badge>
-                  {course.isPremium && (
+                  {isPremium && (
                     <Badge variant="outline" className="border-amber-500 text-amber-600">
                       Premium
                     </Badge>
                   )}
                 </div>
-                <h1 className="text-4xl font-bold">{course.title}</h1>
+                <h1 className="text-4xl font-bold">{title}</h1>
                 <p className="text-lg text-muted-foreground">
-                  {course.description}
+                  {description}
                 </p>
               </div>
 
@@ -240,20 +260,16 @@ export default async function CoursePage({ params }: CoursePageProps) {
                       <Star 
                         key={`course-${course.id}-star-${i}`} 
                         className={`h-5 w-5 ${
-                          i < Math.floor(course.rating) 
+                          i < Math.floor(rating) 
                             ? 'fill-rating text-rating' 
                             : 'text-muted-foreground'
                         }`} 
                       />
                     ))}
                   </div>
-                  <span className="font-medium">{course.rating}</span>
+                  <span className="font-medium">{rating}</span>
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  <Users className="h-5 w-5 text-muted-foreground" />
-                  <span>{course.enrollmentCount?.toLocaleString() || 0} students</span>
-                </div>
                 
                 <div className="flex items-center space-x-2">
                   <BookOpen className="h-5 w-5 text-muted-foreground" />
@@ -269,25 +285,32 @@ export default async function CoursePage({ params }: CoursePageProps) {
               </div>
 
               <div className="flex items-center space-x-4">
-                <Button size="lg" className="bg-primary hover:bg-primary/90">
-                  <GraduationCap className="h-5 w-5 mr-2" />
-                  {course.isPremium ? `Enroll for ${course.price} sats` : 'Start Learning'}
-                </Button>
-                <CourseEnrollmentForm 
-                  courseId={course.id} 
-                  courseTitle={course.title}
-                />
+                {!isPremium ? (
+                  <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+                    <Link href={lessons.length > 0 ? `/courses/${id}/lessons/${lessons[0].id}/details` : `/courses/${id}`}>
+                      <GraduationCap className="h-5 w-5 mr-2" />
+                      Start Learning
+                    </Link>
+                  </Button>
+                ) : (
+                  <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+                    <Link href="/auth/signin">
+                      <User className="h-5 w-5 mr-2" />
+                      Login to Access
+                    </Link>
+                  </Button>
+                )}
               </div>
 
               {/* Topics/Tags */}
-              {course.topics && course.topics.length > 0 && (
+              {topics && topics.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="font-semibold flex items-center">
                     <Tag className="h-4 w-4 mr-2" />
                     Topics
                   </h4>
                   <div className="flex flex-wrap gap-2">
-                    {course.topics.map((topic, index) => (
+                    {topics.map((topic, index) => (
                       <Badge key={index} variant="secondary" className="text-xs">
                         {topic}
                       </Badge>
@@ -297,11 +320,11 @@ export default async function CoursePage({ params }: CoursePageProps) {
               )}
 
               {/* Additional Links */}
-              {course.additionalLinks && course.additionalLinks.length > 0 && (
+              {additionalLinks && additionalLinks.length > 0 && (
                 <div className="space-y-2">
                   <h4 className="font-semibold">Additional Resources</h4>
                   <div className="space-y-2">
-                    {course.additionalLinks.map((link, index) => (
+                    {additionalLinks.map((link, index) => (
                       <Button
                         key={index}
                         variant="outline"
@@ -333,10 +356,10 @@ export default async function CoursePage({ params }: CoursePageProps) {
                   />
                 </div>
                 
-                {course.image ? (
+                {image ? (
                   <OptimizedImage 
-                    src={course.image} 
-                    alt={course.title}
+                    src={image} 
+                    alt={title}
                     fill
                     className="object-cover"
                     sizes="(max-width: 768px) 100vw, 50vw"
@@ -349,7 +372,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                         <GraduationCap className="h-10 w-10 text-primary" />
                       </div>
                       <p className="text-lg font-medium text-foreground">Course Preview</p>
-                      <p className="text-sm text-muted-foreground capitalize">{course.category}</p>
+                      <p className="text-sm text-muted-foreground capitalize">{category}</p>
                     </div>
                   </div>
                 )}
@@ -373,11 +396,11 @@ export default async function CoursePage({ params }: CoursePageProps) {
                 <CardContent className="space-y-4">
                   <div>
                     <h4 className="font-semibold mb-2">Instructor</h4>
-                    <p className="text-sm text-muted-foreground">{course.instructor}</p>
+                    <p className="text-sm text-muted-foreground">{instructor}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Category</h4>
-                    <p className="text-sm text-muted-foreground capitalize">{course.category}</p>
+                    <p className="text-sm text-muted-foreground capitalize">{category}</p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Lessons</h4>
@@ -390,13 +413,9 @@ export default async function CoursePage({ params }: CoursePageProps) {
                     </div>
                   )}
                   <div>
-                    <h4 className="font-semibold mb-2">Enrollment</h4>
-                    <p className="text-sm text-muted-foreground">{course.enrollmentCount?.toLocaleString() || 0} students</p>
-                  </div>
-                  <div>
                     <h4 className="font-semibold mb-2">Price</h4>
                     <p className="text-sm text-muted-foreground">
-                      {course.price > 0 ? `${course.price.toLocaleString()} ${course.currency || 'sats'}` : 'Free'}
+                      {course.price > 0 ? `${course.price.toLocaleString()} ${currency}` : 'Free'}
                     </p>
                   </div>
                   <div>
