@@ -260,14 +260,14 @@ export function ContentCard({
               {item.difficulty}
             </Badge>
           )}
-          {isContent && item.tags && item.tags.slice(0, 3).map((tag, index) => (
+          {isContent && item.topics && item.topics.slice(0, 3).map((topic, index) => (
             <Badge 
               key={index} 
               variant="outline" 
               className="text-xs cursor-pointer hover:bg-accent transition-colors"
-              onClick={() => onTagClick?.(tag)}
+              onClick={() => onTagClick?.(topic)}
             >
-              {tag}
+              {topic}
             </Badge>
           ))}
           {variant === 'course' && (

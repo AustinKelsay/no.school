@@ -37,7 +37,7 @@ async function CourseCards({ category }: { category?: string }) {
     description: course.description,
     type: 'course' as const,
     category: course.category,
-    tags: course.topics,
+    tags: course.tags,
     difficulty: 'intermediate' as const,
     instructor: course.instructor,
     instructorPubkey: course.instructorPubkey,

@@ -1,18 +1,14 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
-import { ContentCard } from "@/components/ui/content-card"
 import { HeroAnimated } from "@/components/ui/hero-animated"
-import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import { MainLayout, Section } from "@/components/layout"
 import { 
   BookOpen, 
   Video, 
-  FileText, 
   Zap, 
   Star,
   Clock,
-  Play,
   ExternalLink,
   Users,
   Sparkles,
@@ -20,6 +16,9 @@ import {
 } from "lucide-react"
 
 import { getAllContentItems } from "@/lib/data"
+import { CoursesSection } from "@/components/homepage/courses-section"
+import { VideosSection } from "@/components/homepage/videos-section"
+import { DocumentsSection } from "@/components/homepage/documents-section"
 
 interface HeroStat {
   value: string
@@ -38,6 +37,8 @@ export default function Home() {
     { value: "4.7/5", label: "Rating", icon: Star },
     { value: "24/7", label: "Support", icon: Clock },
   ]
+
+
 
   return (
     <MainLayout>
@@ -155,110 +156,12 @@ export default function Home() {
  * Shows featured courses, videos, and documents
  */
 async function HomepageContent() {
-  const contentItems = await getAllContentItems()
-  
-  // Filter content by type
-  const courses = contentItems.filter(item => item.type === 'course')
-  const videos = contentItems.filter(item => item.type === 'video')
-  const documents = contentItems.filter(item => item.type === 'document')
 
   return (
     <>
-      {/* Featured Courses Section */}
-      <Section spacing="lg" className="bg-muted/30">
-        <div className="space-y-8">
-          <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">Courses</h2>
-            <p className="text-muted-foreground">
-              Structured learning paths from Bitcoin fundamentals to advanced Lightning Network development
-            </p>
-          </div>
-          
-          <Carousel 
-            opts={{
-              align: "start",
-              loop: false,
-            }}
-            className="w-full"
-          >
-            <CarouselContent className="-ml-2 md:-ml-4">
-              {courses.map((course) => (
-                <CarouselItem key={course.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                  <ContentCard item={course} variant="content" />
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="-left-12" />
-            <CarouselNext className="-right-12" />
-          </Carousel>
-        </div>
-      </Section>
-
-      {/* Featured Videos Section */}
-      <Section spacing="lg" className="bg-muted/20">
-        <div className="space-y-8">
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center space-x-2">
-              <Play className="h-8 w-8 text-primary" />
-              <h2 className="text-3xl font-bold">Videos</h2>
-            </div>
-            <p className="text-muted-foreground">
-              Learn by watching: Bitcoin scripting, Lightning channels, Nostr implementations, and more
-            </p>
-          </div>
-          
-          <Carousel 
-            opts={{
-              align: "start",
-              loop: false,
-            }}
-            className="w-full"
-          >
-            <CarouselContent className="-ml-2 md:-ml-4">
-              {videos.map((video) => (
-                <CarouselItem key={video.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                  <ContentCard item={video} variant="content" />
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="-left-12" />
-            <CarouselNext className="-right-12" />
-          </Carousel>
-        </div>
-      </Section>
-
-      {/* Featured Documents Section */}
-      <Section spacing="lg" className="bg-muted/10">
-        <div className="space-y-8">
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center space-x-2">
-              <FileText className="h-8 w-8 text-primary" />
-              <h2 className="text-3xl font-bold">Documents</h2>
-            </div>
-            <p className="text-muted-foreground">
-              Quick references, implementation guides, API documentation, and cheat sheets for fast learning
-            </p>
-          </div>
-          
-          <Carousel 
-            opts={{
-              align: "start",
-              loop: false,
-            }}
-            className="w-full"
-          >
-            <CarouselContent className="-ml-2 md:-ml-4">
-              {documents.map((document) => (
-                <CarouselItem key={document.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
-                  <ContentCard item={document} variant="content" />
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            <CarouselPrevious className="-left-12" />
-            <CarouselNext className="-right-12" />
-          </Carousel>
-        </div>
-      </Section>
+      <CoursesSection />
+      <VideosSection />
+      <DocumentsSection />
     </>
   )
 }

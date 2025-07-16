@@ -31,47 +31,19 @@ import {
 } from './nostr-events'
 
 // ============================================================================
-// DATABASE DATA EXPORTS (minimal fields)
+// LEGACY EXPORTS (for backward compatibility)
 // ============================================================================
 
-// Course data
-export {
-  coursesMockData,
-  lessonsMockData,
-  mockUserIds as courseMockUserIds,
-  getCourseById,
-  getFreeCourses,
-  getPaidCourses,
-  getLessonsByCourseId,
-  getLessonById,
-  getCourseWithLessons
-} from './courses/mock-courses'
+// New functions using seed data
+export function getLessonsByCourseId(courseId: string) {
+  const lessons = getLessonsSync()
+  return lessons.filter(lesson => lesson.courseId === courseId).sort((a, b) => a.index - b.index)
+}
 
-// Document data (Resource model)
-export {
-  dbDocumentsMockData,
-  mockUserIds as documentMockUserIds,
-  getDocumentById,
-  getDocumentsByCategory,
-  getFreeDocuments,
-  getPaidDocuments,
-  getDocumentsByUserId,
-  getDocumentsByDifficulty,
-  getDocumentsByType
-} from './documents/mock-documents'
-
-// Video data (Resource model)
-export {
-  dbVideosMockData,
-  mockUserIds as videoMockUserIds,
-  getVideoById,
-  getVideosByCategory,
-  getFreeVideos,
-  getPaidVideos,
-  getVideosByUserId,
-  getVideosByDifficulty,
-  getVideosByDuration
-} from './videos/mock-videos'
+export function getLessonById(id: string) {
+  const lessons = getLessonsSync()
+  return lessons.find(lesson => lesson.id === id) || null
+}
 
 // ============================================================================
 // NOSTR DATA EXPORTS
@@ -99,15 +71,15 @@ export {
 // UNIFIED DATA ACCESS FUNCTIONS
 // ============================================================================
 
-import { coursesMockData, getLessonsByCourseId } from './courses/mock-courses'
-import { dbDocumentsMockData } from './documents/mock-documents'
-import { dbVideosMockData } from './videos/mock-videos'
+import { CourseAdapter, ResourceAdapter, getCoursesSync, getResourcesSync, getLessonsSync } from '@/lib/db-adapter'
 
 /**
  * Get all courses with full UI data (database + parsed Nostr events)
  */
 export function getAllCoursesWithContent(): CourseDisplay[] {
-  return coursesMockData.map(course => {
+  // Temporary sync bridge - you should use getAllCoursesWithContentAsync for new code
+  const courses = getCoursesSync()
+  return courses.map(course => {
     // Find corresponding Nostr event
     const nostrEvent = nostrCourseListEvents.find(event => 
       event.id === course.noteId || event.tags.some(tag => tag[0] === 'd' && tag[1] === course.id)
@@ -132,6 +104,42 @@ export function getAllCoursesWithContent(): CourseDisplay[] {
       currency: 'sats',
       image: '',
       published: true,
+      tags: [],
+      topics: ['bitcoin', 'development'],
+      lessonReferences: [],
+      additionalLinks: []
+    }
+  })
+}
+
+export async function getAllCoursesWithContentAsync(): Promise<CourseDisplay[]> {
+  const courses = await CourseAdapter.findAll()
+  return courses.map(course => {
+    // Find corresponding Nostr event
+    const nostrEvent = nostrCourseListEvents.find(event => 
+      event.id === course.noteId || event.tags.some(tag => tag[0] === 'd' && tag[1] === course.id)
+    )
+    
+    if (nostrEvent) {
+      const parsedEvent = parseCourseEvent(nostrEvent)
+      return createCourseDisplay(course, parsedEvent)
+    }
+    
+    // Fallback for courses without Nostr events - with better default data
+    return {
+      ...course,
+      title: `Course ${course.id}`,
+      description: 'Course description from database',
+      category: 'bitcoin',
+      instructor: 'Unknown Instructor',
+      instructorPubkey: course.userId,
+      rating: 4.5,
+      enrollmentCount: 100,
+      isPremium: course.price > 0,
+      currency: 'sats',
+      image: '',
+      published: true,
+      tags: [],
       topics: ['bitcoin', 'development'],
       lessonReferences: [],
       additionalLinks: []
@@ -143,7 +151,56 @@ export function getAllCoursesWithContent(): CourseDisplay[] {
  * Get all resources (documents and videos) with full UI data
  */
 export function getAllResourcesWithContent(): ResourceDisplay[] {
-  const allResources = [...dbDocumentsMockData, ...dbVideosMockData]
+  // Temporary sync bridge - you should use getAllResourcesWithContentAsync for new code
+  const allResources = getResourcesSync()
+  
+  return allResources.map(resource => {
+    // Find corresponding Nostr event in free content first
+    const nostrEvent = nostrFreeContentEvents.find(event => 
+      event.id === resource.noteId || event.tags.some(tag => tag[0] === 'd' && tag[1] === resource.id)
+    )
+    
+    if (nostrEvent) {
+      const parsedEvent = parseEvent(nostrEvent)
+      return createResourceDisplay(resource, parsedEvent)
+    }
+    
+    // If not found in free content, check paid content
+    const paidEvent = nostrPaidContentEvents.find(event => 
+      event.id === resource.noteId || event.tags.some(tag => tag[0] === 'd' && tag[1] === resource.id)
+    )
+    
+    
+    if (paidEvent) {
+      const parsedEvent = parseEvent(paidEvent)
+      return createResourceDisplay(resource, parsedEvent)
+    }
+    
+    // Fallback for resources without Nostr events - with better default data
+    return {
+      ...resource,
+      title: `Resource ${resource.id}`,
+      description: 'Resource description from database',
+      category: 'bitcoin',
+      type: resource.videoId ? 'video' : 'document',
+      instructor: 'Unknown Instructor',
+      instructorPubkey: resource.userId,
+      rating: 4.5,
+      viewCount: 500,
+      isPremium: resource.price > 0,
+      currency: 'sats',
+      image: '',
+      tags: ['bitcoin', 'development'],
+      difficulty: 'intermediate' as const,
+      published: true,
+      topics: ['bitcoin', 'development'],
+      additionalLinks: []
+    }
+  })
+}
+
+export async function getAllResourcesWithContentAsync(): Promise<ResourceDisplay[]> {
+  const allResources = await ResourceAdapter.findAll()
   
   return allResources.map(resource => {
     // Find corresponding Nostr event in free content first
@@ -376,7 +433,7 @@ export function getAllContentItems(): ContentItem[] {
     description: course.description,
     type: 'course',
     category: course.category,
-    tags: course.topics,
+    tags: course.tags,
     difficulty: 'intermediate', // Default for courses
     instructor: course.instructor,
     instructorPubkey: course.instructorPubkey,
@@ -399,7 +456,7 @@ export function getAllContentItems(): ContentItem[] {
     description: resource.description,
     type: resource.type === 'video' ? 'video' : 'document',
     category: resource.category,
-    tags: resource.tags,
+    tags: [],
     difficulty: resource.difficulty,
     duration: resource.duration,
     instructor: resource.instructor,
@@ -443,7 +500,7 @@ export function searchContent(query: string): ContentItem[] {
   return allContent.filter(item => 
     item.title.toLowerCase().includes(searchLower) ||
     item.description.toLowerCase().includes(searchLower) ||
-    item.tags.some(tag => tag.toLowerCase().includes(searchLower)) ||
+    item.topics.some(topic => topic.toLowerCase().includes(searchLower)) ||
     (item.topics && item.topics.some(topic => topic.toLowerCase().includes(searchLower)))
   )
 }

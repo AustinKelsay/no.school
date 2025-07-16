@@ -346,7 +346,6 @@ export function getContentTags(): string[] {
   const tags = new Set<string>()
   
   allContent.forEach(item => {
-    item.tags.forEach(tag => tags.add(tag))
     item.topics?.forEach(topic => tags.add(topic))
   })
   
@@ -361,7 +360,7 @@ export function getPopularTags(limit: number = 20): string[] {
   const tagCounts = new Map<string, number>()
   
   allContent.forEach(item => {
-    item.tags.forEach(tag => {
+    item.topics.forEach(tag => {
       tagCounts.set(tag, (tagCounts.get(tag) || 0) + 1)
     })
     item.topics?.forEach(topic => {

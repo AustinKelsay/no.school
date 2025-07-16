@@ -305,6 +305,7 @@ export interface CourseDisplay extends Course {
   currency?: string
   image?: string
   published: boolean
+  tags: string[][]
   topics: string[]
   lessonReferences: string[]
   additionalLinks?: string[]
@@ -359,7 +360,7 @@ export interface ContentItem {
   currency?: string
   image?: string
   published: boolean
-  tags: string[]
+  tags: string[][]
   difficulty?: 'beginner' | 'intermediate' | 'advanced'
   createdAt: string
   updatedAt: string
@@ -387,6 +388,7 @@ export function createCourseDisplay(course: Course, parsedEvent: ParsedCourseEve
     isPremium: course.price > 0,
     currency: 'sats',
     image: parsedEvent.image || '',
+    tags: parsedEvent.tags,
     published: true,
     topics: parsedEvent.topics,
     lessonReferences: [], // Would extract from 'a' tags

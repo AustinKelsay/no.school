@@ -13,15 +13,13 @@ import {
   ContentItem 
 } from '@/data/types'
 import { 
-  coursesMockData, 
-  lessonsMockData, 
   getAllCoursesWithContent,
   getAllResourcesWithContent,
   getContentItems,
   searchContent 
 } from '@/data'
 import { globalCache } from './cache'
-import { NotFoundError, ConflictError } from './api-utils'
+import { CourseAdapter, ResourceAdapter, LessonAdapter } from './db-adapter'
 
 // Repository-specific filter type
 interface RepositoryFilters {
@@ -100,16 +98,7 @@ export class CourseRepository {
    * Create a new course (database only - Nostr event would be created separately)
    */
   static async create(courseData: Omit<Course, 'id'>): Promise<Course> {
-    // Simulate database delay
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    const newCourse: Course = {
-      ...courseData,
-      id: `course-${Date.now()}`
-    }
-
-    // In a real implementation, this would save to database
-    coursesMockData.push(newCourse)
+    const newCourse = await CourseAdapter.create(courseData)
     
     // Invalidate cache
     this.invalidateCache()
@@ -121,34 +110,24 @@ export class CourseRepository {
    * Update a course (database only)
    */
   static async update(id: string, courseData: Partial<Course>): Promise<Course | null> {
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    const courseIndex = coursesMockData.findIndex(c => c.id === id)
-    if (courseIndex === -1) return null
-
-    coursesMockData[courseIndex] = { ...coursesMockData[courseIndex], ...courseData }
+    const updatedCourse = await CourseAdapter.update(id, courseData)
     
     // Invalidate cache
     this.invalidateCache()
     
-    return coursesMockData[courseIndex]
+    return updatedCourse
   }
 
   /**
    * Delete a course (database only)
    */
   static async delete(id: string): Promise<boolean> {
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    const courseIndex = coursesMockData.findIndex(c => c.id === id)
-    if (courseIndex === -1) return false
-
-    coursesMockData.splice(courseIndex, 1)
+    const deleted = await CourseAdapter.delete(id)
     
     // Invalidate cache
     this.invalidateCache()
     
-    return true
+    return deleted
   }
 
   /**
@@ -280,16 +259,7 @@ export class ResourceRepository {
    * Create a new resource (database only - Nostr event would be created separately)
    */
   static async create(resourceData: Omit<Resource, 'id'>): Promise<Resource> {
-    // Simulate database delay
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    const newResource: Resource = {
-      ...resourceData,
-      id: `resource-${Date.now()}`
-    }
-
-    // In a real implementation, this would save to database
-    // For now, we can't easily add to the mock data since it's split across files
+    const newResource = await ResourceAdapter.create(resourceData)
     
     // Invalidate cache
     this.invalidateCache()
@@ -331,11 +301,7 @@ export class LessonRepository {
     const cacheKey = `${this.CACHE_PREFIX}:course:${courseId}`
     
     return globalCache.get(cacheKey, async () => {
-      // Simulate database delay
-      await new Promise(resolve => setTimeout(resolve, 30))
-      
-      const lessons = lessonsMockData.filter(l => l.courseId === courseId)
-      return lessons.sort((a, b) => a.index - b.index)
+      return await LessonAdapter.findByCourseId(courseId)
     }, this.CACHE_TTL)
   }
 
@@ -346,11 +312,7 @@ export class LessonRepository {
     const cacheKey = `${this.CACHE_PREFIX}:${id}`
     
     return globalCache.get(cacheKey, async () => {
-      // Simulate database delay
-      await new Promise(resolve => setTimeout(resolve, 30))
-      
-      const lesson = lessonsMockData.find(l => l.id === id)
-      return lesson || null
+      return await LessonAdapter.findById(id)
     }, this.CACHE_TTL)
   }
 
@@ -358,14 +320,7 @@ export class LessonRepository {
    * Create a new lesson
    */
   static async create(lessonData: Omit<Lesson, 'id'>): Promise<Lesson> {
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    const newLesson: Lesson = {
-      ...lessonData,
-      id: `lesson-${Date.now()}`
-    }
-
-    lessonsMockData.push(newLesson)
+    const newLesson = await LessonAdapter.create(lessonData)
     
     // Invalidate cache
     this.invalidateCache()
@@ -377,34 +332,24 @@ export class LessonRepository {
    * Update a lesson
    */
   static async update(id: string, lessonData: Partial<Lesson>): Promise<Lesson | null> {
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    const lessonIndex = lessonsMockData.findIndex(l => l.id === id)
-    if (lessonIndex === -1) return null
-
-    lessonsMockData[lessonIndex] = { ...lessonsMockData[lessonIndex], ...lessonData }
+    const updatedLesson = await LessonAdapter.update(id, lessonData)
     
     // Invalidate cache
     this.invalidateCache()
     
-    return lessonsMockData[lessonIndex]
+    return updatedLesson
   }
 
   /**
    * Delete a lesson
    */
   static async delete(id: string): Promise<boolean> {
-    await new Promise(resolve => setTimeout(resolve, 100))
-    
-    const lessonIndex = lessonsMockData.findIndex(l => l.id === id)
-    if (lessonIndex === -1) return false
-
-    lessonsMockData.splice(lessonIndex, 1)
+    const deleted = await LessonAdapter.delete(id)
     
     // Invalidate cache
     this.invalidateCache()
     
-    return true
+    return deleted
   }
 
   /**

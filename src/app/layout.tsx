@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ThemeColorProvider } from "@/contexts/theme-context";
 import { SnstrProvider } from "@/contexts/snstr-context";
+import { QueryProvider } from "@/contexts/query-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,9 +38,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ThemeColorProvider>
-            <SnstrProvider>
-              {children}
-            </SnstrProvider>
+            <QueryProvider>
+              <SnstrProvider>
+                {children}
+              </SnstrProvider>
+            </QueryProvider>
           </ThemeColorProvider>
         </ThemeProvider>
       </body>
