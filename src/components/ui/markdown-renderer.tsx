@@ -13,6 +13,7 @@ import rehypeRaw from 'rehype-raw'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { OptimizedImage } from '@/components/ui/optimized-image'
 import { ExternalLink, Copy, Check } from 'lucide-react'
 
 interface MarkdownRendererProps {
@@ -207,11 +208,12 @@ const MarkdownComponents = {
   // Custom image renderer
   img: ({ src, alt, ...props }: React.ImgHTMLAttributes<HTMLImageElement>) => (
     <div className="my-4">
-      <img
-        src={src}
-        alt={alt}
+      <OptimizedImage
+        src={typeof src === 'string' ? src : ''}
+        alt={alt || ''}
+        width={800}
+        height={600}
         className="max-w-full h-auto rounded-lg border border-border"
-        {...props}
       />
       {alt && (
         <p className="text-sm text-muted-foreground mt-2 text-center italic">

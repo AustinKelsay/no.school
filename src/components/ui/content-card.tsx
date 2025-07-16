@@ -1,9 +1,9 @@
 "use client"
 
-import Image from "next/image"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { OptimizedImage } from "@/components/ui/optimized-image"
 import { CourseEnrollmentForm } from "@/components/forms/course-enrollment-form"
 import { 
   BookOpen, 
@@ -169,7 +169,7 @@ export function ContentCard({
           if (isContent && (item.image || ('thumbnailUrl' in item && item.thumbnailUrl))) {
             const imageSrc = item.image || ('thumbnailUrl' in item ? item.thumbnailUrl : '') || '/placeholder.svg';
             return (
-              <Image 
+              <OptimizedImage 
                 src={imageSrc as string} 
                 alt={item.title}
                 fill

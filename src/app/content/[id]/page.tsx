@@ -1,7 +1,6 @@
 import { Suspense } from 'react'
 import React from 'react'
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -9,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
 import { ResourceRepository } from '@/lib/repositories'
+import { OptimizedImage } from '@/components/ui/optimized-image'
 import { 
   Star, 
   Clock, 
@@ -303,7 +303,7 @@ export default async function ResourcePage({ params }: ResourcePageProps) {
                 </div>
                 
                 {resource.image || resource.thumbnailUrl ? (
-                  <Image 
+                  <OptimizedImage 
                     src={resource.image || resource.thumbnailUrl || '/placeholder.svg'} 
                     alt={resource.title}
                     fill

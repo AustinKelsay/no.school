@@ -19,8 +19,37 @@ interface OptimizedImageProps {
 }
 
 /**
- * Optimized image component with error handling and loading states
- * Wraps next/image with proper fallbacks and accessibility
+ * List of allowed domains from next.config.ts
+ * These domains are configured for optimization
+ */
+const ALLOWED_DOMAINS = [
+  'images.unsplash.com',
+  'avatars.githubusercontent.com',
+  'api.dicebear.com',
+  'plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com',
+  'miro.medium.com',
+  'img.youtube.com',
+  'i.ytimg.com'
+]
+
+/**
+ * Check if a URL hostname is in the allowed domains list
+ */
+function isAllowedDomain(src: string): boolean {
+  try {
+    const url = new URL(src)
+    return ALLOWED_DOMAINS.includes(url.hostname)
+  } catch {
+    // If URL parsing fails, assume it's a local image
+    return true
+  }
+}
+
+/**
+ * Smart optimized image component that automatically handles unknown domains
+ * - Uses Next.js Image optimization for configured domains
+ * - Uses Next.js Image with unoptimized prop for unknown domains
+ * - Maintains all Next.js Image benefits (lazy loading, responsive, etc.)
  */
 export function OptimizedImage({
   src,
@@ -62,6 +91,9 @@ export function OptimizedImage({
     )
   }
 
+  // Determine if we should use optimization based on domain
+  const shouldOptimize = isAllowedDomain(src || fallback)
+  
   const imageProps = {
     src: src || fallback,
     alt,
@@ -77,6 +109,8 @@ export function OptimizedImage({
     placeholder,
     blurDataURL,
     sizes,
+    // Use unoptimized for unknown domains to prevent configuration errors
+    unoptimized: !shouldOptimize,
     ...props,
   }
 

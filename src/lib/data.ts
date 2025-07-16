@@ -6,28 +6,12 @@
 
 import { 
   getAllCoursesWithContent,
-  getCourseWithContentById,
-  getCourseWithLessonsById,
-  getAllResourcesWithContent,
-  getResourceWithContentById,
-  getAllContentItems as getContentItems,
-  searchAllContent,
-  getTrendingContent,
-  getFeaturedContent,
-  getContentStats,
-  getCoursesByContentCategory,
-  getResourcesByContentCategory,
-  getResourcesByType,
-  getContentByInstructor,
-  getContentByDifficulty,
-  getPremiumContent,
-  getFreeContent
+  getAllContentItems as getContentItems
 } from '@/data'
 
 import type { 
   CourseDisplay, 
   ResourceDisplay, 
-  CourseWithLessons, 
   ContentItem 
 } from '@/data/types'
 
@@ -35,7 +19,6 @@ import type {
 export type { 
   CourseDisplay, 
   ResourceDisplay, 
-  CourseWithLessons, 
   ContentItem 
 } from '@/data/types'
 
@@ -59,89 +42,6 @@ export async function getCachedCourses(category?: string): Promise<CourseDisplay
   return courses
 }
 
-/**
- * Get course by ID with full content data (cached)
- */
-export async function getCachedCourseById(id: string): Promise<CourseDisplay | null> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getCourseWithContentById(id)
-}
-
-/**
- * Get course with lessons by ID (cached)
- */
-export async function getCachedCourseWithLessons(id: string): Promise<CourseWithLessons | null> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getCourseWithLessonsById(id)
-}
-
-/**
- * Get all resources with full content data (cached)
- */
-export async function getCachedResources(type?: 'document' | 'video', category?: string): Promise<ResourceDisplay[]> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  
-  let resources = getAllResourcesWithContent()
-  
-  if (type) {
-    resources = resources.filter(resource => resource.type === type)
-  }
-  
-  if (category) {
-    resources = resources.filter(resource => resource.category === category)
-  }
-  
-  return resources
-}
-
-/**
- * Get resource by ID with full content data (cached)
- */
-export async function getCachedResourceById(id: string): Promise<ResourceDisplay | null> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getResourceWithContentById(id)
-}
-
-/**
- * Get all content items for display (cached)
- */
-export async function getCachedAllContentItems(): Promise<ContentItem[]> {
-  // Simulate async operation (in real app this would use actual caching)
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getContentItems()
-}
-
-/**
- * Search all content (cached)
- */
-export async function searchContent(query: string): Promise<(CourseDisplay | ResourceDisplay)[]> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return searchAllContent(query)
-}
-
-/**
- * Get trending content (cached)
- */
-export async function getTrendingContentCached(limit: number = 10): Promise<(CourseDisplay | ResourceDisplay)[]> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getTrendingContent(limit)
-}
-
-/**
- * Get featured content (cached)
- */
-export async function getFeaturedContentCached(type: 'course' | 'resource' | 'all' = 'all'): Promise<(CourseDisplay | ResourceDisplay)[]> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getFeaturedContent(type)
-}
-
-/**
- * Get content statistics (cached)
- */
-export async function getCachedContentStats() {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getContentStats()
-}
 
 /**
  * Get course statistics (cached)
@@ -161,57 +61,6 @@ export async function getCachedCourseStats() {
   }
 }
 
-/**
- * Get videos by category (cached)
- */
-export async function getCachedVideosByCategory(category: string): Promise<ResourceDisplay[]> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  
-  const resources = getAllResourcesWithContent()
-  return resources.filter(resource => resource.type === 'video' && resource.category === category)
-}
-
-/**
- * Get documents by category (cached)
- */
-export async function getCachedDocumentsByCategory(category: string): Promise<ResourceDisplay[]> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  
-  const resources = getAllResourcesWithContent()
-  return resources.filter(resource => resource.type === 'document' && resource.category === category)
-}
-
-/**
- * Get content by instructor (cached)
- */
-export async function getCachedContentByInstructor(pubkey: string): Promise<(CourseDisplay | ResourceDisplay)[]> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getContentByInstructor(pubkey)
-}
-
-/**
- * Get content by difficulty (cached)
- */
-export async function getCachedContentByDifficulty(difficulty: 'beginner' | 'intermediate' | 'advanced'): Promise<ResourceDisplay[]> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getContentByDifficulty(difficulty)
-}
-
-/**
- * Get premium content (cached)
- */
-export async function getCachedPremiumContent(): Promise<(CourseDisplay | ResourceDisplay)[]> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getPremiumContent()
-}
-
-/**
- * Get free content (cached)
- */
-export async function getCachedFreeContent(): Promise<(CourseDisplay | ResourceDisplay)[]> {
-  await new Promise(resolve => setTimeout(resolve, 10))
-  return getFreeContent()
-}
 
 // ============================================================================
 // LEGACY EXPORT FUNCTIONS (for backward compatibility)
@@ -222,22 +71,6 @@ export async function getCachedFreeContent(): Promise<(CourseDisplay | ResourceD
  */
 export async function getAllContentItems(): Promise<ContentItem[]> {
   return getContentItems()
-}
-
-/**
- * Get content by type (legacy)
- */
-export async function getContentByType(type: 'course' | 'video' | 'document'): Promise<ContentItem[]> {
-  const allContent = getContentItems()
-  return allContent.filter(item => item.type === type)
-}
-
-/**
- * Get content by category (legacy)
- */
-export async function getContentByCategory(category: string): Promise<ContentItem[]> {
-  const allContent = getContentItems()
-  return allContent.filter(item => item.category === category)
 }
 
 // ============================================================================
@@ -374,37 +207,4 @@ export function getPopularTags(limit: number = 20): string[] {
     .map(([tag]) => tag)
 }
 
-/**
- * Get related content
- */
-export function getRelatedContent(content: CourseDisplay | ResourceDisplay, limit: number = 5): (CourseDisplay | ResourceDisplay)[] {
-  const allContent = [...getAllCoursesWithContent(), ...getAllResourcesWithContent()]
-  
-  // Filter out the current content
-  const otherContent = allContent.filter(item => item.id !== content.id)
-  
-  // Score based on shared topics and category
-  const scoredContent = otherContent.map(item => {
-    let score = 0
-    
-    // Same category = +3 points
-    if (item.category === content.category) score += 3
-    
-    // Shared topics = +1 point each
-    const sharedTopics = item.topics.filter(topic => content.topics.includes(topic))
-    score += sharedTopics.length
-    
-    // Same difficulty (for resources) = +1 point
-    if ('difficulty' in item && 'difficulty' in content && item.difficulty === content.difficulty) {
-      score += 1
-    }
-    
-    return { content: item, score }
-  })
-  
-  // Sort by score and return top results
-  return scoredContent
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(item => item.content)
-} 
+ 

@@ -1,7 +1,6 @@
 import { Suspense } from 'react'
 import React from 'react'
 import { notFound } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +9,7 @@ import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
 import { CourseRepository, LessonRepository } from '@/lib/repositories'
 import { CourseEnrollmentForm } from '@/components/forms/course-enrollment-form'
+import { OptimizedImage } from '@/components/ui/optimized-image'
 import { 
   Star, 
   Clock, 
@@ -334,7 +334,7 @@ export default async function CoursePage({ params }: CoursePageProps) {
                 </div>
                 
                 {course.image ? (
-                  <Image 
+                  <OptimizedImage 
                     src={course.image} 
                     alt={course.title}
                     fill

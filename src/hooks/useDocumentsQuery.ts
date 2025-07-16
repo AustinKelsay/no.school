@@ -64,9 +64,8 @@ async function fetchDocumentsWithNotes(relayPool: RelayPool): Promise<DocumentRe
   const resources = await ResourceAdapter.findAll()
 
   const noteIds = resources
-    .filter(resource => resource.noteId && resource.noteId.startsWith('naddr1'))
-    .map(resource => decodeAddress(resource.noteId! as `${string}1${string}`))
-    .map(address => address.identifier)
+    .filter(resource => resource.id)
+    .map(resource => resource.id)
   
   // If no notes to fetch, return empty array
   if (noteIds.length === 0) {
@@ -81,7 +80,7 @@ async function fetchDocumentsWithNotes(relayPool: RelayPool): Promise<DocumentRe
 
   try {
     notes = await relayPool.querySync(
-      ['wss://relay.primal.net', 'wss://relay.damus.io'],
+      ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'],
       { "#d": noteIds, kinds: [30023, 30403] } // Batch query by IDs
     )
     console.log(`Successfully fetched ${notes.length} resource notes`);
@@ -90,27 +89,29 @@ async function fetchDocumentsWithNotes(relayPool: RelayPool): Promise<DocumentRe
     noteError = error instanceof Error ? error.message : 'Failed to fetch notes'
   }
 
-  // Create a Map for O(1) lookup of notes by the "d" tag
+  // Create a Map for O(1) lookup of notes by ID
   const notesMap = new Map<string, NostrEvent>()
   notes.forEach(note => notesMap.set(note.tags.find(tag => tag[0] === "d")?.[1] || '', note))
 
-  // Combine resources with their notes and filter for documents only
+  // Combine resources with their notes and filter for videos only
   const resourcesWithNotes = await Promise.all(resources
     .map(async (resource) => {
-      const note = resource.id ? notesMap.get(resource.id) : undefined
       // filter out if it is a lesson
       // todo: eventually we want to do this right in the UI component since only homepage carousels will filter out lessons later on.
       const isLesson = await ResourceAdapter.isLesson(resource.id)
       if (isLesson) {
         return null
       }
-
+      const note = resource.id ? notesMap.get(resource.id) : undefined
+      
       return {
         ...resource,
         note,
         noteError: resource.noteId && !note ? noteError : undefined,
       }
     }))
+
+  console.log("resourcesWithNotes", resourcesWithNotes);
 
   const documentsWithNotes = resourcesWithNotes
     .filter(resource => resource !== null && isDocumentResource(resource.note)) as DocumentResourceWithNote[]
@@ -161,147 +162,5 @@ export function useDocumentsQuery(options: UseDocumentsQueryOptions = {}): Docum
   }
 }
 
-/**
- * Hook for fetching a single document resource with its note
- */
-export function useDocumentQuery(
-  resourceId: string,
-  options: UseDocumentsQueryOptions = {}
-) {
-  const { relayPool } = useSnstrContext()
-  
-  const {
-    enabled = true,
-    staleTime = 5 * 60 * 1000,
-    gcTime = 10 * 60 * 1000,
-    refetchOnWindowFocus = false,
-    retry = 3,
-    retryDelay = 1000,
-  } = options
 
-  return useQuery({
-    queryKey: documentsQueryKeys.detail(resourceId),
-    queryFn: async (): Promise<DocumentResourceWithNote | null> => {
-      const resource = await ResourceAdapter.findById(resourceId)
-      if (!resource) return null
 
-      let note: NostrEvent | null = null
-      let noteError: string | undefined
-
-      if (resource.noteId) {
-        try {
-          const notes = await relayPool.querySync(
-            ['wss://relay.primal.net', 'wss://relay.damus.io'],
-            { ids: [resource.noteId] }
-          )
-          note = notes.length > 0 ? notes[0] : null
-        } catch (error) {
-          noteError = error instanceof Error ? error.message : 'Failed to fetch note'
-        }
-      }
-
-      const resourceWithNote = {
-        ...resource,
-        note: note || undefined,
-        noteError,
-      }
-
-      // Only return if it's a document resource
-      if (!isDocumentResource(resourceWithNote.note)) {
-        return null
-      }
-
-      return resourceWithNote
-    },
-    enabled: enabled && !!resourceId,
-    staleTime,
-    gcTime,
-    refetchOnWindowFocus,
-    retry,
-    retryDelay,
-  })
-}
-
-/**
- * Hook for fetching document resources by user ID
- */
-export function useUserDocumentsQuery(
-  userId: string,
-  options: UseDocumentsQueryOptions = {}
-) {
-  const { relayPool } = useSnstrContext()
-  
-  const {
-    enabled = true,
-    staleTime = 5 * 60 * 1000,
-    gcTime = 10 * 60 * 1000,
-    refetchOnWindowFocus = false,
-    retry = 3,
-    retryDelay = 1000,
-    select,
-  } = options
-
-  return useQuery({
-    queryKey: documentsQueryKeys.list(`user:${userId}`),
-    queryFn: async (): Promise<DocumentResourceWithNote[]> => {
-      const resources = await ResourceAdapter.findByUserId(userId)
-      
-      // Extract all noteIds that exist for this user's resources
-      const noteIds = resources
-        .filter(resource => resource.noteId)
-        .map(resource => resource.noteId!)
-      
-      // If no notes to fetch, return empty array
-      if (noteIds.length === 0) {
-        return []
-      }
-
-      // Fetch all notes at once using batch query
-      let notes: NostrEvent[] = []
-      let noteError: string | undefined
-
-      try {
-        notes = await relayPool.querySync(
-          ['wss://relay.primal.net', 'wss://relay.damus.io'],
-          { ids: noteIds }
-        )
-        console.log(`Fetched ${notes.length} notes for user ${userId} resources`);
-      } catch (error) {
-        console.error(`Failed to fetch notes for user ${userId} resources:`, error)
-        noteError = error instanceof Error ? error.message : 'Failed to fetch notes'
-      }
-
-      // Create a Map for O(1) lookup of notes by ID
-      const notesMap = new Map<string, NostrEvent>()
-      notes.forEach(note => notesMap.set(note.id, note))
-
-      // Combine resources with their notes and filter for documents only
-      const documentsWithNotes = resources
-        .map(resource => {
-          const note = resource.noteId ? notesMap.get(resource.noteId) : undefined
-
-          return {
-            ...resource,
-            note,
-            noteError: resource.noteId && !note ? noteError : undefined,
-          }
-        })
-        .filter(resource => isDocumentResource(resource.note))
-
-      return select ? select(documentsWithNotes) : documentsWithNotes
-    },
-    enabled: enabled && !!userId,
-    staleTime,
-    gcTime,
-    refetchOnWindowFocus,
-    retry,
-    retryDelay,
-  })
-}
-
-/**
- * Utility function to get query keys for cache invalidation
- */
-export function getDocumentsQueryKeys() {
-  return documentsQueryKeys
-}
