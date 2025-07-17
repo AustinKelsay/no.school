@@ -7,8 +7,10 @@ import { MainLayout } from "@/components/layout/main-layout"
 import { Section } from "@/components/layout/section"
 import { ContentCard } from "@/components/ui/content-card"
 
-import { getAllContentItems } from '@/lib/data'
-import type { ContentItem } from '@/lib/data'
+import { useCoursesQuery } from '@/hooks/useCoursesQuery'
+import { useVideosQuery } from '@/hooks/useVideosQuery'
+import { useDocumentsQuery } from '@/hooks/useDocumentsQuery'
+import type { ContentItem } from '@/data/types'
 import { 
   contentTypeFilters, 
   difficultyFilters, 
@@ -24,24 +26,111 @@ import {
 
 
 export default function ContentPage() {
-  const [contentItems, setContentItems] = useState<ContentItem[]>([])
   const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set(['all']))
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const items = await getAllContentItems()
-        setContentItems(items)
-      } catch (error) {
-        console.error('Error fetching content items:', error)
-      } finally {
-        setLoading(false)
-      }
+  
+  // Fetch data from all hooks
+  const { courses, isLoading: coursesLoading } = useCoursesQuery()
+  const { videos, isLoading: videosLoading } = useVideosQuery()
+  const { documents, isLoading: documentsLoading } = useDocumentsQuery()
+  
+  // Combine loading states
+  const loading = coursesLoading || videosLoading || documentsLoading
+  
+  // Transform data to ContentItem format
+  const contentItems = useMemo(() => {
+    const allItems: ContentItem[] = []
+    
+    // Add courses
+    if (courses) {
+      courses.forEach(course => {
+        const courseItem = {
+          id: course.id,
+          type: 'course' as const,
+          title: course.note?.tags.find(tag => tag[0] === "name")?.[1] || `Course ${course.id}`,
+          description: course.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
+          category: course.price > 0 ? 'Premium' : 'Free',
+          difficulty: 'beginner' as const,
+          image: course.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
+          tags: course.note?.tags.filter(tag => tag[0] === "t") || [],
+          instructor: course.userId,
+          instructorPubkey: course.note?.pubkey || '',
+          createdAt: course.createdAt,
+          updatedAt: course.updatedAt,
+          price: course.price,
+          isPremium: course.price > 0,
+          rating: 4.5,
+          published: true,
+          topics: course.note?.tags.filter(tag => tag[0] === "t").map(tag => tag[1]) || [],
+          additionalLinks: course.note?.tags.filter(tag => tag[0] === "r").map(tag => tag[1]) || [],
+        }
+        allItems.push(courseItem)
+      })
     }
     
-    fetchData()
-  }, [])
+    // Add videos
+    if (videos) {
+      videos.forEach(video => {
+        const videoItem = {
+          id: video.id,
+          type: 'video' as const,
+          title: video.note?.tags.find(tag => tag[0] === "title")?.[1] || 
+                 video.note?.tags.find(tag => tag[0] === "name")?.[1] || 
+                 `Video ${video.id}`,
+          description: video.note?.tags.find(tag => tag[0] === "summary")?.[1] || 
+                      video.note?.tags.find(tag => tag[0] === "description")?.[1] || 
+                      video.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
+          category: video.price > 0 ? 'Premium' : 'Free',
+          difficulty: 'beginner' as const,
+          image: video.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
+          tags: video.note?.tags.filter(tag => tag[0] === "t") || [],
+          instructor: video.userId,
+          instructorPubkey: video.note?.pubkey || '',
+          createdAt: video.createdAt,
+          updatedAt: video.updatedAt,
+          price: video.price,
+          isPremium: video.price > 0,
+          rating: 4.5,
+          published: true,
+          topics: video.note?.tags.filter(tag => tag[0] === "t").map(tag => tag[1]) || [],
+          additionalLinks: video.note?.tags.filter(tag => tag[0] === "r").map(tag => tag[1]) || [],
+        }
+        allItems.push(videoItem)
+      })
+    }
+    
+    // Add documents
+    if (documents) {
+      documents.forEach(document => {
+        const documentItem = {
+          id: document.id,
+          type: 'document' as const,
+          title: document.note?.tags.find(tag => tag[0] === "title")?.[1] || 
+                 document.note?.tags.find(tag => tag[0] === "name")?.[1] || 
+                 `Document ${document.id}`,
+          description: document.note?.tags.find(tag => tag[0] === "summary")?.[1] || 
+                      document.note?.tags.find(tag => tag[0] === "description")?.[1] || 
+                      document.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
+          category: document.price > 0 ? 'Premium' : 'Free',
+          difficulty: 'beginner' as const,
+          image: document.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
+          tags: document.note?.tags.filter(tag => tag[0] === "t") || [],
+          instructor: document.userId,
+          instructorPubkey: document.note?.pubkey || '',
+          createdAt: document.createdAt,
+          updatedAt: document.updatedAt,
+          price: document.price,
+          isPremium: document.price > 0,
+          rating: 4.5,
+          published: true,
+          topics: document.note?.tags.filter(tag => tag[0] === "t").map(tag => tag[1]) || [],
+          additionalLinks: document.note?.tags.filter(tag => tag[0] === "r").map(tag => tag[1]) || [],
+        }
+        allItems.push(documentItem)
+      })
+    }
+    
+    return allItems
+  }, [courses, videos, documents])
 
   // Filter content based on selected filters
   const filteredContent = useMemo(() => {
@@ -54,7 +143,7 @@ export default function ContentPage() {
         item.type,
         item.category,
         item.difficulty,
-        ...item.tags,
+        ...item.topics,
         item.isPremium ? 'premium' : 'free'
       ]
       
@@ -250,6 +339,7 @@ export default function ContentPage() {
                 item={item} 
                 variant="content"
                 onTagClick={toggleFilter}
+                showContentTypeTags={true}
               />
             ))}
           </div>

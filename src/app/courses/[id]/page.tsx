@@ -228,7 +228,7 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                      instructorProfile?.display_name || 
                      course.instructor || 
                      (course.instructorPubkey ? formatNpubWithEllipsis(course.instructorPubkey) : 'Unknown')
-  const isPremium = course.isPremium || course.price > 0
+  const isPremium = course.isPremium || (course.price ?? 0) > 0
   const currency = course.currency || 'sats'
   
   // Generate mock engagement metrics
@@ -479,19 +479,19 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                   <div>
                     <h4 className="font-semibold mb-2">Price</h4>
                     <p className="text-sm text-muted-foreground">
-                      {course.price > 0 ? `${course.price.toLocaleString()} ${currency}` : 'Free'}
+                      {(course.price ?? 0) > 0 ? `${(course.price ?? 0).toLocaleString()} ${currency}` : 'Free'}
                     </p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Created</h4>
                     <p className="text-sm text-muted-foreground">
-                      {formatDate(course.createdAt)}
+                      {formatDate(course.createdAt || new Date().toISOString())}
                     </p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Last Updated</h4>
                     <p className="text-sm text-muted-foreground">
-                      {formatDate(course.updatedAt)}
+                      {formatDate(course.updatedAt || new Date().toISOString())}
                     </p>
                   </div>
                   {course.submissionRequired && (

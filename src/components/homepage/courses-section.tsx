@@ -102,7 +102,6 @@ function CourseCard({ course }: { course: CourseWithNote }) {
     description: course.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
     category: course.price > 0 ? 'Premium' : 'Free',
     duration: '2-4 weeks',
-    difficulty: 'beginner' as const,
     image: course.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
     href: `/courses/${course.id}`,
     tags: course.note?.tags || [],
@@ -122,5 +121,5 @@ function CourseCard({ course }: { course: CourseWithNote }) {
     additionalLinks: course.note?.tags.filter(tag => tag[0] === "l").map(tag => tag[1]) || [],
   };
 
-  return <ContentCard item={contentItem} variant="content" />;
+  return <ContentCard item={contentItem} variant="content" showContentTypeTags={false} />;
 } 

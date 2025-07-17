@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Play, Pause, Volume2, VolumeX, Maximize, ExternalLink, Download } from 'lucide-react'
 import { sanitizeContent } from '@/lib/content-utils'
+import { OptimizedImage } from '@/components/ui/optimized-image'
 
 interface VideoPlayerProps {
   content: string
@@ -127,10 +128,12 @@ function VideoThumbnail({
   return (
     <div className="relative aspect-video bg-gradient-to-br from-primary/10 via-secondary/5 to-accent/10 rounded-lg overflow-hidden cursor-pointer group">
       {thumbnailUrl ? (
-        <img 
+        <OptimizedImage 
           src={thumbnailUrl} 
           alt={title || 'Video thumbnail'}
           className="w-full h-full object-cover"
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center">

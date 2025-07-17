@@ -228,10 +228,10 @@ function LessonContent({
   courseId: string
   lessonId: string 
 }) {
-  const [course, setCourse] = useState<any>(null)
-  const [lesson, setLesson] = useState<any>(null)
-  const [resource, setResource] = useState<any>(null)
-  const [courseLessons, setCourseLessons] = useState<any[]>([])
+  const [course, setCourse] = useState<CourseDisplay | null>(null)
+  const [lesson, setLesson] = useState<LessonDisplay | null>(null)
+  const [resource, setResource] = useState<ResourceDisplay | null>(null)
+  const [courseLessons, setCourseLessons] = useState<LessonDisplay[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -248,7 +248,7 @@ function LessonContent({
         setCourse(courseResult.course)
         
         // Find the specific lesson from the lessons array
-        const lessonData = lessonsResult.lessons.find((l: any) => l.id === lessonId)
+        const lessonData = lessonsResult.lessons.find((l: LessonDisplay) => l.id === lessonId)
         setLesson(lessonData)
 
         if (lessonData) {

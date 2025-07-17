@@ -107,7 +107,6 @@ function VideoCard({ video }: { video: VideoResourceWithNote }) {
                 video.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
     category: video.price > 0 ? 'Premium' : 'Free',
     duration: '15-30 min',
-    difficulty: 'beginner' as const,
     image: video.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
     href: `/content/${video.id}`,
     tags: video.note?.tags || [],
@@ -127,5 +126,5 @@ function VideoCard({ video }: { video: VideoResourceWithNote }) {
     additionalLinks: video.note?.tags.filter(tag => tag[0] === "r").map(tag => tag[1]) || [],
   };
 
-  return <ContentCard item={contentItem} variant="content" />;
+  return <ContentCard item={contentItem} variant="content" showContentTypeTags={false} />;
 } 

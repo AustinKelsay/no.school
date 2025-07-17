@@ -107,7 +107,6 @@ function DocumentCard({ document }: { document: DocumentResourceWithNote }) {
                 document.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
     category: document.price > 0 ? 'Premium' : 'Free',
     duration: '5-10 min read',
-    difficulty: 'beginner' as const,
     image: document.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
     href: `/content/${document.id}`,
     tags: document.note?.tags || [],
@@ -127,5 +126,5 @@ function DocumentCard({ document }: { document: DocumentResourceWithNote }) {
     additionalLinks: document.note?.tags.filter(tag => tag[0] === "r").map(tag => tag[1]) || [],
   };
 
-  return <ContentCard item={contentItem} variant="content" />;
+  return <ContentCard item={contentItem} variant="content" showContentTypeTags={false} />;
 } 

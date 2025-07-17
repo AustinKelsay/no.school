@@ -20,7 +20,7 @@ import {
   Eye
 } from "lucide-react"
 import type { ContentItem } from "@/data/types"
-import { contentTypeIcons, difficultyVariants } from "@/data/config"
+import { contentTypeIcons } from "@/data/config"
 import { useRouter } from 'next/navigation'
 import React, { useState, useEffect } from "react"
 import { useNostr, type NormalizedProfile } from "@/hooks/useNostr"
@@ -40,10 +40,11 @@ interface ContentCardProps {
   variant?: 'content' | 'course' | 'homepage'
   onTagClick?: (tag: string) => void
   className?: string
+  showContentTypeTags?: boolean
 }
 
 function isContentItem(item: ContentItem | HomepageItem): item is ContentItem {
-  return 'type' in item && 'difficulty' in item
+  return 'type' in item && 'id' in item
 }
 
 function formatTimeAgo(dateString: string): string {
@@ -118,7 +119,8 @@ export function ContentCard({
   item, 
   variant = 'content', 
   onTagClick,
-  className = ""
+  className = "",
+  showContentTypeTags = false
 }: ContentCardProps) {
   const isContent = isContentItem(item)
   const router = useRouter()
@@ -213,52 +215,30 @@ export function ContentCard({
         })()}
         
         {/* Content type icon overlay */}
-        <div className="absolute top-3 left-3 p-2 rounded-lg bg-transparent backdrop-blur-sm border shadow-sm">
+        <div className="absolute top-3 left-3 p-2 rounded-lg bg-transparent backdrop-blur-xs border shadow-sm">
           {(() => {
             const IconComponent = isContent ? (contentTypeIcons[item.type] || BookOpen) : BookOpen
             return <IconComponent className="h-4 w-4 text-foreground" />
           })()}
         </div>
         
-        {/* Premium badge */}
-        {isContent && item.isPremium && (
-          <div className="absolute top-3 right-3">
-            <div className="flex items-center gap-1 px-3 py-2 rounded-lg bg-transparent backdrop-blur-sm shadow-lg border border-amber-500">
-              <Lock className="h-4 w-4 text-amber-500" />
-              <span className="text-sm font-bold text-amber-500">
-                {item.price?.toLocaleString() || '40000'} sats
-              </span>
-            </div>
-          </div>
-        )}
-        
-        {/* Free badge */}
-        {isContent && !item.isPremium && (
-          <div className="absolute top-3 right-3">
-            <div className="flex items-center gap-1 px-3 py-2 rounded-lg bg-transparent backdrop-blur-sm shadow-lg border border-green-500">
-              <Unlock className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-bold text-green-500">Free</span>
-            </div>
-          </div>
-        )}
-        
         {/* Engagement metrics on the right */}
         <div className="absolute bottom-3 right-3">
           <div className="flex items-center gap-2">
             {/* Zaps */}
-            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-sm shadow-sm border border-amber-500">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border border-amber-500">
               <Zap className="h-3 w-3 text-amber-500" />
               <span className="text-xs font-bold text-amber-500">{mockZapsCount.toLocaleString()}</span>
             </div>
             
             {/* Comments */}
-            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-sm shadow-sm border border-blue-500">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border border-blue-500">
               <MessageCircle className="h-3 w-3 text-blue-500" />
               <span className="text-xs font-bold text-blue-500">{mockCommentsCount}</span>
             </div>
             
             {/* Reactions */}
-            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-sm shadow-sm border border-pink-500">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border border-pink-500">
               <Heart className="h-3 w-3 text-pink-500" />
               <span className="text-xs font-bold text-pink-500">{mockReactionsCount}</span>
             </div>
@@ -284,27 +264,58 @@ export function ContentCard({
           {item.title}
         </CardTitle>
         
-        {/* Tags */}
-        <div className="flex flex-wrap gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
-          {isContent && item.difficulty && (
-            <Badge variant={difficultyVariants[item.difficulty]} className="text-xs">
-              {item.difficulty}
-            </Badge>
-          )}
-          {isContent && item.topics && item.topics.slice(0, 3).map((topic, index) => (
-            <Badge 
-              key={index} 
-              variant="outline" 
-              className="text-xs cursor-pointer hover:bg-accent transition-colors"
-              onClick={() => onTagClick?.(topic)}
-            >
-              {topic}
-            </Badge>
-          ))}
-          {variant === 'course' && (
-            <Badge variant="outline" className="text-xs">
-              course
-            </Badge>
+        {/* Tags and Payment Badge */}
+        <div className="flex items-center justify-between gap-2 mt-2" onClick={(e) => e.stopPropagation()}>
+          {/* Topic Tags */}
+          <div className="flex flex-wrap gap-2 flex-1">
+            {isContent && item.topics && item.topics.slice(0, 3).map((topic, index) => {
+              // remove the 'document' 'video', and or 'course' topic IF showContentTypeTags is false
+              if (!showContentTypeTags && (topic === 'document' || topic === 'video' || topic === 'course')) {
+                return null
+              } else if (showContentTypeTags && (topic === 'document' || topic === 'video' || topic === 'course')) {
+                return (
+                  <Badge 
+                    key={index} 
+                    variant="outline" 
+                    className="text-xs cursor-pointer hover:bg-accent transition-colors"
+                    onClick={() => onTagClick?.(topic)}
+                  >
+                    {topic}
+                  </Badge>
+                )
+              }
+
+              return (
+                <Badge 
+                  key={index} 
+                  variant="outline"
+                  className="text-xs cursor-pointer hover:bg-accent transition-colors"
+                  onClick={() => onTagClick?.(topic)}
+                >
+                {topic}
+              </Badge>
+              )
+            })
+          }
+          </div>
+          
+          {/* Payment Badge */}
+          {isContent && (
+            <div className="flex-shrink-0 ml-2">
+              {item.isPremium ? (
+                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800">
+                  <Lock className="h-3 w-3 text-amber-600 dark:text-amber-400" />
+                  <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                    {item.price?.toLocaleString() || '40000'} sats
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800">
+                  <Unlock className="h-3 w-3 text-green-600 dark:text-green-400" />
+                  <span className="text-xs font-medium text-green-700 dark:text-green-300">Free</span>
+                </div>
+              )}
+            </div>
           )}
         </div>
       </CardHeader>
