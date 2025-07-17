@@ -10,10 +10,11 @@ import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
 import { parseEvent } from '@/data/types'
-import { useNostr } from '@/hooks/useNostr'
+import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { OptimizedImage } from '@/components/ui/optimized-image'
+import { encodePublicKey } from 'snstr'
 import { 
-  Star, 
+  Zap, 
   Clock, 
   FileText, 
   Play, 
@@ -21,7 +22,9 @@ import {
   Eye,
   BookOpen,
   Video,
-  Tag
+  Tag,
+  MessageCircle,
+  Heart
 } from 'lucide-react'
 import type { NostrEvent } from 'snstr'
 
@@ -29,6 +32,16 @@ interface ResourcePageProps {
   params: Promise<{
     id: string
   }>
+}
+
+function formatNpubWithEllipsis(pubkey: string): string {
+  try {
+    const npub = encodePublicKey(pubkey as `${string}1${string}`);
+    return `${npub.slice(0, 12)}...${npub.slice(-6)}`;
+  } catch {
+    // Fallback to hex format if encoding fails
+    return `${pubkey.slice(0, 6)}...${pubkey.slice(-6)}`;
+  }
 }
 
 /**
@@ -94,8 +107,9 @@ function ResourceOverview({ resourceId }: { resourceId: string }) {
  * Main resource page component
  */
 function ResourcePageContent({ resourceId }: { resourceId: string }) {
-  const { fetchSingleEvent } = useNostr()
+  const { fetchSingleEvent, fetchProfile, normalizeKind0 } = useNostr()
   const [event, setEvent] = useState<NostrEvent | null>(null)
+  const [authorProfile, setAuthorProfile] = useState<NormalizedProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -112,6 +126,15 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
         
         if (nostrEvent) {
           setEvent(nostrEvent)
+          
+          // Fetch author profile
+          try {
+            const profileEvent = await fetchProfile(nostrEvent.pubkey)
+            const normalizedProfile = normalizeKind0(profileEvent)
+            setAuthorProfile(normalizedProfile)
+          } catch (profileError) {
+            console.error('Error fetching author profile:', profileError)
+          }
         } else {
           setError('Resource not found')
         }
@@ -126,7 +149,7 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
     if (resourceId) {
       fetchEvent()
     }
-  }, [resourceId, fetchSingleEvent])
+  }, [resourceId, fetchSingleEvent, fetchProfile, normalizeKind0])
 
   if (loading) {
     return (
@@ -160,12 +183,54 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
   const topics = parsedEvent.topics || []
   const additionalLinks = parsedEvent.additionalLinks || []
   const image = parsedEvent.image || '/placeholder.svg'
-  const author = parsedEvent.author || event.pubkey.slice(0, 8) + '...'
+  const author = authorProfile?.name || 
+                 authorProfile?.display_name || 
+                 parsedEvent.author || 
+                 formatNpubWithEllipsis(event.pubkey)
   const type = parsedEvent.type || 'document'
   const difficulty = 'intermediate' // Default since it's not in parseEvent
-  const rating = 4.5 // Mock data
   const viewCount = 1250 // Mock data
   const duration = type === 'video' ? '15 min' : undefined
+  
+  // Generate mock engagement metrics
+  const generateMockZapsCount = (id: string): number => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      const char = id.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    const normalized = Math.abs(hash) % 4000;
+    return normalized + 500;
+  }
+  
+  const generateMockCommentsCount = (id: string): number => {
+    let hash = 0;
+    const seed = id + 'comments';
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    const normalized = Math.abs(hash) % 145;
+    return normalized + 5;
+  }
+  
+  const generateMockReactionsCount = (id: string): number => {
+    let hash = 0;
+    const seed = id + 'reactions';
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    const normalized = Math.abs(hash) % 780;
+    return normalized + 20;
+  }
+  
+  const mockZapsCount = generateMockZapsCount(resourceId)
+  const mockCommentsCount = generateMockCommentsCount(resourceId)
+  const mockReactionsCount = generateMockReactionsCount(resourceId)
 
   const formatDate = (timestamp: number): string => {
     return new Date(timestamp * 1000).toLocaleDateString('en-US', {
@@ -221,19 +286,21 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
 
               <div className="flex items-center space-x-6">
                 <div className="flex items-center space-x-2">
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                      <Star 
-                        key={`resource-${resourceId}-star-${i}`} 
-                        className={`h-5 w-5 ${
-                          i < Math.floor(rating) 
-                            ? 'fill-rating text-rating' 
-                            : 'text-muted-foreground'
-                        }`} 
-                      />
-                    ))}
-                  </div>
-                  <span className="font-medium">{rating}</span>
+                  <Zap className="h-5 w-5 text-amber-500" />
+                  <span className="font-medium text-amber-500">{mockZapsCount.toLocaleString()}</span>
+                  <span className="text-muted-foreground text-sm">zaps</span>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <MessageCircle className="h-5 w-5 text-blue-500" />
+                  <span className="font-medium text-blue-500">{mockCommentsCount}</span>
+                  <span className="text-muted-foreground text-sm">comments</span>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Heart className="h-5 w-5 text-pink-500" />
+                  <span className="font-medium text-pink-500">{mockReactionsCount}</span>
+                  <span className="text-muted-foreground text-sm">likes</span>
                 </div>
                 
                 <div className="flex items-center space-x-2">

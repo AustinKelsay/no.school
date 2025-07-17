@@ -25,11 +25,11 @@ interface OptimizedImageProps {
 const ALLOWED_DOMAINS = [
   'images.unsplash.com',
   'avatars.githubusercontent.com',
+  'img.youtube.com',
+  'i.ytimg.com',
   'api.dicebear.com',
   'plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com',
-  'miro.medium.com',
-  'img.youtube.com',
-  'i.ytimg.com'
+  'miro.medium.com'
 ]
 
 /**
@@ -92,6 +92,7 @@ export function OptimizedImage({
   }
 
   // Determine if we should use optimization based on domain
+  // Default to unoptimized for safety unless we're certain the domain is configured
   const shouldOptimize = isAllowedDomain(src || fallback)
   
   const imageProps = {
@@ -109,7 +110,7 @@ export function OptimizedImage({
     placeholder,
     blurDataURL,
     sizes,
-    // Use unoptimized for unknown domains to prevent configuration errors
+    // Default to unoptimized for safety - only optimize known, configured domains
     unoptimized: !shouldOptimize,
     ...props,
   }

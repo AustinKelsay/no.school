@@ -299,7 +299,7 @@ export interface CourseDisplay extends Course {
   category: string
   instructor: string
   instructorPubkey: string
-  rating: number
+  rating: number // Deprecated - use engagement metrics instead
   enrollmentCount: number
   isPremium: boolean
   currency?: string
@@ -309,6 +309,10 @@ export interface CourseDisplay extends Course {
   topics: string[]
   lessonReferences: string[]
   additionalLinks?: string[]
+  // Engagement metrics (zaps, comments, likes)
+  zapsCount?: number
+  commentsCount?: number
+  likesCount?: number
 }
 
 export interface ResourceDisplay extends Resource {
@@ -318,7 +322,7 @@ export interface ResourceDisplay extends Resource {
   type: 'document' | 'video' | 'guide' | 'cheatsheet' | 'reference' | 'tutorial' | 'documentation'
   instructor: string
   instructorPubkey: string
-  rating: number
+  rating: number // Deprecated - use engagement metrics instead
   viewCount: number
   isPremium: boolean
   currency?: string
@@ -331,6 +335,10 @@ export interface ResourceDisplay extends Resource {
   duration?: string
   thumbnailUrl?: string
   videoUrl?: string
+  // Engagement metrics (zaps, comments, likes)
+  zapsCount?: number
+  commentsCount?: number
+  likesCount?: number
 }
 
 export interface LessonDisplay extends Lesson {
@@ -354,7 +362,7 @@ export interface ContentItem {
   category: string
   instructor: string
   instructorPubkey: string
-  rating: number
+  rating: number // Deprecated - use engagement metrics instead
   isPremium: boolean
   price: number
   currency?: string
@@ -362,6 +370,10 @@ export interface ContentItem {
   published: boolean
   tags: string[][]
   difficulty?: 'beginner' | 'intermediate' | 'advanced'
+  // Engagement metrics (zaps, comments, likes)
+  zapsCount?: number
+  commentsCount?: number
+  likesCount?: number
   createdAt: string
   updatedAt: string
   duration?: string
@@ -383,7 +395,7 @@ export function createCourseDisplay(course: Course, parsedEvent: ParsedCourseEve
     category: parsedEvent.topics[0] || 'general',
     instructor: 'Unknown', // Would come from user table in real implementation
     instructorPubkey: parsedEvent.pubkey,
-    rating: 0, // Would come from ratings table
+    rating: 0, // Deprecated - use engagement metrics instead
     enrollmentCount: 0, // Would come from enrollments table
     isPremium: course.price > 0,
     currency: 'sats',
@@ -405,7 +417,7 @@ export function createResourceDisplay(resource: Resource, parsedEvent: ParsedRes
     type: parsedEvent.type === 'video' ? 'video' : 'document',
     instructor: parsedEvent.author || 'Unknown',
     instructorPubkey: parsedEvent.pubkey,
-    rating: 0, // Would come from ratings table
+    rating: 0, // Deprecated - use engagement metrics instead
     viewCount: 0, // Would come from views table
     isPremium: resource.price > 0,
     currency: 'sats',

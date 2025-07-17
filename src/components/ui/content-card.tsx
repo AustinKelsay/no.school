@@ -22,7 +22,9 @@ import {
 import type { ContentItem } from "@/data/types"
 import { contentTypeIcons, difficultyVariants } from "@/data/config"
 import { useRouter } from 'next/navigation'
-import React from "react"
+import React, { useState, useEffect } from "react"
+import { useNostr, type NormalizedProfile } from "@/hooks/useNostr"
+import { encodePublicKey } from "snstr"
 
 interface HomepageItem {
   title: string
@@ -102,6 +104,16 @@ function generateMockReactionsCount(itemId: string): number {
   return normalized + 20;
 }
 
+function formatNpubWithEllipsis(pubkey: string): string {
+  try {
+    const npub = encodePublicKey(pubkey as `${string}1${string}`);
+    return `${npub.slice(0, 12)}...${npub.slice(-6)}`;
+  } catch {
+    // Fallback to hex format if encoding fails
+    return `${pubkey.slice(0, 6)}...${pubkey.slice(-6)}`;
+  }
+}
+
 export function ContentCard({ 
   item, 
   variant = 'content', 
@@ -110,6 +122,27 @@ export function ContentCard({
 }: ContentCardProps) {
   const isContent = isContentItem(item)
   const router = useRouter()
+  const { fetchProfile, normalizeKind0 } = useNostr()
+  
+  // State to store the instructor's profile data
+  const [instructorProfile, setInstructorProfile] = useState<NormalizedProfile | null>(null)
+
+  // Fetch instructor profile when component mounts and has instructor data
+  useEffect(() => {
+    const fetchInstructorProfile = async () => {
+      if (isContent && 'instructorPubkey' in item && item.instructorPubkey) {
+        try {
+          const profileEvent = await fetchProfile(item.instructorPubkey)
+          const normalizedProfile = normalizeKind0(profileEvent)
+          setInstructorProfile(normalizedProfile)
+        } catch (error) {
+          console.error('Error fetching instructor profile:', error)
+        }
+      }
+    }
+
+    fetchInstructorProfile()
+  }, [isContent, fetchProfile, normalizeKind0, item])
 
   const handleCardClick = () => {
     if (!isContent) return
@@ -312,10 +345,14 @@ export function ContentCard({
             </span>
           </div>
           
-          {isContent && item.instructor && (
+          {isContent && 'instructor' in item && item.instructor && (
             <div className="flex items-center gap-1">
               <User className="h-3 w-3" />
-              <span>{item.instructorPubkey.slice(0, 6) + '...' + item.instructorPubkey.slice(-6)}</span>
+              <span>
+                {instructorProfile?.name || 
+                 instructorProfile?.display_name || 
+                 (('instructorPubkey' in item && item.instructorPubkey) ? formatNpubWithEllipsis(item.instructorPubkey) : 'Unknown')}
+              </span>
             </div>
           )}
         </div>

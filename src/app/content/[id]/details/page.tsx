@@ -9,12 +9,13 @@ import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
 import { parseEvent } from '@/data/types'
-import { useNostr } from '@/hooks/useNostr'
+import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
+import { encodePublicKey } from 'snstr'
 import { VideoPlayer } from '@/components/ui/video-player'
 import { ResourceActions } from '@/components/ui/resource-actions'
 import { 
-  Star, 
+  Zap, 
   Clock, 
   Eye, 
   FileText, 
@@ -24,7 +25,9 @@ import {
   BookOpen, 
   Video, 
   Calendar,
-  User
+  User,
+  MessageCircle,
+  Heart
 } from 'lucide-react'
 import Link from 'next/link'
 import type { NostrEvent } from 'snstr'
@@ -33,6 +36,16 @@ interface ResourceDetailsPageProps {
   params: Promise<{
     id: string
   }>
+}
+
+function formatNpubWithEllipsis(pubkey: string): string {
+  try {
+    const npub = encodePublicKey(pubkey as `${string}1${string}`);
+    return `${npub.slice(0, 12)}...${npub.slice(-6)}`;
+  } catch {
+    // Fallback to hex format if encoding fails
+    return `${pubkey.slice(0, 6)}...${pubkey.slice(-6)}`;
+  }
 }
 
 /**
@@ -62,6 +75,24 @@ function ContentSkeleton() {
  * Content metadata component
  */
 function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEvent: ReturnType<typeof parseEvent> }) {
+  const { fetchProfile, normalizeKind0 } = useNostr()
+  const [authorProfile, setAuthorProfile] = useState<NormalizedProfile | null>(null)
+
+  useEffect(() => {
+    const fetchAuthorProfile = async () => {
+      if (event.pubkey) {
+        try {
+          const profileEvent = await fetchProfile(event.pubkey)
+          const normalizedProfile = normalizeKind0(profileEvent)
+          setAuthorProfile(normalizedProfile)
+        } catch (error) {
+          console.error('Error fetching author profile:', error)
+        }
+      }
+    }
+
+    fetchAuthorProfile()
+  }, [event.pubkey, fetchProfile, normalizeKind0])
   const formatDate = (timestamp: number): string => {
     return new Date(timestamp * 1000).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -82,7 +113,12 @@ function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEven
     <div className="flex items-center space-x-6 flex-wrap text-sm text-muted-foreground">
       <div className="flex items-center space-x-1">
         <User className="h-4 w-4" />
-        <span>{parsedEvent.author || event.pubkey.slice(0, 8) + '...'}</span>
+        <span>
+          {authorProfile?.name || 
+           authorProfile?.display_name || 
+           parsedEvent.author || 
+           formatNpubWithEllipsis(event.pubkey)}
+        </span>
       </div>
       
       <div className="flex items-center space-x-1">
