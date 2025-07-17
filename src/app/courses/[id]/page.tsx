@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import React from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,9 +8,11 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
-// Removed repository imports - using API endpoints instead
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
+import { useCourseQuery } from '@/hooks/useCoursesQuery'
+import { useLessonsQuery, type LessonWithResource } from '@/hooks/useLessonsQuery'
+import { parseCourseEvent, parseEvent } from '@/lib/content-utils'
 import { encodePublicKey } from 'snstr'
 import { 
   Zap, 
@@ -48,14 +49,8 @@ function formatNpubWithEllipsis(pubkey: string): string {
 /**
  * Course lessons component - now using lessons from props
  */
-interface Lesson {
-  id: string
-  index: number
-  title?: string
-  resourceId?: string
-}
 
-function CourseLessons({ lessons, courseId }: { lessons: Lesson[]; courseId: string }) {
+function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; courseId: string }) {
   if (!lessons || lessons.length === 0) {
     return (
       <div className="space-y-6">
@@ -92,35 +87,42 @@ function CourseLessons({ lessons, courseId }: { lessons: Lesson[]; courseId: str
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {lessons.map((lesson, index) => (
-              <div key={lesson.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                <div className="flex items-center space-x-4">
-                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-sm font-medium">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <h4 className="font-medium">
-                      Lesson {lesson.index + 1}
-                    </h4>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground flex-nowrap">
-                      <div className="flex items-center space-x-1 flex-shrink-0">
-                        <Clock className="h-3 w-3 flex-shrink-0" />
-                        <span className="whitespace-nowrap">30 min</span>
+            {lessons.map((lesson, index) => {
+              // Use enhanced lesson data from useLessonsQuery hook
+              const lessonTitle = lesson.title || `Lesson ${lesson.index + 1}`
+              const lessonDescription = lesson.description || 'No description available'
+              const isPremium = lesson.isPremium || false
+
+              return (
+                <div key={lesson.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-sm font-medium">
+                      {index + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-medium truncate">
+                        {lessonTitle}
+                      </h4>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground flex-nowrap">
+                        <div className="flex items-center space-x-1 flex-shrink-0">
+                          <Clock className="h-3 w-3 flex-shrink-0" />
+                          <span className="whitespace-nowrap">{lesson.duration || '30 min'}</span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs flex-shrink-0">
+                          {isPremium ? 'Premium' : 'Free'}
+                        </Badge>
                       </div>
-                      <Badge variant="secondary" className="text-xs flex-shrink-0">
-                        Free
-                      </Badge>
                     </div>
                   </div>
+                  <Button variant="outline" size="sm" asChild>
+                    <Link href={`/courses/${courseId}/lessons/${lesson.id}/details`}>
+                      <Play className="h-4 w-4 mr-2" />
+                      Start
+                    </Link>
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href={`/courses/${courseId}/lessons/${lesson.id}/details`}>
-                    <Play className="h-4 w-4 mr-2" />
-                    Start
-                  </Link>
-                </Button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </CardContent>
       </Card>
@@ -133,59 +135,45 @@ function CourseLessons({ lessons, courseId }: { lessons: Lesson[]; courseId: str
  */
 function CoursePageContent({ courseId }: { courseId: string }) {
   const { fetchProfile, normalizeKind0 } = useNostr()
-  const [course, setCourse] = useState<{
-    title?: string
-    description?: string
-    category?: string
-    topics?: string[]
-    additionalLinks?: string[]
-    image?: string
-    instructor?: string
-    instructorPubkey?: string
-    isPremium?: boolean
-    price?: number
-    currency?: string
-    createdAt?: string
-    updatedAt?: string
-    submissionRequired?: boolean
-  } | null>(null)
-  const [lessons, setLessons] = useState<Lesson[]>([])
   const [instructorProfile, setInstructorProfile] = useState<NormalizedProfile | null>(null)
-  const [loading, setLoading] = useState(true)
+  
+  // Use hooks to fetch course data and lessons with Nostr integration
+  const { course: courseData, isLoading: courseLoading, isError, error } = useCourseQuery(courseId)
+  const { lessons: lessonsData, isLoading: lessonsLoading } = useLessonsQuery(courseId)
+
+  const loading = courseLoading || lessonsLoading
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [courseResponse, lessonsResponse] = await Promise.all([
-          fetch(`/api/courses/${courseId}`),
-          fetch(`/api/courses/${courseId}/lessons`)
-        ])
-        
-        const courseResult = await courseResponse.json()
-        const lessonsResult = await lessonsResponse.json()
-        
-        setCourse(courseResult.course)
-        setLessons(lessonsResult.lessons)
-        
-        // Fetch instructor profile if available
-        if (courseResult.course?.instructorPubkey) {
-          try {
-            const profileEvent = await fetchProfile(courseResult.course.instructorPubkey)
-            const normalizedProfile = normalizeKind0(profileEvent)
-            setInstructorProfile(normalizedProfile)
-          } catch (profileError) {
-            console.error('Error fetching instructor profile:', profileError)
-          }
+    if (!courseData) return
+
+    const fetchInstructorProfile = async () => {
+      // Try to get instructor pubkey from multiple sources
+      let instructorPubkey = courseData.userId // From database
+      
+      // If we have a Nostr note, try to get more instructor data
+      if (courseData.note) {
+        try {
+          const parsedNote = parseCourseEvent(courseData.note)
+          instructorPubkey = parsedNote.instructorPubkey || parsedNote.pubkey
+        } catch (error) {
+          console.error('Error parsing course note:', error)
         }
-      } catch (error) {
-        console.error('Error fetching course data:', error)
-      } finally {
-        setLoading(false)
+      }
+
+      // Fetch instructor profile if available
+      if (instructorPubkey) {
+        try {
+          const profileEvent = await fetchProfile(instructorPubkey)
+          const normalizedProfile = normalizeKind0(profileEvent)
+          setInstructorProfile(normalizedProfile)
+        } catch (profileError) {
+          console.error('Error fetching instructor profile:', profileError)
+        }
       }
     }
 
-    fetchData()
-  }, [courseId, fetchProfile, normalizeKind0])
+    fetchInstructorProfile()
+  }, [courseData, fetchProfile, normalizeKind0])
 
   if (loading) {
     return (
@@ -207,29 +195,67 @@ function CoursePageContent({ courseId }: { courseId: string }) {
     )
   }
 
-  if (!course) {
+  if (isError) {
+    return (
+      <MainLayout>
+        <Section spacing="lg">
+          <div className="text-center py-8">
+            <h1 className="text-2xl font-bold mb-4">Error Loading Course</h1>
+            <p className="text-muted-foreground mb-4">
+              {error?.message || 'Failed to load course data'}
+            </p>
+            <Button onClick={() => window.location.reload()}>
+              Try Again
+            </Button>
+          </div>
+        </Section>
+      </MainLayout>
+    )
+  }
+
+  if (!courseData) {
     notFound()
   }
 
   const id = courseId
-  const lessonCount = lessons.length
+  const lessonCount = lessonsData.length
   
   // Estimate total duration based on lesson count
   const estimatedDuration = lessonCount * 30 // 30 minutes per lesson
 
-  // Use basic course data for now - detailed parsing can be added later
-  const title = course.title || 'Unknown Course'
-  const description = course.description || 'No description available'
-  const category = course.category || 'general'
-  const topics = course.topics || []
-  const additionalLinks = course.additionalLinks || []
-  const image = course.image || '/placeholder.svg'
+  // Parse data from database and Nostr note
+  let title = 'Unknown Course'
+  let description = 'No description available'
+  let category = 'general'
+  let topics: string[] = []
+  let additionalLinks: string[] = []
+  let image = '/placeholder.svg'
+  let isPremium = false
+  let currency = 'sats'
+
+  // Start with database data (minimal Course type)
+  isPremium = (courseData.price ?? 0) > 0
+
+  // If we have a Nostr note, use parsed data to enhance the information
+  if (courseData.note) {
+    try {
+      const parsedNote = parseCourseEvent(courseData.note)
+      title = parsedNote.title || title
+      description = parsedNote.description || description
+      category = parsedNote.category || category
+      topics = parsedNote.topics || topics
+      additionalLinks = parsedNote.additionalLinks || additionalLinks
+      image = parsedNote.image || image
+      isPremium = parsedNote.isPremium || isPremium
+      currency = parsedNote.currency || currency
+    } catch (error) {
+      console.error('Error parsing course note:', error)
+    }
+  }
+
   const instructor = instructorProfile?.name || 
                      instructorProfile?.display_name || 
-                     course.instructor || 
-                     (course.instructorPubkey ? formatNpubWithEllipsis(course.instructorPubkey) : 'Unknown')
-  const isPremium = course.isPremium || (course.price ?? 0) > 0
-  const currency = course.currency || 'sats'
+                     (courseData.userId ? formatNpubWithEllipsis(courseData.userId) : 'Unknown')
   
   // Generate mock engagement metrics
   const generateMockZapsCount = (id: string): number => {
@@ -349,7 +375,7 @@ function CoursePageContent({ courseId }: { courseId: string }) {
               <div className="flex items-center space-x-4">
                 {!isPremium ? (
                   <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
-                    <Link href={lessons.length > 0 ? `/courses/${id}/lessons/${lessons[0].id}/details` : `/courses/${id}`}>
+                    <Link href={lessonsData.length > 0 ? `/courses/${id}/lessons/${lessonsData[0].id}/details` : `/courses/${id}`}>
                       <GraduationCap className="h-5 w-5 mr-2" />
                       Start Learning
                     </Link>
@@ -414,7 +440,7 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                     style={{
                       backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)',
                       backgroundSize: '20px 20px'
-                    } as React.CSSProperties}
+                    }}
                   />
                 </div>
                 
@@ -449,7 +475,7 @@ function CoursePageContent({ courseId }: { courseId: string }) {
           {/* Course Content */}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <CourseLessons lessons={lessons} courseId={id} />
+              <CourseLessons lessons={lessonsData} courseId={id} />
             </div>
 
             <div className="space-y-6">
@@ -479,22 +505,22 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                   <div>
                     <h4 className="font-semibold mb-2">Price</h4>
                     <p className="text-sm text-muted-foreground">
-                      {(course.price ?? 0) > 0 ? `${(course.price ?? 0).toLocaleString()} ${currency}` : 'Free'}
+                      {(courseData.price ?? 0) > 0 ? `${(courseData.price ?? 0).toLocaleString()} ${currency}` : 'Free'}
                     </p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Created</h4>
                     <p className="text-sm text-muted-foreground">
-                      {formatDate(course.createdAt || new Date().toISOString())}
+                      {formatDate(courseData.createdAt || new Date().toISOString())}
                     </p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Last Updated</h4>
                     <p className="text-sm text-muted-foreground">
-                      {formatDate(course.updatedAt || new Date().toISOString())}
+                      {formatDate(courseData.updatedAt || new Date().toISOString())}
                     </p>
                   </div>
-                  {course.submissionRequired && (
+                  {courseData.submissionRequired && (
                     <div>
                       <h4 className="font-semibold mb-2">Requirements</h4>
                       <p className="text-sm text-muted-foreground">Submission required for completion</p>

@@ -5,7 +5,6 @@
 
 import { Course, Resource, Lesson } from '@/data/types'
 import { NostrEvent } from 'snstr'
-import { nostrCourseListEvents, nostrFreeContentEvents, nostrPaidContentEvents } from '@/data/nostr-events'
 import courseSeedData from '@/data/mockDb/Course.json'
 import resourceSeedData from '@/data/mockDb/Resource.json'
 import lessonSeedData from '@/data/mockDb/Lesson.json'
@@ -61,12 +60,10 @@ export class CourseAdapter {
     const course = coursesInMemory.find(course => course.id === id)
     if (!course) return null
     
-    // Find the associated Nostr note - for demo purposes, we'll use the first available note
-    const note = nostrCourseListEvents.find(event => event.id === id) || nostrCourseListEvents[0]
-    
+    // Return course without note - notes will be fetched separately by hooks using real Nostr data
     return {
       ...course,
-      note: note || undefined
+      note: undefined
     }
   }
 
@@ -133,12 +130,10 @@ export class ResourceAdapter {
     const resource = resourcesInMemory.find(resource => resource.id === id)
     if (!resource) return null
     
-    // Find the associated Nostr note - for demo purposes, we'll use the first available note
-    const note = [...nostrFreeContentEvents, ...nostrPaidContentEvents].find(event => event.id === id) || nostrFreeContentEvents[0]
-    
+    // Return resource without note - notes will be fetched separately by hooks using real Nostr data
     return {
       ...resource,
-      note: note || undefined
+      note: undefined
     }
   }
 

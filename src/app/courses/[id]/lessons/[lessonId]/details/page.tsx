@@ -9,12 +9,13 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
-// Removed repository imports - using API endpoints instead
 import { getResourceContent, getEstimatedReadingTime, formatContentForDisplay, type ResourceContent } from '@/lib/content-utils'
-import { parseCourseEvent, parseEvent } from '@/data/types'
+import { parseCourseEvent, parseEvent } from '@/lib/content-utils'
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
 import { VideoPlayer } from '@/components/ui/video-player'
 import { ResourceActions } from '@/components/ui/resource-actions'
+import { useCourseQuery } from '@/hooks/useCoursesQuery'
+import { useLessonsQuery, useLessonQuery } from '@/hooks/useLessonsQuery'
 import { 
   ArrowLeft, 
   ArrowRight, 
@@ -32,8 +33,7 @@ import {
   Heart
 } from 'lucide-react'
 import Link from 'next/link'
-import { ResourceDisplay, LessonDisplay, CourseDisplay } from '@/data/types'
-import { getLessonById, getResourceWithContentById } from '@/data'
+import { Lesson } from '@/data/types'
 import type { Metadata } from 'next'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { encodePublicKey } from 'snstr'
@@ -91,7 +91,7 @@ function LessonNavigation({
 }: { 
   courseId: string
   currentLessonIndex: number
-  lessons: LessonDisplay[]
+  lessons: Lesson[]
 }) {
   const prevLesson = currentLessonIndex > 0 ? lessons[currentLessonIndex - 1] : null
   const nextLesson = currentLessonIndex < lessons.length - 1 ? lessons[currentLessonIndex + 1] : null
@@ -166,19 +166,23 @@ function InstructorDisplay({ instructorPubkey, fallbackName }: { instructorPubke
  * Lesson metadata component
  */
 function LessonMetadata({ 
-  resource, 
+  instructorPubkey, 
+  instructorName,
   content, 
-  lesson 
+  lesson,
+  duration
 }: { 
-  resource: ResourceDisplay
-  content: ResourceContent
-  lesson: LessonDisplay
+  instructorPubkey: string
+  instructorName: string
+  content: { content: string; isMarkdown?: boolean }
+  lesson: Lesson
+  duration?: string
 }) {
   const readingTime = content?.isMarkdown ? getEstimatedReadingTime(content.content) : null
   
   return (
     <div className="flex items-center space-x-6 flex-wrap text-sm text-muted-foreground">
-      <InstructorDisplay instructorPubkey={resource.instructorPubkey} fallbackName={resource.instructor} />
+      <InstructorDisplay instructorPubkey={instructorPubkey} fallbackName={instructorName} />
       
       <div className="flex items-center space-x-1">
         <Calendar className="h-4 w-4" />
@@ -192,10 +196,10 @@ function LessonMetadata({
         </div>
       )}
       
-      {resource.duration && (
+      {duration && (
         <div className="flex items-center space-x-1">
           <PlayCircle className="h-4 w-4" />
-          <span>{resource.duration}</span>
+          <span>{duration}</span>
         </div>
       )}
       
@@ -228,51 +232,18 @@ function LessonContent({
   courseId: string
   lessonId: string 
 }) {
-  const [course, setCourse] = useState<CourseDisplay | null>(null)
-  const [lesson, setLesson] = useState<LessonDisplay | null>(null)
-  const [resource, setResource] = useState<ResourceDisplay | null>(null)
-  const [courseLessons, setCourseLessons] = useState<LessonDisplay[]>([])
-  const [loading, setLoading] = useState(true)
+  // Use the new hooks to fetch lesson and course data with Nostr integration
+  const { lesson: lessonData, isLoading: lessonLoading, isError: lessonError } = useLessonQuery(lessonId)
+  const { course: courseData, isLoading: courseLoading } = useCourseQuery(courseId)
+  const { lessons: lessonsData, isLoading: lessonsDataLoading } = useLessonsQuery(courseId)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [courseResponse, lessonsResponse] = await Promise.all([
-          fetch(`/api/courses/${courseId}`),
-          fetch(`/api/courses/${courseId}/lessons`)
-        ])
-        
-        const courseResult = await courseResponse.json()
-        const lessonsResult = await lessonsResponse.json()
-        
-        setCourse(courseResult.course)
-        
-        // Find the specific lesson from the lessons array
-        const lessonData = lessonsResult.lessons.find((l: LessonDisplay) => l.id === lessonId)
-        setLesson(lessonData)
-
-        if (lessonData) {
-          const resourceData = lessonData.resourceId ? getResourceWithContentById(lessonData.resourceId) : null
-          setResource(resourceData)
-        }
-
-        // Set course lessons for navigation
-        setCourseLessons(lessonsResult.lessons)
-      } catch (error) {
-        console.error('Error fetching lesson data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchData()
-  }, [courseId, lessonId])
+  const loading = lessonLoading || courseLoading || lessonsDataLoading
 
   if (loading) {
     return <LessonContentSkeleton />
   }
   
-  if (!course || !lesson) {
+  if (lessonError || !lessonData) {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">Lesson not found</p>
@@ -280,7 +251,7 @@ function LessonContent({
     )
   }
   
-  if (!resource) {
+  if (!lessonData.resource) {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">Lesson content not available</p>
@@ -288,18 +259,72 @@ function LessonContent({
     )
   }
 
-  // Simplified version - use basic data from the resource
-  const resourceTitle = resource.title || 'Unknown Lesson'
-  const resourceDescription = resource.description || 'No description available'
-  const resourceType = resource.type || 'document'
+  // Parse data from database and Nostr notes
+  let resourceTitle = 'Unknown Lesson'
+  let resourceDescription = 'No description available'
+  let resourceType = 'document'
   const resourceDifficulty = 'intermediate' // Default
-  // resourceAuthor removed as it's handled by InstructorDisplay component
-  const resourceIsPremium = resource.isPremium || false
-  const courseTitle = course.title || 'Unknown Course'
-  const courseCategory = course.category || 'general'
-  const courseInstructorPubkey = course.instructorPubkey // The course author's pubkey
+  let resourceIsPremium = false
+  let resourceAuthor = 'Unknown'
+  let resourceAuthorPubkey = ''
+  let resourceImage = ''
+  let resourceTopics: string[] = []
+  let resourceAdditionalLinks: string[] = []
 
-  const content = getResourceContent(resource)
+  let courseTitle = 'Unknown Course'
+  let courseCategory = 'general'
+  let courseInstructorPubkey = ''
+
+  // Start with database data
+  resourceIsPremium = (lessonData.resource.price ?? 0) > 0
+  resourceAuthorPubkey = lessonData.resource.userId
+
+  // Parse resource Nostr data if available
+  if (lessonData.resource.note) {
+    try {
+      const parsedResource = parseEvent(lessonData.resource.note)
+      resourceTitle = parsedResource.title || resourceTitle
+      resourceDescription = parsedResource.summary || resourceDescription
+      resourceType = parsedResource.type || resourceType
+      resourceIsPremium = parsedResource.isPremium || resourceIsPremium
+      resourceAuthor = parsedResource.author || resourceAuthor
+      resourceAuthorPubkey = parsedResource.authorPubkey || resourceAuthorPubkey
+      resourceImage = parsedResource.image || resourceImage
+      resourceTopics = parsedResource.topics || resourceTopics
+      resourceAdditionalLinks = parsedResource.additionalLinks || resourceAdditionalLinks
+    } catch (error) {
+      console.error('Error parsing resource note:', error)
+    }
+  }
+
+  // Parse course data if available
+  if (courseData) {
+    courseInstructorPubkey = courseData.userId
+    
+    if (courseData.note) {
+      try {
+        const parsedCourse = parseCourseEvent(courseData.note)
+        courseTitle = parsedCourse.title || courseTitle
+        courseCategory = parsedCourse.category || courseCategory
+        courseInstructorPubkey = parsedCourse.instructorPubkey || courseInstructorPubkey
+      } catch (error) {
+        console.error('Error parsing course note:', error)
+      }
+    }
+  }
+
+  // Create mock resource content for now - in future this should come from the Nostr event content
+  const mockResourceContent = {
+    content: lessonData.resource.note?.content || 'No content available',
+    isMarkdown: true,
+    type: resourceType as 'video' | 'document',
+    hasVideo: resourceType === 'video',
+    videoUrl: resourceType === 'video' ? '#' : undefined,
+    title: resourceTitle,
+    additionalLinks: resourceAdditionalLinks
+  }
+
+  const content = mockResourceContent
   
   if (!content) {
     return (
@@ -311,18 +336,8 @@ function LessonContent({
 
   const formattedContent = formatContentForDisplay(content.content)
   
-  // Create lesson displays from fetched data
-  const lessonDisplays: LessonDisplay[] = courseLessons.map(l => {
-    const res = l.resourceId ? getResourceWithContentById(l.resourceId) : null
-    return {
-      ...l,
-      title: res?.title || 'Unknown Lesson',
-      description: res?.description || 'No description available',
-      duration: res?.duration,
-      type: res?.type === 'video' ? 'video' : 'document',
-      isPremium: res?.isPremium || false
-    } as LessonDisplay
-  })
+  // Use enhanced lesson displays from useLessonsQuery hook
+  const lessonDisplays = lessonsData || []
   
   const currentLessonIndex = lessonDisplays.findIndex(l => l.id === lessonId)
   
@@ -360,7 +375,10 @@ function LessonContent({
             <Badge variant="secondary" className="capitalize">
               {courseCategory}
             </Badge>
-            <ResourceActions resource={resource} content={content} />
+            {/* TODO: Update ResourceActions to work with new data structure */}
+            <div className="text-sm text-muted-foreground">
+              {resourceIsPremium ? 'Premium' : 'Free'}
+            </div>
           </div>
         </div>
 
@@ -386,14 +404,13 @@ function LessonContent({
             </div>
           </div>
           
-          <LessonMetadata resource={resource} content={content} lesson={{
-            ...lesson,
-            title: resourceTitle,
-            description: resourceDescription,
-            duration: resource.duration,
-            type: resourceType === 'video' ? 'video' : 'document',
-            isPremium: resourceIsPremium
-          }} />
+          <LessonMetadata 
+            instructorPubkey={resourceAuthorPubkey} 
+            instructorName={resourceAuthor}
+            content={content} 
+            lesson={lessonData}
+            duration="30 min"
+          />
         </div>
       </div>
 
@@ -428,8 +445,8 @@ function LessonContent({
               content={formattedContent}
               title={content.title}
               videoUrl={content.videoUrl}
-              duration={resource.duration}
-              thumbnailUrl={resource.thumbnailUrl}
+              duration="30 min"
+              thumbnailUrl={resourceImage}
             />
           ) : (
             <MarkdownRenderer content={formattedContent} />
@@ -472,7 +489,7 @@ function LessonContent({
                             : 'hover:underline'
                         }`}
                       >
-                        {l.title}
+                        {l.title || `Lesson ${l.index + 1}`}
                       </Link>
                     </div>
                   </div>
@@ -547,8 +564,8 @@ export default function LessonDetailsPage({ params }: LessonDetailsPageProps) {
         <div className="space-y-6">
           {/* Breadcrumb Navigation */}
           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-            <Link href="/courses" className="hover:text-foreground">
-              Courses
+            <Link href="/content" className="hover:text-foreground">
+              Content
             </Link>
             <span>•</span>
             <Link href={`/courses/${courseId}`} className="hover:text-foreground">

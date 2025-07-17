@@ -341,19 +341,6 @@ export interface ResourceDisplay extends Resource {
   likesCount?: number
 }
 
-export interface LessonDisplay extends Lesson {
-  title: string
-  description: string
-  duration?: string
-  type: 'video' | 'document'
-  isPremium: boolean
-  completed?: boolean
-}
-
-export interface CourseWithLessons extends CourseDisplay {
-  lessons: LessonDisplay[]
-}
-
 export interface ContentItem {
   id: string
   type: 'course' | 'document' | 'video'
