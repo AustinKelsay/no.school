@@ -19,6 +19,7 @@ import { getAllContentItems } from "@/lib/data"
 import { CoursesSection } from "@/components/homepage/courses-section"
 import { VideosSection } from "@/components/homepage/videos-section"
 import { DocumentsSection } from "@/components/homepage/documents-section"
+import { useCopy } from "@/lib/copy"
 
 interface HeroStat {
   value: string
@@ -31,11 +32,13 @@ interface HeroStat {
  * Uses dynamic data fetching and caching for performance
  */
 export default function Home() {
+  const { homepage } = useCopy()
+  
   const heroStats: HeroStat[] = [
-    { value: "2,500+", label: "Students", icon: Users },
-    { value: "50+", label: "Courses, Videos & Docs", icon: BookOpen },
-    { value: "4.7/5", label: "Rating", icon: Star },
-    { value: "24/7", label: "Support", icon: Clock },
+    { value: homepage.stats.students.value, label: homepage.stats.students.label, icon: Users },
+    { value: homepage.stats.content.value, label: homepage.stats.content.label, icon: BookOpen },
+    { value: homepage.stats.rating.value, label: homepage.stats.rating.label, icon: Star },
+    { value: homepage.stats.support.value, label: homepage.stats.support.label, icon: Clock },
   ]
 
 
@@ -53,13 +56,13 @@ export default function Home() {
             <div className="space-y-4">
               <Badge variant="outline" className="w-fit">
                 <Sparkles className="h-3 w-3 mr-1" />
-                Bitcoin Development Platform
+                {homepage.hero.badge}
               </Badge>
               
               <HeroAnimated />
               
               <p className="text-lg text-muted-foreground max-w-2xl">
-                Master the fundamentals of coding, build real projects on Bitcoin protocols, and join the next generation of developers shaping the future of money and communication.
+                {homepage.hero.description}
               </p>
             </div>
 
@@ -80,11 +83,11 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-4">
               <Button size="lg" className="flex-1 sm:flex-none">
                 <BookOpen className="h-4 w-4 mr-2" />
-                Start Learning
+                {homepage.hero.buttons.startLearning}
               </Button>
               <Button variant="outline" size="lg" className="flex-1 sm:flex-none">
                 <Video className="h-4 w-4 mr-2" />
-                Watch Demo
+                {homepage.hero.buttons.watchDemo}
               </Button>
             </div>
           </div>
@@ -96,7 +99,7 @@ export default function Home() {
                 <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20">
                   <Zap className="h-10 w-10 text-primary" />
                 </div>
-                <p className="text-muted-foreground">⚡ Lightning Network Development</p>
+                <p className="text-muted-foreground">{homepage.visual.lightningText}</p>
               </div>
             </div>
             
@@ -105,7 +108,7 @@ export default function Home() {
               <Card className="w-32 p-3">
                 <div className="flex items-center space-x-2">
                   <div className="h-2 w-2 bg-primary rounded-full"></div>
-                  <span className="text-xs font-medium">Live Course</span>
+                  <span className="text-xs font-medium">{homepage.visual.liveCourse}</span>
                 </div>
               </Card>
             </div>
@@ -114,7 +117,7 @@ export default function Home() {
               <Card className="w-36 p-3">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-medium">Completed</span>
+                  <span className="text-xs font-medium">{homepage.visual.completed}</span>
                 </div>
               </Card>
             </div>
@@ -129,20 +132,20 @@ export default function Home() {
       <Section spacing="lg" className="bg-muted/50">
         <div className="text-center space-y-6">
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold">Ready to Start Building?</h2>
+            <h2 className="text-3xl font-bold">{homepage.cta.title}</h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Join thousands of developers learning Bitcoin development. Start your journey today.
+              {homepage.cta.description}
             </p>
           </div>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg">
               <Sparkles className="h-4 w-4 mr-2" />
-              Get Started Free
+              {homepage.cta.buttons.getStarted}
             </Button>
             <Button variant="outline" size="lg">
               <ExternalLink className="h-4 w-4 mr-2" />
-              View All Courses
+              {homepage.cta.buttons.viewCourses}
             </Button>
           </div>
         </div>

@@ -23,9 +23,11 @@ import {
   FileText,
   Loader2
 } from "lucide-react"
+import { useCopy, getCopy } from "@/lib/copy"
 
 
 export default function ContentPage() {
+  const { contentLibrary, loading: loadingCopy, pricing } = useCopy()
   const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set(['all']))
   
   // Fetch data from all hooks
@@ -48,7 +50,7 @@ export default function ContentPage() {
           type: 'course' as const,
           title: course.note?.tags.find(tag => tag[0] === "name")?.[1] || `Course ${course.id}`,
           description: course.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
-          category: course.price > 0 ? 'Premium' : 'Free',
+          category: course.price > 0 ? pricing.premium : pricing.free,
           difficulty: 'beginner' as const,
           image: course.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
           tags: course.note?.tags.filter(tag => tag[0] === "t") || [],
@@ -79,7 +81,7 @@ export default function ContentPage() {
           description: video.note?.tags.find(tag => tag[0] === "summary")?.[1] || 
                       video.note?.tags.find(tag => tag[0] === "description")?.[1] || 
                       video.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
-          category: video.price > 0 ? 'Premium' : 'Free',
+          category: video.price > 0 ? pricing.premium : pricing.free,
           difficulty: 'beginner' as const,
           image: video.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
           tags: video.note?.tags.filter(tag => tag[0] === "t") || [],
@@ -110,7 +112,7 @@ export default function ContentPage() {
           description: document.note?.tags.find(tag => tag[0] === "summary")?.[1] || 
                       document.note?.tags.find(tag => tag[0] === "description")?.[1] || 
                       document.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
-          category: document.price > 0 ? 'Premium' : 'Free',
+          category: document.price > 0 ? pricing.premium : pricing.free,
           difficulty: 'beginner' as const,
           image: document.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
           tags: document.note?.tags.filter(tag => tag[0] === "t") || [],
@@ -130,7 +132,7 @@ export default function ContentPage() {
     }
     
     return allItems
-  }, [courses, videos, documents])
+  }, [courses, videos, documents, pricing.free, pricing.premium])
 
   // Filter content based on selected filters
   const filteredContent = useMemo(() => {
@@ -160,7 +162,7 @@ export default function ContentPage() {
         <div className="flex min-h-[50vh] items-center justify-center">
           <div className="flex flex-col items-center space-y-4">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Loading content...</p>
+            <p className="text-sm text-muted-foreground">{getCopy('loading.content')}</p>
           </div>
         </div>
       </MainLayout>
@@ -199,7 +201,7 @@ export default function ContentPage() {
           <div className="flex items-center justify-center min-h-64">
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading content...</p>
+              <p className="text-muted-foreground">{getCopy('loading.content')}</p>
             </div>
           </div>
         </Section>
@@ -213,20 +215,20 @@ export default function ContentPage() {
       <Section spacing="lg" className="border-b">
         <div className="space-y-6">
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold">Content Library</h1>
+            <h1 className="text-3xl font-bold">{contentLibrary.title}</h1>
             <p className="text-muted-foreground">
-              Discover courses, video tutorials, implementation guides, API documentation, and quick reference materials for Bitcoin, Lightning, and Nostr development
+              {contentLibrary.description}
             </p>
           </div>
           
           <div className="flex items-center justify-between">
             <p className="text-sm text-muted-foreground">
-              {filteredContent.length} of {contentItems.length} items
+              {getCopy('contentLibrary.resultsCounter', { count: filteredContent.length, total: contentItems.length })}
             </p>
             {selectedFilters.size > 1 || !selectedFilters.has('all') ? (
               <Button variant="outline" size="sm" onClick={clearAllFilters}>
                 <X className="h-4 w-4 mr-2" />
-                Clear filters
+                {contentLibrary.filters.clearFilters}
               </Button>
             ) : null}
           </div>
@@ -238,7 +240,7 @@ export default function ContentPage() {
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filter by:</span>
+            <span className="text-sm font-medium">{contentLibrary.filters.label}</span>
           </div>
           
           <div className="flex flex-wrap gap-2">
@@ -248,7 +250,7 @@ export default function ContentPage() {
               className="px-4 py-2 cursor-pointer hover:opacity-80 transition-opacity"
               onClick={() => toggleFilter('all')}
             >
-              All Content
+              {contentLibrary.filters.allContent}
             </Badge>
             
             {/* Type filters */}
@@ -288,7 +290,7 @@ export default function ContentPage() {
                 className="px-4 py-2 cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => toggleFilter('free')}
               >
-                Free
+                {pricing.free}
               </Badge>
               <Badge
                 key="premium"
@@ -297,7 +299,7 @@ export default function ContentPage() {
                 onClick={() => toggleFilter('premium')}
               >
                 <Crown className="h-3 w-3 mr-1" />
-                Premium
+                {pricing.premium}
               </Badge>
             </div>
 
@@ -323,12 +325,12 @@ export default function ContentPage() {
         {filteredContent.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">No content found</h3>
+            <h3 className="text-lg font-semibold mb-2">{contentLibrary.emptyState.title}</h3>
             <p className="text-muted-foreground mb-4">
-              Try adjusting your filters to see more content
+              {contentLibrary.emptyState.description}
             </p>
             <Button variant="outline" onClick={clearAllFilters}>
-              Show all content
+              {contentLibrary.emptyState.button}
             </Button>
           </div>
         ) : (

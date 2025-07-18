@@ -1,0 +1,273 @@
+{
+  "site": {
+    "title": "PlebDevs - Learn to Code, Build on Bitcoin, Become a dev",
+    "description": "A one of a kind developer education, content, and community platform built on Nostr and fully Lightning integrated.",
+    "brandName": "no.school"
+  },
+  "navigation": {
+    "searchPlaceholder": "Search content",
+    "menuItems": {
+      "content": "Content",
+      "feeds": "Feeds", 
+      "subscribe": "Subscribe",
+      "about": "About"
+    },
+    "buttons": {
+      "login": "Login"
+    },
+    "accessibility": {
+      "toggleTheme": "Toggle theme",
+      "selectTheme": "Select theme"
+    }
+  },
+  "homepage": {
+    "hero": {
+      "badge": "Bitcoin Development Platform",
+      "title": {
+        "line1": "Learn how to code",
+        "line2": "Build on",
+        "animatedWords": ["Bitcoin", "Lightning", "Nostr", "AI"],
+        "line3": "Become a Dev"
+      },
+      "description": "Master the fundamentals of coding, build real projects on Bitcoin protocols, and join the next generation of developers shaping the future of money and communication.",
+      "buttons": {
+        "startLearning": "Start Learning",
+        "watchDemo": "Watch Demo"
+      }
+    },
+    "stats": {
+      "students": {
+        "value": "2,500+",
+        "label": "Students"
+      },
+      "content": {
+        "value": "50+",
+        "label": "Courses, Videos & Docs"
+      },
+      "rating": {
+        "value": "4.7/5",
+        "label": "Rating"
+      },
+      "support": {
+        "value": "24/7",
+        "label": "Support"
+      }
+    },
+    "visual": {
+      "lightningText": "� Lightning Network Development",
+      "liveCourse": "Live Course",
+      "completed": "Completed"
+    },
+    "cta": {
+      "title": "Ready to Start Building?",
+      "description": "Join thousands of developers learning Bitcoin development. Start your journey today.",
+      "buttons": {
+        "getStarted": "Get Started Free",
+        "viewCourses": "View All Courses"
+      }
+    },
+    "sections": {
+      "courses": {
+        "title": "Courses",
+        "description": "Structured learning paths from Bitcoin fundamentals to advanced Lightning Network development"
+      },
+      "videos": {
+        "title": "Videos", 
+        "description": "Video tutorials and workshops from Bitcoin developers and experts"
+      },
+      "documents": {
+        "title": "Documents",
+        "description": "Guides, tutorials, and educational materials for Bitcoin development"
+      }
+    }
+  },
+  "contentLibrary": {
+    "title": "Content Library",
+    "description": "Discover courses, video tutorials, implementation guides, API documentation, and quick reference materials for Bitcoin, Lightning, and Nostr development",
+    "resultsCounter": "{count} of {total} items",
+    "filters": {
+      "label": "Filter by:",
+      "clearFilters": "Clear filters",
+      "allContent": "All Content"
+    },
+    "emptyState": {
+      "title": "No content found",
+      "description": "Try adjusting your filters to see more content",
+      "button": "Show all content"
+    }
+  },
+  "course": {
+    "labels": {
+      "course": "Course",
+      "premium": "Premium",
+      "courseContent": "Course Content",
+      "courseLessons": "Course Lessons"
+    },
+    "emptyState": {
+      "lessons": "Course lessons will be available soon. Check back later for updated content."
+    },
+    "metrics": {
+      "zaps": "zaps",
+      "comments": "comments", 
+      "likes": "likes",
+      "lessons": "lessons",
+      "views": "views"
+    },
+    "buttons": {
+      "startLearning": "Start Learning",
+      "loginToAccess": "Login to Access",
+      "start": "Start"
+    },
+    "sidebar": {
+      "aboutCourse": "About this course",
+      "relatedCourses": "Related Courses",
+      "instructor": "Instructor",
+      "category": "Category",
+      "lessons": "Lessons",
+      "duration": "Duration",
+      "price": "Price",
+      "created": "Created",
+      "lastUpdated": "Last Updated",
+      "requirements": "Requirements",
+      "requirementsText": "Submission required for completion",
+      "relatedContent": "More courses from the same category and instructor coming soon."
+    }
+  },
+  "resource": {
+    "labels": {
+      "aboutResource": "About this Resource",
+      "readyToDive": "Ready to dive into the content?",
+      "clickToAccess": "Click below to access the full resource content."
+    },
+    "buttons": {
+      "viewContent": "View Content",
+      "watchNow": "Watch Now",
+      "readNow": "Read Now"
+    },
+    "sidebar": {
+      "aboutType": "About this {type}",
+      "relatedResources": "Related Resources",
+      "author": "Author",
+      "type": "Type",
+      "category": "Category",
+      "difficulty": "Difficulty",
+      "duration": "Duration",
+      "views": "Views",
+      "created": "Created",
+      "relatedContent": "More resources from the same category and difficulty level coming soon."
+    },
+    "types": {
+      "videoPreview": "Video Preview",
+      "resourcePreview": "Resource Preview"
+    }
+  },
+  "contentTypes": {
+    "course": "Course",
+    "video": "Video",
+    "document": "Document",
+    "guide": "Guide",
+    "cheatSheet": "Cheat Sheet",
+    "courses": "Courses",
+    "videos": "Videos",
+    "documents": "Documents",
+    "guides": "Guides",
+    "cheatSheets": "Cheat Sheets"
+  },
+  "difficulty": {
+    "beginner": "Beginner",
+    "intermediate": "Intermediate", 
+    "advanced": "Advanced"
+  },
+  "pricing": {
+    "free": "Free",
+    "premium": "Premium",
+    "sats": "sats"
+  },
+  "categories": {
+    "bitcoin": "Bitcoin",
+    "lightning": "Lightning",
+    "nostr": "Nostr",
+    "frontend": "Frontend",
+    "backend": "Backend",
+    "mobile": "Mobile",
+    "security": "Security",
+    "web3": "Web3"
+  },
+  "status": {
+    "draft": "Draft",
+    "published": "Published",
+    "archived": "Archived",
+    "enrolled": "Enrolled",
+    "completed": "Completed",
+    "inProgress": "In Progress",
+    "notStarted": "Not Started",
+    "pending": "Pending",
+    "failed": "Failed",
+    "refunded": "Refunded"
+  },
+  "loading": {
+    "general": "Loading...",
+    "content": "Loading content...",
+    "courses": "Loading courses...",
+    "videos": "Loading videos...",
+    "documents": "Loading documents..."
+  },
+  "errors": {
+    "general": {
+      "title": "Something went wrong",
+      "description": "An error occurred while loading this page. Please try again.",
+      "button": "Try again"
+    },
+    "development": {
+      "details": "Error details (development only)"
+    },
+    "specific": {
+      "courses": "Error loading courses:",
+      "videos": "Error loading videos:",
+      "documents": "Error loading documents:",
+      "course": "Error Loading Course",
+      "courseData": "Failed to load course data"
+    }
+  },
+  "emptyStates": {
+    "courses": "No courses available at the moment.",
+    "videos": "No video resources available at the moment.",
+    "documents": "No document resources available at the moment."
+  },
+  "notFound": {
+    "title": "Page Not Found",
+    "description": "Sorry, we couldn't find the page you're looking for.",
+    "buttons": {
+      "goHome": "Go Home",
+      "goBack": "Go Back"
+    }
+  },
+  "themeSelector": {
+    "colorTheme": "Color Theme",
+    "style": "Style",
+    "borderRadius": "Border Radius"
+  },
+  "resourceActions": {
+    "share": "Share",
+    "resources": "Resources",
+    "premiumAccess": "Premium Access"
+  },
+  "contentCards": {
+    "startLearning": "Start Learning",
+    "viewContent": "View Content",
+    "login": "Login",
+    "durations": {
+      "courseShort": "2-4 weeks",
+      "videoShort": "15-30 min",
+      "documentShort": "5-10 min read",
+      "videoMedium": "30 min"
+    }
+  },
+  "lessons": {
+    "lessonNumber": "Lesson {index}",
+    "noDescription": "No description available",
+    "unknownCourse": "Unknown Course",
+    "coursePreview": "Course Preview",
+    "unknown": "Unknown"
+  }
+}

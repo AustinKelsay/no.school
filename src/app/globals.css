@@ -96,3 +96,38 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Style variants for shadcn/ui components */
+.style-default {
+  /* Default style: Modern rounded appearance */
+  --radius: 0.5rem;
+}
+
+.style-new-york {
+  /* New York style: Flat minimal appearance */
+  --radius: 0.25rem;
+}
+
+.style-new-york .border {
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.style-new-york button,
+.style-new-york [role="button"] {
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.style-new-york input,
+.style-new-york textarea,
+.style-new-york select {
+  border-radius: calc(var(--radius) - 2px);
+}
+
+.style-new-york .card,
+.style-new-york [data-card] {
+  border-radius: var(--radius);
+}
+
+.style-new-york .badge {
+  border-radius: calc(var(--radius) - 2px);
+}

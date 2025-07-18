@@ -14,6 +14,7 @@ import { useCourseQuery } from '@/hooks/useCoursesQuery'
 import { useLessonsQuery, type LessonWithResource } from '@/hooks/useLessonsQuery'
 import { parseCourseEvent, parseEvent } from '@/lib/content-utils'
 import { encodePublicKey } from 'snstr'
+import { useCopy, getCopy } from '@/lib/copy'
 import { 
   Zap, 
   Clock, 
@@ -51,6 +52,8 @@ function formatNpubWithEllipsis(pubkey: string): string {
  */
 
 function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; courseId: string }) {
+  const { course } = useCopy()
+  
   if (!lessons || lessons.length === 0) {
     return (
       <div className="space-y-6">
@@ -58,7 +61,7 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
           <CardHeader>
             <CardTitle className="flex items-center space-x-2">
               <GraduationCap className="h-5 w-5" />
-              <span>Course Content</span>
+              <span>{course.labels.courseContent}</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -67,7 +70,7 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
                 <BookOpen className="h-8 w-8 text-primary" />
               </div>
               <p className="text-muted-foreground">
-                Course lessons will be available soon. Check back later for updated content.
+                {course.emptyState.lessons}
               </p>
             </div>
           </CardContent>
@@ -82,15 +85,15 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
         <CardHeader>
           <CardTitle className="flex items-center space-x-2">
             <GraduationCap className="h-5 w-5" />
-            <span>Course Lessons</span>
+            <span>{course.labels.courseLessons}</span>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {lessons.map((lesson, index) => {
               // Use enhanced lesson data from useLessonsQuery hook
-              const lessonTitle = lesson.title || `Lesson ${lesson.index + 1}`
-              const lessonDescription = lesson.description || 'No description available'
+              const lessonTitle = lesson.title || getCopy('lessons.lessonNumber', { index: lesson.index + 1 })
+              const lessonDescription = lesson.description || getCopy('lessons.noDescription')
               const isPremium = lesson.isPremium || false
 
               return (
@@ -109,7 +112,7 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
                           <span className="whitespace-nowrap">{lesson.duration || '30 min'}</span>
                         </div>
                         <Badge variant="secondary" className="text-xs flex-shrink-0">
-                          {isPremium ? 'Premium' : 'Free'}
+                          {isPremium ? getCopy('pricing.premium') : getCopy('pricing.free')}
                         </Badge>
                       </div>
                     </div>
@@ -117,7 +120,7 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
                   <Button variant="outline" size="sm" asChild>
                     <Link href={`/courses/${courseId}/lessons/${lesson.id}/details`}>
                       <Play className="h-4 w-4 mr-2" />
-                      Start
+                      {getCopy('course.buttons.start')}
                     </Link>
                   </Button>
                 </div>
@@ -136,6 +139,7 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
 function CoursePageContent({ courseId }: { courseId: string }) {
   const { fetchProfile, normalizeKind0 } = useNostr()
   const [instructorProfile, setInstructorProfile] = useState<NormalizedProfile | null>(null)
+  const { course, errors, pricing } = useCopy()
   
   // Use hooks to fetch course data and lessons with Nostr integration
   const { course: courseData, isLoading: courseLoading, isError, error } = useCourseQuery(courseId)

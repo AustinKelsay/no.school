@@ -215,3 +215,17 @@ Current implementation uses JSON files for development:
 - **Cache Statistics**: Real-time performance monitoring
 - **Build Optimization**: Zero compilation errors with Turbopack
 - **Containerization**: Docker support for deployment
+
+## Testing Commands
+
+```bash
+# No formal testing framework is currently configured
+# When implementing tests, check the codebase first to determine the testing approach
+# Ask the user for specific test commands if tests are added in the future
+```
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

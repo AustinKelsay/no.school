@@ -11,6 +11,7 @@ import { Container } from "./container"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ThemeSelector } from "@/components/theme-selector"
 import Link from "next/link"
+import { useCopy } from "@/lib/copy"
 
 /**
  * Header component for the main navigation
@@ -18,6 +19,8 @@ import Link from "next/link"
  * Uses Container component for consistent spacing with page content
  */
 export function Header() {
+  const { site, navigation } = useCopy()
+  
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <Container className="flex h-16 items-center">
@@ -27,7 +30,7 @@ export function Header() {
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary">
               <Zap className="h-4 w-4 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold">no.school</span>
+            <span className="text-xl font-bold">{site.brandName}</span>
           </Link>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -36,10 +39,10 @@ export function Header() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem>Content</DropdownMenuItem>
-              <DropdownMenuItem>Feeds</DropdownMenuItem>
-              <DropdownMenuItem>Subscribe</DropdownMenuItem>
-              <DropdownMenuItem>About</DropdownMenuItem>
+              <DropdownMenuItem>{navigation.menuItems.content}</DropdownMenuItem>
+              <DropdownMenuItem>{navigation.menuItems.feeds}</DropdownMenuItem>
+              <DropdownMenuItem>{navigation.menuItems.subscribe}</DropdownMenuItem>
+              <DropdownMenuItem>{navigation.menuItems.about}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -49,7 +52,7 @@ export function Header() {
           <div className="relative hidden w-full max-w-md sm:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search content"
+              placeholder={navigation.searchPlaceholder}
               className="w-full pl-10"
             />
           </div>
@@ -59,7 +62,7 @@ export function Header() {
         <div className="flex flex-1 items-center justify-end space-x-4">
           <ThemeSelector />
           <ThemeToggle />
-          <Button size="sm">Login</Button>
+          <Button size="sm">{navigation.buttons.login}</Button>
         </div>
       </Container>
     </header>
