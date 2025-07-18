@@ -4,6 +4,8 @@ import { useCoursesQuery, CourseWithNote } from "@/hooks/useCoursesQuery";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { ContentCard } from "@/components/ui/content-card";
 import { Section } from "@/components/layout";
+import { useHomepageSectionConfig } from "@/hooks/useContentConfig";
+import { applyContentFilters } from "@/lib/content-config";
 
 /**
  * Client component for fetching and displaying courses
@@ -11,15 +13,24 @@ import { Section } from "@/components/layout";
  */
 export function CoursesSection() {
   const { courses, isLoading, isError, error } = useCoursesQuery();
+  const sectionConfig = useHomepageSectionConfig('courses');
+  
+  // If section is disabled in config, don't render
+  if (!sectionConfig?.enabled) {
+    return null;
+  }
+  
+  // Apply filters from configuration
+  const filteredCourses = sectionConfig ? applyContentFilters(courses, sectionConfig.filters) : courses;
 
   if (isLoading) {
     return (
       <Section spacing="lg" className="bg-muted/30">
         <div className="space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">Courses</h2>
+            <h2 className="text-3xl font-bold">{sectionConfig?.title || 'Courses'}</h2>
             <p className="text-muted-foreground">
-              Structured learning paths from Bitcoin fundamentals to advanced Lightning Network development
+              {sectionConfig?.description || 'Structured learning paths from Bitcoin fundamentals to advanced Lightning Network development'}
             </p>
           </div>
           
@@ -37,9 +48,9 @@ export function CoursesSection() {
       <Section spacing="lg" className="bg-muted/30">
         <div className="space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">Courses</h2>
+            <h2 className="text-3xl font-bold">{sectionConfig?.title || 'Courses'}</h2>
             <p className="text-muted-foreground">
-              Structured learning paths from Bitcoin fundamentals to advanced Lightning Network development
+              {sectionConfig?.description || 'Structured learning paths from Bitcoin fundamentals to advanced Lightning Network development'}
             </p>
           </div>
           
@@ -61,7 +72,7 @@ export function CoursesSection() {
           </p>
         </div>
         
-        {courses.length === 0 ? (
+        {filteredCourses.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No courses available at the moment.</p>
           </div>
@@ -69,13 +80,13 @@ export function CoursesSection() {
           <Carousel 
             opts={{
               align: "start",
-              loop: false,
+              loop: sectionConfig?.carousel.loop || false,
             }}
             className="w-full"
           >
             <CarouselContent className="-ml-2 md:-ml-4">
-              {courses.map((course) => (
-                <CarouselItem key={course.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+              {filteredCourses.map((course) => (
+                <CarouselItem key={course.id} className={`pl-2 md:pl-4 ${sectionConfig?.carousel.itemsPerView.tablet === 2 ? 'md:basis-1/2' : ''} ${sectionConfig?.carousel.itemsPerView.desktop === 3 ? 'lg:basis-1/3' : sectionConfig?.carousel.itemsPerView.desktop === 4 ? 'lg:basis-1/4' : 'lg:basis-1/2'}`}>
                   <CourseCard course={course} />
                 </CarouselItem>
               ))}

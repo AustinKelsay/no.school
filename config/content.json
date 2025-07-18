@@ -1,0 +1,100 @@
+{
+  "homepage": {
+    "sections": {
+      "courses": {
+        "enabled": true,
+        "title": "Courses",
+        "description": "Structured learning paths from Bitcoin fundamentals to advanced Lightning Network development",
+        "filters": {
+          "priceFilter": "all",
+          "categories": [],
+          "maxItems": 12,
+          "sortBy": "newest"
+        },
+        "carousel": {
+          "itemsPerView": {
+            "mobile": 1,
+            "tablet": 2,
+            "desktop": 3
+          },
+          "autoplay": false,
+          "loop": false
+        }
+      },
+      "documents": {
+        "enabled": true,
+        "title": "Documents",
+        "description": "Guides, tutorials, and educational materials for Bitcoin development",
+        "filters": {
+          "priceFilter": "all",
+          "categories": [],
+          "maxItems": 12,
+          "sortBy": "newest"
+        },
+        "carousel": {
+          "itemsPerView": {
+            "mobile": 1,
+            "tablet": 2,
+            "desktop": 3
+          },
+          "autoplay": false,
+          "loop": false
+        }
+      },
+      "videos": {
+        "enabled": true,
+        "title": "Videos",
+        "description": "Video tutorials and workshops from Bitcoin developers and experts",
+        "filters": {
+          "priceFilter": "all",
+          "categories": [],
+          "maxItems": 12,
+          "sortBy": "newest"
+        },
+        "carousel": {
+          "itemsPerView": {
+            "mobile": 1,
+            "tablet": 2,
+            "desktop": 3
+          },
+          "autoplay": false,
+          "loop": false
+        }
+      }
+    },
+    "sectionOrder": ["courses", "videos", "documents"]
+  },
+  "contentPage": {
+    "filters": {
+      "defaultView": "grid",
+      "itemsPerPage": 12,
+      "enableSearch": true,
+      "enableFilters": true,
+      "enableSorting": true
+    }
+  },
+  "global": {
+    "categories": [
+      "bitcoin",
+      "lightning",
+      "nostr",
+      "frontend",
+      "backend",
+      "mobile",
+      "security",
+      "web3"
+    ],
+    "priceFilterOptions": {
+      "all": "All Content",
+      "free": "Free Only",
+      "paid": "Paid Only"
+    },
+    "sortOptions": {
+      "newest": "Newest First",
+      "oldest": "Oldest First",
+      "price-low": "Price: Low to High",
+      "price-high": "Price: High to Low",
+      "popular": "Most Popular"
+    }
+  }
+}

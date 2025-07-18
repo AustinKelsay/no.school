@@ -20,6 +20,7 @@ import { CoursesSection } from "@/components/homepage/courses-section"
 import { VideosSection } from "@/components/homepage/videos-section"
 import { DocumentsSection } from "@/components/homepage/documents-section"
 import { useCopy } from "@/lib/copy"
+import { getContentConfig, getEnabledHomepageSections } from "@/lib/content-config"
 
 interface HeroStat {
   value: string
@@ -156,15 +157,23 @@ export default function Home() {
 
 /**
  * Dynamic content sections with server-side data fetching
- * Shows featured courses, videos, and documents
+ * Shows featured courses, videos, and documents based on configuration
  */
 async function HomepageContent() {
+  const enabledSections = getEnabledHomepageSections()
+  
+  const sectionComponents = {
+    courses: CoursesSection,
+    documents: DocumentsSection,
+    videos: VideosSection
+  }
 
   return (
     <>
-      <CoursesSection />
-      <VideosSection />
-      <DocumentsSection />
+      {enabledSections.map((sectionType) => {
+        const SectionComponent = sectionComponents[sectionType]
+        return SectionComponent ? <SectionComponent key={sectionType} /> : null
+      })}
     </>
   )
 }

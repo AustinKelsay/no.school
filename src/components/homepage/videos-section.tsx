@@ -4,6 +4,8 @@ import { useVideosQuery, VideoResourceWithNote } from "@/hooks/useVideosQuery";
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { ContentCard } from "@/components/ui/content-card";
 import { Section } from "@/components/layout";
+import { useHomepageSectionConfig } from "@/hooks/useContentConfig";
+import { applyContentFilters } from "@/lib/content-config";
 
 /**
  * Client component for fetching and displaying video resources
@@ -11,15 +13,24 @@ import { Section } from "@/components/layout";
  */
 export function VideosSection() {
   const { videos, isLoading, isError, error } = useVideosQuery();
+  const sectionConfig = useHomepageSectionConfig('videos');
+  
+  // If section is disabled in config, don't render
+  if (!sectionConfig?.enabled) {
+    return null;
+  }
+  
+  // Apply filters from configuration
+  const filteredVideos = sectionConfig ? applyContentFilters(videos, sectionConfig.filters) : videos;
 
   if (isLoading) {
     return (
       <Section spacing="lg" className="bg-background">
         <div className="space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">Videos</h2>
+            <h2 className="text-3xl font-bold">{sectionConfig?.title || 'Videos'}</h2>
             <p className="text-muted-foreground">
-              Video tutorials and workshops from Bitcoin developers and experts
+              {sectionConfig?.description || 'Video tutorials and workshops from Bitcoin developers and experts'}
             </p>
           </div>
           
@@ -37,9 +48,9 @@ export function VideosSection() {
       <Section spacing="lg" className="bg-background">
         <div className="space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">Videos</h2>
+            <h2 className="text-3xl font-bold">{sectionConfig?.title || 'Videos'}</h2>
             <p className="text-muted-foreground">
-              Video tutorials and workshops from Bitcoin developers and experts
+              {sectionConfig?.description || 'Video tutorials and workshops from Bitcoin developers and experts'}
             </p>
           </div>
           
@@ -61,7 +72,7 @@ export function VideosSection() {
           </p>
         </div>
         
-        {videos.length === 0 ? (
+        {filteredVideos.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No video resources available at the moment.</p>
           </div>
@@ -69,13 +80,13 @@ export function VideosSection() {
           <Carousel 
             opts={{
               align: "start",
-              loop: false,
+              loop: sectionConfig?.carousel.loop || false,
             }}
             className="w-full"
           >
             <CarouselContent className="-ml-2 md:-ml-4">
-              {videos.map((video) => (
-                <CarouselItem key={video.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+              {filteredVideos.map((video) => (
+                <CarouselItem key={video.id} className={`pl-2 md:pl-4 ${sectionConfig?.carousel.itemsPerView.tablet === 2 ? 'md:basis-1/2' : ''} ${sectionConfig?.carousel.itemsPerView.desktop === 3 ? 'lg:basis-1/3' : sectionConfig?.carousel.itemsPerView.desktop === 4 ? 'lg:basis-1/4' : 'lg:basis-1/2'}`}>
                   <VideoCard video={video} />
                 </CarouselItem>
               ))}

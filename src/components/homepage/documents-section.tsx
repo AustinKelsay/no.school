@@ -4,6 +4,8 @@ import { useDocumentsQuery, DocumentResourceWithNote } from "@/hooks/useDocument
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel";
 import { ContentCard } from "@/components/ui/content-card";
 import { Section } from "@/components/layout";
+import { useHomepageSectionConfig } from "@/hooks/useContentConfig";
+import { applyContentFilters } from "@/lib/content-config";
 
 /**
  * Client component for fetching and displaying document resources
@@ -11,15 +13,24 @@ import { Section } from "@/components/layout";
  */
 export function DocumentsSection() {
   const { documents, isLoading, isError, error } = useDocumentsQuery();
+  const sectionConfig = useHomepageSectionConfig('documents');
+  
+  // If section is disabled in config, don't render
+  if (!sectionConfig?.enabled) {
+    return null;
+  }
+  
+  // Apply filters from configuration
+  const filteredDocuments = sectionConfig ? applyContentFilters(documents, sectionConfig.filters) : documents;
 
   if (isLoading) {
     return (
       <Section spacing="lg" className="bg-muted/30">
         <div className="space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">Documents</h2>
+            <h2 className="text-3xl font-bold">{sectionConfig?.title || 'Documents'}</h2>
             <p className="text-muted-foreground">
-              Guides, tutorials, and educational materials for Bitcoin development
+              {sectionConfig?.description || 'Guides, tutorials, and educational materials for Bitcoin development'}
             </p>
           </div>
           
@@ -37,9 +48,9 @@ export function DocumentsSection() {
       <Section spacing="lg" className="bg-muted/30">
         <div className="space-y-8">
           <div className="text-center space-y-2">
-            <h2 className="text-3xl font-bold">Documents</h2>
+            <h2 className="text-3xl font-bold">{sectionConfig?.title || 'Documents'}</h2>
             <p className="text-muted-foreground">
-              Guides, tutorials, and educational materials for Bitcoin development
+              {sectionConfig?.description || 'Guides, tutorials, and educational materials for Bitcoin development'}
             </p>
           </div>
           
@@ -61,7 +72,7 @@ export function DocumentsSection() {
           </p>
         </div>
         
-        {documents.length === 0 ? (
+        {filteredDocuments.length === 0 ? (
           <div className="text-center py-12">
             <p className="text-muted-foreground">No document resources available at the moment.</p>
           </div>
@@ -69,13 +80,13 @@ export function DocumentsSection() {
           <Carousel 
             opts={{
               align: "start",
-              loop: false,
+              loop: sectionConfig?.carousel.loop || false,
             }}
             className="w-full"
           >
             <CarouselContent className="-ml-2 md:-ml-4">
-              {documents.map((document) => (
-                <CarouselItem key={document.id} className="pl-2 md:pl-4 md:basis-1/2 lg:basis-1/3">
+              {filteredDocuments.map((document) => (
+                <CarouselItem key={document.id} className={`pl-2 md:pl-4 ${sectionConfig?.carousel.itemsPerView.tablet === 2 ? 'md:basis-1/2' : ''} ${sectionConfig?.carousel.itemsPerView.desktop === 3 ? 'lg:basis-1/3' : sectionConfig?.carousel.itemsPerView.desktop === 4 ? 'lg:basis-1/4' : 'lg:basis-1/2'}`}>
                   <DocumentCard document={document} />
                 </CarouselItem>
               ))}
