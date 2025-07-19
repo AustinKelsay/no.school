@@ -6,9 +6,9 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { ResourceAdapter } from '@/lib/db-adapter'
-import { useSnstrContext } from '@/contexts/snstr-context'
 import { Resource } from '@/data/types'
-import { NostrEvent, RelayPool, decodeAddress } from 'snstr'
+import { useResourceNotes, filterNotesByContentType } from './useResourceNotes'
+import { NostrEvent } from 'snstr'
 
 // Types for enhanced document resource data
 export interface DocumentResourceWithNote extends Resource {
@@ -48,84 +48,31 @@ export interface UseDocumentsQueryOptions {
 }
 
 /**
- * Check if a resource is a document based on its Nostr note tags
+ * Fetch document resources using unified resource notes fetching
+ * Now leverages shared caching and deduplication via useResourceNotes
  */
-function isDocumentResource(note?: NostrEvent): boolean {
-  if (!note || !note.tags) return false
-  return note.tags.some(tag => tag[0] === 't' && tag[1] === 'document')
-}
-
-/**
- * Fetch document resources with their associated Nostr notes efficiently
- * Uses batch querying to fetch all notes at once, then filters for document resources
- */
-async function fetchDocumentsWithNotes(relayPool: RelayPool): Promise<DocumentResourceWithNote[]> {
+async function fetchDocumentResources(): Promise<Resource[]> {
   // First, fetch all resources from the fake DB
   const resources = await ResourceAdapter.findAll()
 
-  const noteIds = resources
-    .filter(resource => resource.id)
-    .map(resource => resource.id)
-  
-  // If no notes to fetch, return empty array
-  if (noteIds.length === 0) {
-    return []
-  }
-
-  console.log(`Fetching ${noteIds.length} resource notes in batch:`, noteIds);
-  
-  // Fetch all notes at once using RelayPool's querySync method
-  let notes: NostrEvent[] = []
-  let noteError: string | undefined
-
-  try {
-    notes = await relayPool.querySync(
-      ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'],
-      { "#d": noteIds, kinds: [30023, 30403] }, // Batch query by IDs
-      { timeout: 10000 }
-    )
-    console.log(`Successfully fetched ${notes.length} resource notes`);
-  } catch (error) {
-    console.error('Failed to fetch resource notes in batch:', error)
-    noteError = error instanceof Error ? error.message : 'Failed to fetch notes'
-  }
-
-  // Create a Map for O(1) lookup of notes by ID
-  const notesMap = new Map<string, NostrEvent>()
-  notes.forEach(note => notesMap.set(note.tags.find(tag => tag[0] === "d")?.[1] || '', note))
-
-  // Combine resources with their notes and filter for videos only
-  const resourcesWithNotes = await Promise.all(resources
-    .map(async (resource) => {
-      // filter out if it is a lesson
-      // todo: eventually we want to do this right in the UI component since only homepage carousels will filter out lessons later on.
+  // Filter out lessons at the resource level
+  const resourcesWithoutLessons = await Promise.all(
+    resources.map(async (resource) => {
+      // Filter out if it is a lesson
+      // TODO: eventually we want to do this right in the UI component since only homepage carousels will filter out lessons later on.
       const isLesson = await ResourceAdapter.isLesson(resource.id)
-      if (isLesson) {
-        return null
-      }
-      const note = resource.id ? notesMap.get(resource.id) : undefined
-      
-      return {
-        ...resource,
-        note,
-        noteError: resource.noteId && !note ? noteError : undefined,
-      }
-    }))
+      return isLesson ? null : resource
+    })
+  )
 
-  const documentsWithNotes = resourcesWithNotes
-    .filter(resource => resource !== null && isDocumentResource(resource.note)) as DocumentResourceWithNote[]
-
-  console.log(`Filtered ${documentsWithNotes.length} document resources from ${resources.length} total resources`);
-
-  return documentsWithNotes
+  return resourcesWithoutLessons.filter(resource => resource !== null) as Resource[]
 }
 
 /**
  * Main hook for fetching document resources with their Nostr notes
+ * Now uses unified resource fetching for better efficiency
  */
 export function useDocumentsQuery(options: UseDocumentsQueryOptions = {}): DocumentsQueryResult {
-  const { relayPool } = useSnstrContext()
-  
   const {
     enabled = true,
     staleTime = 5 * 60 * 1000, // 5 minutes
@@ -137,9 +84,10 @@ export function useDocumentsQuery(options: UseDocumentsQueryOptions = {}): Docum
     select,
   } = options
 
-  const query = useQuery({
+  // First, fetch all resources (without notes)
+  const resourcesQuery = useQuery({
     queryKey: documentsQueryKeys.lists(),
-    queryFn: () => fetchDocumentsWithNotes(relayPool),
+    queryFn: fetchDocumentResources,
     enabled,
     staleTime,
     gcTime,
@@ -149,15 +97,53 @@ export function useDocumentsQuery(options: UseDocumentsQueryOptions = {}): Docum
     retryDelay,
   })
 
+  // Extract resource IDs for note fetching
+  const resourceIds = resourcesQuery.data?.map(resource => resource.id) || []
+
+  // Fetch notes using unified hook (this provides deduplication)
+  const notesQuery = useResourceNotes(resourceIds, {
+    enabled: enabled && resourceIds.length > 0,
+    staleTime,
+    gcTime,
+    refetchOnWindowFocus,
+    refetchOnMount,
+    retry,
+    retryDelay,
+  })
+
+  // Filter notes to only include documents
+  const documentNotes = filterNotesByContentType(notesQuery.notes, 'document')
+
+  // Combine resources with their notes, filtering for documents only
+  const documentsWithNotes: DocumentResourceWithNote[] = (resourcesQuery.data || [])
+    .map(resource => {
+      const noteResult = documentNotes.get(resource.id)
+      if (!noteResult) return null // Not a document
+
+      return {
+        ...resource,
+        note: noteResult.note,
+        noteError: noteResult.noteError,
+      }
+    })
+    .filter(resource => resource !== null) as DocumentResourceWithNote[]
+
   // Apply select transformation if provided
-  const finalData = select && query.data ? select(query.data) : query.data || []
+  const finalData = select ? select(documentsWithNotes) : documentsWithNotes
+
+  const isLoading = resourcesQuery.isLoading || notesQuery.isLoading
+  const isError = resourcesQuery.isError || notesQuery.isError
+  const error = resourcesQuery.error || notesQuery.error
 
   return {
     documents: finalData,
-    isLoading: query.isLoading,
-    isError: query.isError,
-    error: query.error,
-    refetch: query.refetch,
+    isLoading,
+    isError,
+    error,
+    refetch: () => {
+      resourcesQuery.refetch()
+      notesQuery.refetch()
+    },
   }
 }
 

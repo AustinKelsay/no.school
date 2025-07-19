@@ -14,7 +14,7 @@ export interface CommentThreadsQueryResult {
   isLoading: boolean
   isError: boolean
   error: Error | null
-  refetch: () => void
+  refetch?: () => void
   getDirectReplies: () => number
   getThreadComments: () => number
 }

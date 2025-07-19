@@ -110,7 +110,8 @@ export interface UseLessonQueryOptions {
 async function fetchLessonWithDetails(
   courseId: string, 
   lessonId: string, 
-  relayPool: RelayPool
+  relayPool: RelayPool,
+  relays: string[]
 ): Promise<LessonWithDetails | null> {
   // First, fetch the lesson
   const lesson = await LessonAdapter.findById(lessonId)
@@ -143,7 +144,7 @@ async function fetchLessonWithDetails(
       console.log(`Fetching ${idsToFetch.length} notes for lesson using real Nostr data`)
       
       const notes = await relayPool.querySync(
-        ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'],
+        relays,
         { "#d": idsToFetch, kinds: [30004, 30023, 30402] },
         { timeout: 10000 }
       )
@@ -193,7 +194,7 @@ export function useLessonQuery(
   lessonId: string, 
   options: UseLessonQueryOptions = {}
 ): LessonQueryResult {
-  const { relayPool } = useSnstrContext()
+  const { relayPool, relays } = useSnstrContext()
   
   const {
     enabled = true,
@@ -207,7 +208,7 @@ export function useLessonQuery(
 
   const query = useQuery({
     queryKey: coursesQueryKeys.lesson(courseId, lessonId),
-    queryFn: () => fetchLessonWithDetails(courseId, lessonId, relayPool),
+    queryFn: () => fetchLessonWithDetails(courseId, lessonId, relayPool, relays),
     enabled: enabled && !!courseId && !!lessonId,
     staleTime,
     gcTime,
@@ -230,7 +231,7 @@ export function useLessonQuery(
  * Fetch courses with their associated Nostr notes efficiently
  * Uses batch querying to fetch all notes at once instead of individual requests
  */
-async function fetchCoursesWithNotes(relayPool: RelayPool): Promise<CourseWithNote[]> {
+async function fetchCoursesWithNotes(relayPool: RelayPool, relays: string[]): Promise<CourseWithNote[]> {
   // First, fetch all courses from the fake DB
   const courses = await CourseAdapter.findAll()
 
@@ -252,7 +253,7 @@ async function fetchCoursesWithNotes(relayPool: RelayPool): Promise<CourseWithNo
 
   try {
     notes = await relayPool.querySync(
-      ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'],
+      relays,
       { "#d": courseIds, kinds: [30004, 30023, 30402] }, // Query by 'd' tag for course list and content events
       { timeout: 10000 }
     )
@@ -288,7 +289,7 @@ async function fetchCoursesWithNotes(relayPool: RelayPool): Promise<CourseWithNo
 /**
  * Fetch a single course with its lessons and Nostr note
  */
-async function fetchCourseWithLessons(courseId: string, relayPool: RelayPool): Promise<CourseWithLessons | null> {
+async function fetchCourseWithLessons(courseId: string, relayPool: RelayPool, relays: string[]): Promise<CourseWithLessons | null> {
   // Fetch course with note and lessons in parallel
   const [courseWithNote, lessons] = await Promise.all([
     CourseAdapter.findByIdWithNote(courseId),
@@ -318,7 +319,7 @@ async function fetchCourseWithLessons(courseId: string, relayPool: RelayPool): P
       console.log(`Fetching ${idsToFetch.length} notes from real Nostr relays for course`)
       
       const notes = await relayPool.querySync(
-        ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'],
+        relays,
         { "#d": idsToFetch, kinds: [30004, 30023, 30402] }, // Course lists and content events
         { timeout: 10000 }
       )
@@ -375,7 +376,7 @@ async function fetchCourseWithLessons(courseId: string, relayPool: RelayPool): P
  * Hook for fetching a single course with its lessons and Nostr note
  */
 export function useCourseQuery(courseId: string, options: UseCourseQueryOptions = {}): CourseQueryResult {
-  const { relayPool } = useSnstrContext()
+  const { relayPool, relays } = useSnstrContext()
   
   const {
     enabled = true,
@@ -389,7 +390,7 @@ export function useCourseQuery(courseId: string, options: UseCourseQueryOptions 
 
   const query = useQuery({
     queryKey: coursesQueryKeys.detail(courseId),
-    queryFn: () => fetchCourseWithLessons(courseId, relayPool),
+    queryFn: () => fetchCourseWithLessons(courseId, relayPool, relays),
     enabled: enabled && !!courseId,
     staleTime,
     gcTime,
@@ -412,7 +413,7 @@ export function useCourseQuery(courseId: string, options: UseCourseQueryOptions 
  * Main hook for fetching courses with their Nostr notes
  */
 export function useCoursesQuery(options: UseCoursesQueryOptions = {}): CoursesQueryResult {
-  const { relayPool } = useSnstrContext()
+  const { relayPool, relays } = useSnstrContext()
   
   const {
     enabled = true,
@@ -427,7 +428,7 @@ export function useCoursesQuery(options: UseCoursesQueryOptions = {}): CoursesQu
 
   const query = useQuery({
     queryKey: coursesQueryKeys.lists(),
-    queryFn: () => fetchCoursesWithNotes(relayPool),
+    queryFn: () => fetchCoursesWithNotes(relayPool, relays),
     enabled,
     staleTime,
     gcTime,
