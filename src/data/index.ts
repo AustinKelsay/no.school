@@ -196,7 +196,8 @@ export function getAllContentItems(): ContentItem[] {
     updatedAt: course.updatedAt,
     published: course.published,
     topics: course.topics,
-    additionalLinks: []
+    additionalLinks: [],
+    noteId: course.noteId
   }))
   
   const resourceItems: ContentItem[] = resources.map(resource => ({
@@ -220,7 +221,8 @@ export function getAllContentItems(): ContentItem[] {
     updatedAt: resource.updatedAt,
     published: resource.published,
     topics: resource.topics,
-    additionalLinks: resource.additionalLinks
+    additionalLinks: resource.additionalLinks,
+    noteId: resource.noteId
   }))
   
   return [...courseItems, ...resourceItems]

@@ -6,10 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { OptimizedImage } from "@/components/ui/optimized-image"
 import { 
   BookOpen, 
-  Star,
   Clock,
   User,
-  Crown,
   Users,
   Zap,
   Calendar,
@@ -24,7 +22,8 @@ import { contentTypeIcons } from "@/data/config"
 import { useRouter } from 'next/navigation'
 import React, { useState, useEffect } from "react"
 import { useNostr, type NormalizedProfile } from "@/hooks/useNostr"
-import { encodePublicKey } from "snstr"
+import { useInteractions } from "@/hooks/useInteractions"
+import { encodePublicKey, decodeAddress } from "snstr"
 
 interface HomepageItem {
   title: string
@@ -60,50 +59,6 @@ function formatTimeAgo(dateString: string): string {
   return `${Math.floor(diffInSeconds / 31536000)}y ago`
 }
 
-function generateMockZapsCount(itemId: string): number {
-  // Create a deterministic "random" number based on item ID
-  // This ensures server and client render the same value
-  let hash = 0;
-  for (let i = 0; i < itemId.length; i++) {
-    const char = itemId.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash; // Convert to 32-bit integer
-  }
-  
-  // Use the hash to generate a consistent "random" number between 500-4500
-  const normalized = Math.abs(hash) % 4000;
-  return normalized + 500;
-}
-
-function generateMockCommentsCount(itemId: string): number {
-  // Create a deterministic "random" number based on item ID + offset
-  let hash = 0;
-  const seed = itemId + 'comments';
-  for (let i = 0; i < seed.length; i++) {
-    const char = seed.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  
-  // Generate a number between 5-150 for comments
-  const normalized = Math.abs(hash) % 145;
-  return normalized + 5;
-}
-
-function generateMockReactionsCount(itemId: string): number {
-  // Create a deterministic "random" number based on item ID + offset
-  let hash = 0;
-  const seed = itemId + 'reactions';
-  for (let i = 0; i < seed.length; i++) {
-    const char = seed.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
-    hash = hash & hash;
-  }
-  
-  // Generate a number between 20-800 for reactions
-  const normalized = Math.abs(hash) % 780;
-  return normalized + 20;
-}
 
 function formatNpubWithEllipsis(pubkey: string): string {
   try {
@@ -128,6 +83,39 @@ export function ContentCard({
   
   // State to store the instructor's profile data
   const [instructorProfile, setInstructorProfile] = useState<NormalizedProfile | null>(null)
+  
+  // Helper function to extract event ID from noteId (handles both hex and naddr formats)
+  const getEventId = (noteId: string | undefined): string | undefined => {
+    if (!noteId) return undefined
+    
+    // If it's already a hex string (64 chars), return as-is
+    if (noteId.length === 64 && /^[a-f0-9]+$/i.test(noteId)) {
+      return noteId
+    }
+    
+    // If it starts with naddr, decode it to get the actual event details
+    if (noteId.startsWith('naddr')) {
+      try {
+        const decoded = decodeAddress(noteId as `${string}1${string}`)
+        // For naddr, we'll use the d-tag identifier since our useInteractions hook now supports it
+        return decoded.identifier || noteId
+      } catch (error) {
+        console.error('Failed to decode naddr:', error)
+        return undefined
+      }
+    }
+    
+    // Return the noteId as-is for other formats
+    return noteId
+  }
+
+  // Get interaction data from Nostr if this is a content item with a note ID
+  const eventId = isContent ? getEventId(item.noteId) : undefined
+  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
+    eventId,
+    realtime: false,
+    staleTime: 5 * 60 * 1000 // 5 minutes
+  })
 
   // Fetch instructor profile when component mounts and has instructor data
   useEffect(() => {
@@ -175,9 +163,10 @@ export function ContentCard({
     )
   }
 
-  const mockZapsCount = generateMockZapsCount('id' in item ? item.id : item.title)
-  const mockCommentsCount = generateMockCommentsCount('id' in item ? item.id : item.title)
-  const mockReactionsCount = generateMockReactionsCount('id' in item ? item.id : item.title)
+  // Use only real interaction data - no fallbacks to mock data
+  const zapsCount = interactions.zaps
+  const commentsCount = interactions.comments 
+  const reactionsCount = interactions.likes
 
   return (
     <Card 
@@ -228,19 +217,37 @@ export function ContentCard({
             {/* Zaps */}
             <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border hover:border-amber-500 transition-colors cursor-pointer group">
               <Zap className="h-3 w-3 text-muted-foreground group-hover:text-amber-500 transition-colors" />
-              <span className="text-xs font-bold text-foreground group-hover:text-amber-500 transition-colors">{mockZapsCount.toLocaleString()}</span>
+              <span className="text-xs font-bold text-foreground group-hover:text-amber-500 transition-colors">
+                {isLoadingZaps ? (
+                  <div className="w-3 h-3 rounded-full border border-amber-500 border-t-transparent animate-spin"></div>
+                ) : (
+                  zapsCount.toLocaleString()
+                )}
+              </span>
             </div>
             
             {/* Comments */}
             <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border hover:border-blue-500 transition-colors cursor-pointer group">
               <MessageCircle className="h-3 w-3 text-muted-foreground group-hover:text-blue-500 transition-colors" />
-              <span className="text-xs font-bold text-foreground group-hover:text-blue-500 transition-colors">{mockCommentsCount}</span>
+              <span className="text-xs font-bold text-foreground group-hover:text-blue-500 transition-colors">
+                {isLoadingComments ? (
+                  <div className="w-3 h-3 rounded-full border border-blue-500 border-t-transparent animate-spin"></div>
+                ) : (
+                  commentsCount
+                )}
+              </span>
             </div>
             
             {/* Reactions */}
             <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border hover:border-pink-500 transition-colors cursor-pointer group">
               <Heart className="h-3 w-3 text-muted-foreground group-hover:text-pink-500 transition-colors" />
-              <span className="text-xs font-bold text-foreground group-hover:text-pink-500 transition-colors">{mockReactionsCount}</span>
+              <span className="text-xs font-bold text-foreground group-hover:text-pink-500 transition-colors">
+                {isLoadingLikes ? (
+                  <div className="w-3 h-3 rounded-full border border-pink-500 border-t-transparent animate-spin"></div>
+                ) : (
+                  reactionsCount
+                )}
+              </span>
             </div>
           </div>
         </div>

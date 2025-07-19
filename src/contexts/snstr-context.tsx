@@ -7,7 +7,14 @@ import { RelayPool, Filter, NostrEvent } from 'snstr';
 const DEFAULT_RELAYS = [
   'wss://relay.nostr.band',
   'wss://nos.lol',
-  'wss://relay.damus.io'
+  'wss://relay.damus.io',
+  'wss://relay.snort.social',
+  'wss://relay.primal.net',
+  'wss://nostr.land',
+  'wss://nostrue.com',
+  'wss://purplerelay.com',
+  'wss://nostr.wine',
+  'wss://nostr.bitcoiner.social'
 ];
 
 // Types for the context

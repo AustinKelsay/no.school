@@ -368,6 +368,8 @@ export interface ContentItem {
   viewCount?: number
   topics: string[]
   additionalLinks: string[]
+  // Nostr event ID for zapthreads integration
+  noteId?: string
 }
 
 // ============================================================================

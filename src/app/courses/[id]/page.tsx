@@ -16,6 +16,7 @@ import { parseCourseEvent, parseEvent } from '@/lib/content-utils'
 import { encodePublicKey } from 'snstr'
 import { useCopy, getCopy } from '@/lib/copy'
 import { ZapThreads } from '@/components/ui/zap-threads'
+import { useInteractions } from '@/hooks/useInteractions'
 import { 
   Zap, 
   Clock, 
@@ -146,6 +147,14 @@ function CoursePageContent({ courseId }: { courseId: string }) {
   const { course: courseData, isLoading: courseLoading, isError, error } = useCourseQuery(courseId)
   const { lessons: lessonsData, isLoading: lessonsLoading } = useLessonsQuery(courseId)
 
+  // Get real interaction data if course has a Nostr event - call hook unconditionally at top level
+  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
+    eventId: courseData?.note?.id,
+    realtime: false,
+    staleTime: 5 * 60 * 1000
+  })
+
+
   const loading = courseLoading || lessonsLoading
 
   useEffect(() => {
@@ -262,45 +271,10 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                      instructorProfile?.display_name || 
                      (courseData.userId ? formatNpubWithEllipsis(courseData.userId) : 'Unknown')
   
-  // Generate mock engagement metrics
-  const generateMockZapsCount = (id: string): number => {
-    let hash = 0;
-    for (let i = 0; i < id.length; i++) {
-      const char = id.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    const normalized = Math.abs(hash) % 4000;
-    return normalized + 500;
-  }
-  
-  const generateMockCommentsCount = (id: string): number => {
-    let hash = 0;
-    const seed = id + 'comments';
-    for (let i = 0; i < seed.length; i++) {
-      const char = seed.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    const normalized = Math.abs(hash) % 145;
-    return normalized + 5;
-  }
-  
-  const generateMockReactionsCount = (id: string): number => {
-    let hash = 0;
-    const seed = id + 'reactions';
-    for (let i = 0; i < seed.length; i++) {
-      const char = seed.charCodeAt(i);
-      hash = ((hash << 5) - hash) + char;
-      hash = hash & hash;
-    }
-    const normalized = Math.abs(hash) % 780;
-    return normalized + 20;
-  }
-  
-  const mockZapsCount = generateMockZapsCount(id)
-  const mockCommentsCount = generateMockCommentsCount(id)
-  const mockReactionsCount = generateMockReactionsCount(id)
+  // Use only real interaction data - no fallbacks
+  const zapsCount = interactions.zaps
+  const commentsCount = interactions.comments
+  const likesCount = interactions.likes
 
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) return `${minutes} min`
@@ -348,19 +322,37 @@ function CoursePageContent({ courseId }: { courseId: string }) {
               <div className="flex items-center space-x-6 flex-wrap">
                 <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
                   <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
-                  <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">{mockZapsCount.toLocaleString()}</span>
+                  <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">
+                    {isLoadingZaps ? (
+                      <div className="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin"></div>
+                    ) : (
+                      zapsCount.toLocaleString()
+                    )}
+                  </span>
                   <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-sm">zaps</span>
                 </div>
                 
                 <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
                   <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
-                  <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">{mockCommentsCount}</span>
+                  <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">
+                    {isLoadingComments ? (
+                      <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+                    ) : (
+                      commentsCount
+                    )}
+                  </span>
                   <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-sm">comments</span>
                 </div>
                 
                 <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
                   <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
-                  <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">{mockReactionsCount}</span>
+                  <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">
+                    {isLoadingLikes ? (
+                      <div className="w-4 h-4 rounded-full border-2 border-pink-500 border-t-transparent animate-spin"></div>
+                    ) : (
+                      likesCount
+                    )}
+                  </span>
                   <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-sm">likes</span>
                 </div>
                 

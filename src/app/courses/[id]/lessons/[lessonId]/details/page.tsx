@@ -32,7 +32,9 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { Lesson } from '@/data/types'
+import { LessonWithResource } from '@/hooks/useLessonsQuery'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
+import { useInteractions } from '@/hooks/useInteractions'
 import { encodePublicKey } from 'snstr'
 
 interface LessonDetailsPageProps {
@@ -172,10 +174,24 @@ function LessonMetadata({
   instructorPubkey: string
   instructorName: string
   content: { content: string; isMarkdown?: boolean }
-  lesson: Lesson
+  lesson: LessonWithResource
   duration?: string
 }) {
   const readingTime = content?.isMarkdown ? getEstimatedReadingTime(content.content) : null
+  
+  // Get real interaction data for the lesson resource if available
+  const lessonEventId = lesson.resourceId ? `lesson-${lesson.resourceId}` : undefined
+  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
+    eventId: lessonEventId,
+    realtime: false,
+    staleTime: 5 * 60 * 1000
+  })
+
+  
+  // Use only real interaction data - no fallbacks
+  const zapsCount = interactions.zaps
+  const commentsCount = interactions.comments
+  const likesCount = interactions.likes
   
   return (
     <div className="flex items-center space-x-6 flex-wrap text-sm text-muted-foreground">
@@ -204,17 +220,35 @@ function LessonMetadata({
       <div className="flex items-center space-x-6 flex-wrap">
         <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
           <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
-          <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">{Math.floor(Math.random() * 1500) + 200}</span>
+          <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">
+            {isLoadingZaps ? (
+              <div className="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin"></div>
+            ) : (
+              zapsCount
+            )}
+          </span>
           <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-sm">zaps</span>
         </div>
         <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
           <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
-          <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">{Math.floor(Math.random() * 50) + 5}</span>
+          <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">
+            {isLoadingComments ? (
+              <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
+            ) : (
+              commentsCount
+            )}
+          </span>
           <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-sm">comments</span>
         </div>
         <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
           <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
-          <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">{Math.floor(Math.random() * 150) + 10}</span>
+          <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">
+            {isLoadingLikes ? (
+              <div className="w-4 h-4 rounded-full border-2 border-pink-500 border-t-transparent animate-spin"></div>
+            ) : (
+              likesCount
+            )}
+          </span>
           <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-sm">likes</span>
         </div>
       </div>
