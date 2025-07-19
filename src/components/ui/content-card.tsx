@@ -226,21 +226,21 @@ export function ContentCard({
         <div className="absolute bottom-3 right-3">
           <div className="flex items-center gap-2">
             {/* Zaps */}
-            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border border-amber-500">
-              <Zap className="h-3 w-3 text-amber-500" />
-              <span className="text-xs font-bold text-amber-500">{mockZapsCount.toLocaleString()}</span>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border hover:border-amber-500 transition-colors cursor-pointer group">
+              <Zap className="h-3 w-3 text-muted-foreground group-hover:text-amber-500 transition-colors" />
+              <span className="text-xs font-bold text-foreground group-hover:text-amber-500 transition-colors">{mockZapsCount.toLocaleString()}</span>
             </div>
             
             {/* Comments */}
-            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border border-blue-500">
-              <MessageCircle className="h-3 w-3 text-blue-500" />
-              <span className="text-xs font-bold text-blue-500">{mockCommentsCount}</span>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border hover:border-blue-500 transition-colors cursor-pointer group">
+              <MessageCircle className="h-3 w-3 text-muted-foreground group-hover:text-blue-500 transition-colors" />
+              <span className="text-xs font-bold text-foreground group-hover:text-blue-500 transition-colors">{mockCommentsCount}</span>
             </div>
             
             {/* Reactions */}
-            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border border-pink-500">
-              <Heart className="h-3 w-3 text-pink-500" />
-              <span className="text-xs font-bold text-pink-500">{mockReactionsCount}</span>
+            <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-transparent backdrop-blur-xs shadow-sm border hover:border-pink-500 transition-colors cursor-pointer group">
+              <Heart className="h-3 w-3 text-muted-foreground group-hover:text-pink-500 transition-colors" />
+              <span className="text-xs font-bold text-foreground group-hover:text-pink-500 transition-colors">{mockReactionsCount}</span>
             </div>
           </div>
         </div>

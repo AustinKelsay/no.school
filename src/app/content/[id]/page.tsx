@@ -285,22 +285,22 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
               </div>
 
               <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2">
-                  <Zap className="h-5 w-5 text-amber-500" />
-                  <span className="font-medium text-amber-500">{mockZapsCount.toLocaleString()}</span>
-                  <span className="text-muted-foreground text-sm">zaps</span>
+                <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+                  <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
+                  <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">{mockZapsCount.toLocaleString()}</span>
+                  <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-sm">zaps</span>
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  <MessageCircle className="h-5 w-5 text-blue-500" />
-                  <span className="font-medium text-blue-500">{mockCommentsCount}</span>
-                  <span className="text-muted-foreground text-sm">comments</span>
+                <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+                  <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
+                  <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">{mockCommentsCount}</span>
+                  <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-sm">comments</span>
                 </div>
                 
-                <div className="flex items-center space-x-2">
-                  <Heart className="h-5 w-5 text-pink-500" />
-                  <span className="font-medium text-pink-500">{mockReactionsCount}</span>
-                  <span className="text-muted-foreground text-sm">likes</span>
+                <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+                  <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
+                  <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">{mockReactionsCount}</span>
+                  <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-sm">likes</span>
                 </div>
                 
                 <div className="flex items-center space-x-2">

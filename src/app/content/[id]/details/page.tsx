@@ -109,41 +109,105 @@ function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEven
 
   const readingTime = parsedEvent.type !== 'video' ? getReadingTime(event.content) : null
   
+  // Generate mock engagement metrics
+  const generateMockZapsCount = (id: string): number => {
+    let hash = 0;
+    for (let i = 0; i < id.length; i++) {
+      const char = id.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    const normalized = Math.abs(hash) % 4000;
+    return normalized + 500;
+  }
+  
+  const generateMockCommentsCount = (id: string): number => {
+    let hash = 0;
+    const seed = event.id + 'comments';
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    const normalized = Math.abs(hash) % 145;
+    return normalized + 5;
+  }
+  
+  const generateMockReactionsCount = (id: string): number => {
+    let hash = 0;
+    const seed = event.id + 'reactions';
+    for (let i = 0; i < seed.length; i++) {
+      const char = seed.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash;
+    }
+    const normalized = Math.abs(hash) % 780;
+    return normalized + 20;
+  }
+  
+  const mockZapsCount = generateMockZapsCount(event.id)
+  const mockCommentsCount = generateMockCommentsCount(event.id)
+  const mockReactionsCount = generateMockReactionsCount(event.id)
+
   return (
-    <div className="flex items-center space-x-6 flex-wrap text-sm text-muted-foreground">
-      <div className="flex items-center space-x-1">
-        <User className="h-4 w-4" />
-        <span>
-          {authorProfile?.name || 
-           authorProfile?.display_name || 
-           parsedEvent.author || 
-           formatNpubWithEllipsis(event.pubkey)}
-        </span>
-      </div>
-      
-      <div className="flex items-center space-x-1">
-        <Calendar className="h-4 w-4" />
-        <span>{formatDate(event.created_at)}</span>
-      </div>
-      
-      <div className="flex items-center space-x-1">
-        <Eye className="h-4 w-4" />
-        <span>1,250 views</span>
-      </div>
-      
-      {readingTime && (
+    <div className="space-y-4">
+      {/* Basic metadata */}
+      <div className="flex items-center space-x-6 flex-wrap text-sm text-muted-foreground">
         <div className="flex items-center space-x-1">
-          <Clock className="h-4 w-4" />
-          <span>{readingTime} min read</span>
+          <User className="h-4 w-4" />
+          <span>
+            {authorProfile?.name || 
+             authorProfile?.display_name || 
+             parsedEvent.author || 
+             formatNpubWithEllipsis(event.pubkey)}
+          </span>
         </div>
-      )}
-      
-      {parsedEvent.type === 'video' && (
+        
         <div className="flex items-center space-x-1">
-          <Play className="h-4 w-4" />
-          <span>15 min</span>
+          <Calendar className="h-4 w-4" />
+          <span>{formatDate(event.created_at)}</span>
         </div>
-      )}
+        
+        <div className="flex items-center space-x-1">
+          <Eye className="h-4 w-4" />
+          <span>1,250 views</span>
+        </div>
+        
+        {readingTime && (
+          <div className="flex items-center space-x-1">
+            <Clock className="h-4 w-4" />
+            <span>{readingTime} min read</span>
+          </div>
+        )}
+        
+        {parsedEvent.type === 'video' && (
+          <div className="flex items-center space-x-1">
+            <Play className="h-4 w-4" />
+            <span>15 min</span>
+          </div>
+        )}
+      </div>
+      
+      {/* Engagement metrics */}
+      <div className="flex items-center space-x-6 flex-wrap">
+        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+          <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
+          <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">{mockZapsCount.toLocaleString()}</span>
+          <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-sm">zaps</span>
+        </div>
+        
+        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+          <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
+          <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">{mockCommentsCount}</span>
+          <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-sm">comments</span>
+        </div>
+        
+        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+          <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
+          <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">{mockReactionsCount}</span>
+          <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-sm">likes</span>
+        </div>
+      </div>
     </div>
   )
 }

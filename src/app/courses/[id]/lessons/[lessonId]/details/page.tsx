@@ -204,18 +204,21 @@ function LessonMetadata({
       )}
       
       {/* Engagement metrics */}
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-1">
-          <Zap className="h-4 w-4 text-amber-500" />
-          <span className="text-amber-500 font-medium">{Math.floor(Math.random() * 1500) + 200}</span>
+      <div className="flex items-center space-x-6 flex-wrap">
+        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+          <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
+          <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">{Math.floor(Math.random() * 1500) + 200}</span>
+          <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-sm">zaps</span>
         </div>
-        <div className="flex items-center space-x-1">
-          <MessageCircle className="h-4 w-4 text-blue-500" />
-          <span className="text-blue-500 font-medium">{Math.floor(Math.random() * 50) + 5}</span>
+        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+          <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
+          <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">{Math.floor(Math.random() * 50) + 5}</span>
+          <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-sm">comments</span>
         </div>
-        <div className="flex items-center space-x-1">
-          <Heart className="h-4 w-4 text-pink-500" />
-          <span className="text-pink-500 font-medium">{Math.floor(Math.random() * 150) + 10}</span>
+        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+          <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
+          <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">{Math.floor(Math.random() * 150) + 10}</span>
+          <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-sm">likes</span>
         </div>
       </div>
     </div>
