@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { CourseAdapter, LessonAdapter, ResourceAdapter } from '@/lib/db-adapter'
+import { CourseAdapter, LessonAdapter, ResourceAdapter, PaginationOptions } from '@/lib/db-adapter'
 import { useSnstrContext } from '@/contexts/snstr-context'
 import { Course, Lesson, Resource } from '@/data/types'
 import { NostrEvent, RelayPool } from 'snstr'
@@ -39,6 +39,14 @@ export interface CoursesQueryResult {
   isError: boolean
   error: Error | null
   refetch: () => void
+  pagination?: {
+    page: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+    hasNext: boolean
+    hasPrev: boolean
+  }
 }
 
 export interface CourseQueryResult {
@@ -62,6 +70,7 @@ export const coursesQueryKeys = {
   all: ['courses'] as const,
   lists: () => [...coursesQueryKeys.all, 'list'] as const,
   list: (filters: string) => [...coursesQueryKeys.lists(), { filters }] as const,
+  listPaginated: (page: number, pageSize: number) => [...coursesQueryKeys.lists(), { page, pageSize }] as const,
   details: () => [...coursesQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...coursesQueryKeys.details(), id] as const,
   notes: () => [...coursesQueryKeys.all, 'notes'] as const,
@@ -71,7 +80,7 @@ export const coursesQueryKeys = {
 }
 
 // Options for the hook
-export interface UseCoursesQueryOptions {
+export interface UseCoursesQueryOptions extends PaginationOptions {
   enabled?: boolean
   staleTime?: number
   gcTime?: number
@@ -107,7 +116,7 @@ export interface UseLessonQueryOptions {
 /**
  * Fetch a single lesson with its resource and course details
  */
-async function fetchLessonWithDetails(
+export async function fetchLessonWithDetails(
   courseId: string, 
   lessonId: string, 
   relayPool: RelayPool,
@@ -231,8 +240,83 @@ export function useLessonQuery(
  * Fetch courses with their associated Nostr notes efficiently
  * Uses batch querying to fetch all notes at once instead of individual requests
  */
-async function fetchCoursesWithNotes(relayPool: RelayPool, relays: string[]): Promise<CourseWithNote[]> {
-  // First, fetch all courses from the fake DB
+export async function fetchCoursesWithNotes(
+  relayPool: RelayPool, 
+  relays: string[], 
+  options?: PaginationOptions
+): Promise<{
+  courses: CourseWithNote[]
+  pagination?: {
+    page: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+    hasNext: boolean
+    hasPrev: boolean
+  }
+}> {
+  // If pagination options provided, use paginated method
+  if (options?.page !== undefined || options?.pageSize !== undefined) {
+    const result = await CourseAdapter.findAllPaginated(options)
+    const courses = result.data
+    
+    console.log("courses", courses);
+    
+    // Extract all course IDs for 'd' tag queries
+    const courseIds = courses.map(course => course.id)
+    
+    if (courseIds.length === 0) {
+      return {
+        courses: courses.map(course => ({ ...course })),
+        pagination: result.pagination
+      }
+    }
+
+    console.log(`Fetching ${courseIds.length} course notes from real Nostr relays using 'd' tags:`, courseIds);
+    
+    // Fetch all notes at once using RelayPool's querySync method with 'd' tag queries
+    let notes: NostrEvent[] = []
+    let noteError: string | undefined
+
+    try {
+      notes = await relayPool.querySync(
+        relays,
+        { "#d": courseIds, kinds: [30004, 30023, 30402] }, // Query by 'd' tag for course list and content events
+        { timeout: 10000 }
+      )
+      console.log(`Successfully fetched ${notes.length} course notes from real Nostr`);
+    } catch (error) {
+      console.error('Failed to fetch course notes from real Nostr:', error)
+      noteError = error instanceof Error ? error.message : 'Failed to fetch notes'
+    }
+
+    // Create a Map for O(1) lookup of notes by 'd' tag value
+    const notesMap = new Map<string, NostrEvent>()
+    notes.forEach(note => {
+      const dTag = note.tags.find(tag => tag[0] === 'd')
+      if (dTag && dTag[1]) {
+        notesMap.set(dTag[1], note)
+      }
+    })
+
+    // Combine courses with their notes
+    const coursesWithNotes = courses.map(course => {
+      const note = notesMap.get(course.id)
+      
+      return {
+        ...course,
+        note,
+        noteError: !note ? noteError : undefined,
+      }
+    })
+
+    return {
+      courses: coursesWithNotes,
+      pagination: result.pagination
+    }
+  }
+  
+  // Legacy: fetch all courses
   const courses = await CourseAdapter.findAll()
 
   console.log("courses", courses);
@@ -242,7 +326,7 @@ async function fetchCoursesWithNotes(relayPool: RelayPool, relays: string[]): Pr
   
   // If no courses to fetch, return courses as-is
   if (courseIds.length === 0) {
-    return courses.map(course => ({ ...course }))
+    return { courses: courses.map(course => ({ ...course })) }
   }
 
   console.log(`Fetching ${courseIds.length} course notes from real Nostr relays using 'd' tags:`, courseIds);
@@ -283,13 +367,13 @@ async function fetchCoursesWithNotes(relayPool: RelayPool, relays: string[]): Pr
     }
   })
 
-  return coursesWithNotes
+  return { courses: coursesWithNotes }
 }
 
 /**
  * Fetch a single course with its lessons and Nostr note
  */
-async function fetchCourseWithLessons(courseId: string, relayPool: RelayPool, relays: string[]): Promise<CourseWithLessons | null> {
+export async function fetchCourseWithLessons(courseId: string, relayPool: RelayPool, relays: string[]): Promise<CourseWithLessons | null> {
   // Fetch course with note and lessons in parallel
   const [courseWithNote, lessons] = await Promise.all([
     CourseAdapter.findByIdWithNote(courseId),
@@ -424,11 +508,15 @@ export function useCoursesQuery(options: UseCoursesQueryOptions = {}): CoursesQu
     retry = 3,
     retryDelay = 1000,
     select,
+    page,
+    pageSize,
   } = options
 
   const query = useQuery({
-    queryKey: coursesQueryKeys.lists(),
-    queryFn: () => fetchCoursesWithNotes(relayPool, relays),
+    queryKey: page !== undefined || pageSize !== undefined 
+      ? coursesQueryKeys.listPaginated(page || 1, pageSize || 50)
+      : coursesQueryKeys.lists(),
+    queryFn: () => fetchCoursesWithNotes(relayPool, relays, { page, pageSize }),
     enabled,
     staleTime,
     gcTime,
@@ -439,13 +527,14 @@ export function useCoursesQuery(options: UseCoursesQueryOptions = {}): CoursesQu
   })
 
   // Apply select transformation if provided
-  const finalData = select && query.data ? select(query.data) : query.data || []
+  const finalData = select && query.data?.courses ? select(query.data.courses) : query.data?.courses || []
 
   return {
     courses: finalData,
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,
+    pagination: query.data?.pagination,
     refetch: query.refetch,
   }
 }

@@ -16,6 +16,8 @@ export interface UseInteractionsOptions {
   eventId?: string;
   realtime?: boolean;
   staleTime?: number;
+  enabled?: boolean; // Allow manual control
+  elementRef?: React.RefObject<HTMLElement>; // For visibility tracking
 }
 
 export interface InteractionsQueryResult {
@@ -34,9 +36,10 @@ export interface InteractionsQueryResult {
 }
 
 export function useInteractions(options: UseInteractionsOptions): InteractionsQueryResult {
-  const { eventId } = options;
+  const { eventId, elementRef, enabled: manualEnabled = true } = options;
   const { subscribe } = useSnstrContext();
   
+  const [isVisible, setIsVisible] = useState(true);
   const [interactions, setInteractions] = useState<InteractionCounts>({ 
     zaps: 0, 
     likes: 0, 
@@ -57,15 +60,61 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
   const zapsRef = useRef<NostrEvent[]>([]);
   const likesRef = useRef<NostrEvent[]>([]);
   const commentsRef = useRef<NostrEvent[]>([]);
+  const subscriptionRef = useRef<{ close: () => void } | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Set up intersection observer for visibility-based subscription management
   useEffect(() => {
-    // Don't subscribe if eventId is invalid
-    if (!eventId || eventId.length !== 64) {
-      setInteractions({ zaps: 0, likes: 0, comments: 0, replies: 0, threadComments: 0 });
-      setIsLoading(false);
-      setIsLoadingZaps(false);
-      setIsLoadingLikes(false);
-      setIsLoadingComments(false);
+    if (!elementRef?.current) {
+      setIsVisible(true); // Default to visible if no ref provided
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsVisible(entry.isIntersecting);
+      },
+      {
+        threshold: 0.1, // Trigger when 10% visible
+        rootMargin: '50px' // Start loading 50px before element is visible
+      }
+    );
+
+    observer.observe(elementRef.current);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [elementRef]);
+
+  // Main subscription effect
+  useEffect(() => {
+    // Only subscribe if enabled, visible, and has valid eventId
+    const shouldSubscribe = manualEnabled && isVisible && eventId && eventId.length === 64;
+    
+    if (!shouldSubscribe) {
+      // Clean up existing subscription if conditions change
+      if (subscriptionRef.current) {
+        subscriptionRef.current.close();
+        subscriptionRef.current = null;
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      
+      if (!eventId || eventId.length !== 64) {
+        setInteractions({ zaps: 0, likes: 0, comments: 0, replies: 0, threadComments: 0 });
+        setIsLoading(false);
+        setIsLoadingZaps(false);
+        setIsLoadingLikes(false);
+        setIsLoadingComments(false);
+      }
+      return;
+    }
+
+    // If we already have a subscription, don't create a new one
+    if (subscriptionRef.current) {
       return;
     }
 
@@ -94,10 +143,10 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
       });
     };
 
-    const setupSubscriptions = async () => {
+    const setupSubscription = async () => {
       try {
         // Subscribe to all interaction types with a single subscription
-        const interactionSubscription = await subscribe(
+        const subscription = await subscribe(
           [{ kinds: [9735, 7, 1], '#e': [eventId] }],
           (event: NostrEvent) => {
             console.log(`interaction event (kind ${event.kind})`, event);
@@ -124,6 +173,8 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
           }
         );
 
+        subscriptionRef.current = subscription;
+
         // Give subscription time to receive initial data
         setTimeout(() => {
           setIsLoadingZaps(false);
@@ -132,18 +183,19 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
           setIsLoading(false);
         }, 5000); // Wait 5 seconds for initial data
 
-        // Close subscription after 20 seconds
-        const cleanup = setTimeout(() => {
-          interactionSubscription.close();
-        }, 20000);
+        // Dynamic timeout based on visibility
+        // If not visible for 30 seconds, close the subscription
+        if (!isVisible) {
+          timeoutRef.current = setTimeout(() => {
+            if (subscriptionRef.current && !isVisible) {
+              subscriptionRef.current.close();
+              subscriptionRef.current = null;
+            }
+          }, 30000);
+        }
 
-        // Return cleanup function
-        return () => {
-          clearTimeout(cleanup);
-          interactionSubscription.close();
-        };
       } catch (err) {
-        console.error('Error setting up subscriptions:', err);
+        console.error('Error setting up subscription:', err);
         setIsError(true);
         setError(err as Error);
         setIsLoading(false);
@@ -153,13 +205,20 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
       }
     };
 
-    const cleanup = setupSubscriptions();
+    setupSubscription();
 
-    // Return cleanup function
+    // Cleanup function
     return () => {
-      cleanup.then(cleanupFn => cleanupFn?.());
+      if (subscriptionRef.current) {
+        subscriptionRef.current.close();
+        subscriptionRef.current = null;
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
-  }, [eventId, subscribe]);
+  }, [eventId, subscribe, manualEnabled, isVisible]);
 
   const getDirectReplies = () => {
     return interactions.replies;
@@ -167,6 +226,23 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
 
   const getThreadComments = () => {
     return interactions.threadComments;
+  };
+
+  const refetch = () => {
+    // Close existing subscription
+    if (subscriptionRef.current) {
+      subscriptionRef.current.close();
+      subscriptionRef.current = null;
+    }
+    
+    // Reset data
+    zapsRef.current = [];
+    likesRef.current = [];
+    commentsRef.current = [];
+    setInteractions({ zaps: 0, likes: 0, comments: 0, replies: 0, threadComments: 0 });
+    
+    // Force re-run of the effect
+    setIsLoading(true);
   };
 
   return {
@@ -181,9 +257,6 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
     // Additional methods for thread analysis
     getDirectReplies,
     getThreadComments,
-    refetch: () => {
-      // Force re-run of the effect by updating state
-      setIsLoading(true);
-    }
+    refetch
   };
 }

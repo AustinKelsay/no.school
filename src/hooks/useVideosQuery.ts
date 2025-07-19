@@ -5,7 +5,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { ResourceAdapter } from '@/lib/db-adapter'
+import { ResourceAdapter, PaginationOptions } from '@/lib/db-adapter'
 import { Resource } from '@/data/types'
 import { useResourceNotes, filterNotesByContentType } from './useResourceNotes'
 import { NostrEvent } from 'snstr'
@@ -22,6 +22,14 @@ export interface VideosQueryResult {
   isError: boolean
   error: Error | null
   refetch: () => void
+  pagination?: {
+    page: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+    hasNext: boolean
+    hasPrev: boolean
+  }
 }
 
 // Query keys factory for better cache management
@@ -29,6 +37,7 @@ export const videosQueryKeys = {
   all: ['videos'] as const,
   lists: () => [...videosQueryKeys.all, 'list'] as const,
   list: (filters: string) => [...videosQueryKeys.lists(), { filters }] as const,
+  listPaginated: (page: number, pageSize: number) => [...videosQueryKeys.lists(), { page, pageSize }] as const,
   details: () => [...videosQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...videosQueryKeys.details(), id] as const,
   notes: () => [...videosQueryKeys.all, 'notes'] as const,
@@ -37,6 +46,10 @@ export const videosQueryKeys = {
 
 // Options for the hook
 export interface UseVideosQueryOptions {
+  // Pagination options
+  page?: number
+  pageSize?: number
+  // Query options
   enabled?: boolean
   staleTime?: number
   gcTime?: number
@@ -51,21 +64,47 @@ export interface UseVideosQueryOptions {
  * Fetch video resources using unified resource notes fetching
  * Now leverages shared caching and deduplication via useResourceNotes
  */
-async function fetchVideoResources(): Promise<Resource[]> {
-  // First, fetch all resources from the fake DB
+export async function fetchVideoResources(options?: PaginationOptions): Promise<{ 
+  resources: Resource[], 
+  pagination?: {
+    page: number
+    pageSize: number
+    totalItems: number
+    totalPages: number
+    hasNext: boolean
+    hasPrev: boolean
+  }
+}> {
+  // If pagination options provided, use paginated method
+  if (options?.page !== undefined || options?.pageSize !== undefined) {
+    const result = await ResourceAdapter.findAllPaginated(options)
+    
+    // Filter out lessons at the resource level
+    const resourcesWithoutLessons = await Promise.all(
+      result.data.map(async (resource: Resource) => {
+        const isLesson = await ResourceAdapter.isLesson(resource.id)
+        return isLesson ? null : resource
+      })
+    )
+    
+    return {
+      resources: resourcesWithoutLessons.filter((resource: Resource | null): resource is Resource => resource !== null),
+      pagination: result.pagination
+    }
+  }
+  
+  // Legacy: fetch all resources
   const resources = await ResourceAdapter.findAll()
-
-  // Filter out lessons at the resource level
   const resourcesWithoutLessons = await Promise.all(
     resources.map(async (resource) => {
-      // Filter out if it is a lesson
-      // TODO: eventually we want to do this right in the UI component since only homepage carousels will filter out lessons later on.
       const isLesson = await ResourceAdapter.isLesson(resource.id)
       return isLesson ? null : resource
     })
   )
 
-  return resourcesWithoutLessons.filter(resource => resource !== null) as Resource[]
+  return {
+    resources: resourcesWithoutLessons.filter(resource => resource !== null) as Resource[]
+  }
 }
 
 /**
@@ -82,12 +121,16 @@ export function useVideosQuery(options: UseVideosQueryOptions = {}): VideosQuery
     retry = 3,
     retryDelay = 1000,
     select,
+    page,
+    pageSize,
   } = options
 
   // First, fetch all resources (without notes)
   const resourcesQuery = useQuery({
-    queryKey: videosQueryKeys.lists(),
-    queryFn: fetchVideoResources,
+    queryKey: page !== undefined || pageSize !== undefined 
+      ? videosQueryKeys.listPaginated(page || 1, pageSize || 50)
+      : videosQueryKeys.lists(),
+    queryFn: () => fetchVideoResources({ page, pageSize }),
     enabled,
     staleTime,
     gcTime,
@@ -98,7 +141,8 @@ export function useVideosQuery(options: UseVideosQueryOptions = {}): VideosQuery
   })
 
   // Extract resource IDs for note fetching
-  const resourceIds = resourcesQuery.data?.map(resource => resource.id) || []
+  const resources = resourcesQuery.data?.resources || []
+  const resourceIds = resources.map(resource => resource.id)
 
   // Fetch notes using unified hook (this provides deduplication)
   const notesQuery = useResourceNotes(resourceIds, {
@@ -115,7 +159,7 @@ export function useVideosQuery(options: UseVideosQueryOptions = {}): VideosQuery
   const videoNotes = filterNotesByContentType(notesQuery.notes, 'video')
 
   // Combine resources with their notes, filtering for videos only
-  const videosWithNotes: VideoResourceWithNote[] = (resourcesQuery.data || [])
+  const videosWithNotes: VideoResourceWithNote[] = resources
     .map(resource => {
       const noteResult = videoNotes.get(resource.id)
       if (!noteResult) return null // Not a video
@@ -140,6 +184,7 @@ export function useVideosQuery(options: UseVideosQueryOptions = {}): VideosQuery
     isLoading,
     isError,
     error,
+    pagination: resourcesQuery.data?.pagination,
     refetch: () => {
       resourcesQuery.refetch()
       notesQuery.refetch()

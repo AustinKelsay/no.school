@@ -5,9 +5,16 @@
 
 import { Course, Resource, Lesson } from '@/data/types'
 import { NostrEvent } from 'snstr'
+import { nostrCourseListEvents, nostrFreeContentEvents, nostrPaidContentEvents } from '@/data/nostr-events'
 import courseSeedData from '@/data/mockDb/Course.json'
 import resourceSeedData from '@/data/mockDb/Resource.json'
 import lessonSeedData from '@/data/mockDb/Lesson.json'
+
+// Pagination options for query functions
+export interface PaginationOptions {
+  page?: number
+  pageSize?: number
+}
 
 // Extended types with Nostr note data
 export interface CourseWithNote extends Course {
@@ -50,6 +57,41 @@ export class CourseAdapter {
     return [...coursesInMemory]
   }
 
+  static async findAllPaginated(options?: PaginationOptions): Promise<{
+    data: Course[]
+    pagination: {
+      page: number
+      pageSize: number
+      totalItems: number
+      totalPages: number
+      hasNext: boolean
+      hasPrev: boolean
+    }
+  }> {
+    await new Promise(resolve => setTimeout(resolve, 30))
+    
+    const page = options?.page || 1
+    const pageSize = options?.pageSize || 50
+    const totalItems = coursesInMemory.length
+    const totalPages = Math.ceil(totalItems / pageSize)
+    
+    const startIndex = (page - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    const data = coursesInMemory.slice(startIndex, endIndex)
+    
+    return {
+      data,
+      pagination: {
+        page,
+        pageSize,
+        totalItems,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    }
+  }
+
   static async findById(id: string): Promise<Course | null> {
     await new Promise(resolve => setTimeout(resolve, 20))
     return coursesInMemory.find(course => course.id === id) || null
@@ -60,10 +102,12 @@ export class CourseAdapter {
     const course = coursesInMemory.find(course => course.id === id)
     if (!course) return null
     
-    // Return course without note - notes will be fetched separately by hooks using real Nostr data
+    // Find the associated Nostr note - for demo purposes, we'll use the first available note
+    const note = nostrCourseListEvents.find(event => event.id === id) || nostrCourseListEvents[0]
+    
     return {
       ...course,
-      note: undefined
+      note: note || undefined
     }
   }
 
@@ -120,6 +164,41 @@ export class ResourceAdapter {
     return [...resourcesInMemory]
   }
 
+  static async findAllPaginated(options?: PaginationOptions): Promise<{
+    data: Resource[]
+    pagination: {
+      page: number
+      pageSize: number
+      totalItems: number
+      totalPages: number
+      hasNext: boolean
+      hasPrev: boolean
+    }
+  }> {
+    await new Promise(resolve => setTimeout(resolve, 30))
+    
+    const page = options?.page || 1
+    const pageSize = options?.pageSize || 50
+    const totalItems = resourcesInMemory.length
+    const totalPages = Math.ceil(totalItems / pageSize)
+    
+    const startIndex = (page - 1) * pageSize
+    const endIndex = startIndex + pageSize
+    const data = resourcesInMemory.slice(startIndex, endIndex)
+    
+    return {
+      data,
+      pagination: {
+        page,
+        pageSize,
+        totalItems,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1
+      }
+    }
+  }
+
   static async findById(id: string): Promise<Resource | null> {
     await new Promise(resolve => setTimeout(resolve, 20))
     return resourcesInMemory.find(resource => resource.id === id) || null
@@ -130,10 +209,14 @@ export class ResourceAdapter {
     const resource = resourcesInMemory.find(resource => resource.id === id)
     if (!resource) return null
     
-    // Return resource without note - notes will be fetched separately by hooks using real Nostr data
+    // Find the associated Nostr note - for demo purposes, we'll use the first available note
+    console.log("id", id);
+    console.log("nostrFreeContentEvents", nostrFreeContentEvents);
+    const note = [...nostrFreeContentEvents, ...nostrPaidContentEvents].find(event => event.id === id) || nostrFreeContentEvents[0]
+    
     return {
       ...resource,
-      note: undefined
+      note: note || undefined
     }
   }
 

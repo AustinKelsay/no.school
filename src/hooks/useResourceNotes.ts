@@ -42,7 +42,7 @@ export interface UseResourceNotesOptions {
  * Fetch resource notes in batch with deduplication
  * This is the core function that prevents redundant network requests
  */
-async function fetchResourceNotesBatch(
+export async function fetchResourceNotesBatch(
   resourceIds: string[],
   relayPool: RelayPool,
   relays: string[]
