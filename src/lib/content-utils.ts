@@ -3,7 +3,7 @@
  * Handles both documents (markdown) and videos (embedded content)
  */
 
-import { nostrFreeContentEvents, nostrPaidContentEvents } from '@/data/nostr-events'
+// import { nostrFreeContentEvents, nostrPaidContentEvents } from '@/data/nostr-events'
 import { ResourceDisplay, NostrFreeContentEvent, NostrPaidContentEvent } from '@/data/types'
 import { NostrEvent } from 'snstr'
 
@@ -19,54 +19,6 @@ export interface ResourceContent {
   author: string
   pubkey: string
   publishedAt: string
-}
-
-/**
- * Extract content from Nostr events for a resource
- */
-export function getResourceContent(resource: ResourceDisplay): ResourceContent | null {
-  // First check free content events
-  const freeEvent = nostrFreeContentEvents.find(event => 
-    event.id === resource.noteId || event.tags.some(tag => tag[0] === 'd' && tag[1] === resource.id)
-  )
-  
-  if (freeEvent) {
-    return parseNostrEventContent(freeEvent, resource)
-  }
-  
-  // Then check paid content events
-  const paidEvent = nostrPaidContentEvents.find(event => 
-    event.id === resource.noteId || event.tags.some(tag => tag[0] === 'd' && tag[1] === resource.id)
-  )
-  
-  if (paidEvent) {
-    return parseNostrEventContent(paidEvent, resource)
-  }
-  
-  // Fallback for resources without Nostr events - create basic content structure
-  return {
-    id: resource.id,
-    title: resource.title || 'Unknown Resource',
-    content: resource.type === 'video' ? 
-      `<div class="video-placeholder">
-        <h2>${resource.title}</h2>
-        <p>${resource.description}</p>
-        <div class="video-info">
-          <p><strong>Duration:</strong> ${resource.duration || 'Unknown'}</p>
-          <p><strong>Category:</strong> ${resource.category}</p>
-          <p><strong>Instructor:</strong> ${resource.instructor}</p>
-        </div>
-      </div>` : 
-      resource.description || 'Content not available',
-    type: resource.type === 'video' ? 'video' : 'document',
-    isMarkdown: resource.type !== 'video',
-    hasVideo: resource.type === 'video',
-    videoUrl: resource.type === 'video' && resource.videoId ? `/videos/${resource.videoId}` : undefined,
-    additionalLinks: resource.additionalLinks || [],
-    author: resource.instructor || 'Unknown',
-    pubkey: resource.instructorPubkey || resource.userId || '',
-    publishedAt: resource.createdAt
-  }
 }
 
 /**

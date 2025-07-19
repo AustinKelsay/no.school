@@ -61,7 +61,7 @@ Real-time content management through Nostr protocol:
 - **Real-time Updates**: Subscribe to content changes via Nostr events
 
 #### Advanced Theme System Architecture
-Multi-layered theming with 23 color schemes:
+Multi-layered theming with 47 color schemes:
 - **ThemeProvider** (next-themes) for dark/light mode
 - **ThemeColorProvider** for custom color themes in `src/contexts/theme-context.tsx`
 - **Theme Configuration**: `src/lib/theme-config.ts` with multiple radius options and style variants
@@ -155,46 +155,17 @@ RESTful API structure in `src/app/api/`:
 - **Validation**: Comprehensive Zod schemas matching TypeScript types
 - **CORS Configuration**: Proper cross-origin handling
 
-## 🎯 **Recent Improvements**
-
-### Theme Configuration System (Latest)
-- **Configurable UI Controls**: Control visibility of theme selector, font toggle, and dark mode toggle via `config/theme.json`
-- **Default Value Override**: Force specific themes, fonts, or dark mode settings for branded deployments
-- **47 Complete Themes**: All themes from shadcn community with full color palettes and appropriate fonts
-- **24 Font Options**: Comprehensive font library including serif, sans-serif, and monospace options
-- **Validation System**: Built-in validation to ensure configured themes and fonts exist
-- **Documentation**: Complete configuration guide in `docs/theme-configuration.md`
-
-**Configuration Examples**:
-```json
-{
-  "ui": {
-    "showThemeSelector": false,
-    "showFontToggle": true,
-    "showThemeToggle": true
-  },
-  "defaults": {
-    "theme": "cosmic-night",
-    "font": "inter",
-    "darkMode": true
-  }
-}
-```
-
-This enables corporate deployments with locked branding while maintaining user choice when desired.
-
-### Smart Image Optimization
+## Smart Image Optimization
 - **OptimizedImage Component**: Automatically handles images from any domain without manual configuration
 - **Intelligent Domain Detection**: Checks if domains are configured for optimization
 - **Seamless Fallback**: Uses `unoptimized` prop for unknown domains while maintaining all Next.js Image benefits
 - **Zero Configuration**: No more manual domain additions to `next.config.ts`
-- **Full Feature Support**: Lazy loading, responsive images, blur placeholders, and proper accessibility
 
-**Usage**: The component automatically detects whether an image domain is configured:
-- **Configured domains**: Full Next.js Image optimization (AVIF/WebP conversion, responsive loading)
-- **Unknown domains**: Next.js Image with `unoptimized` prop (lazy loading, responsive behavior, but no format conversion)
-
-This solves the "hostname not configured" errors while maintaining optimal performance for known domains.
+## Theme Configuration System
+- **Configurable UI Controls**: Control visibility of theme selector, font toggle, and dark mode toggle via `config/theme.json`
+- **Default Value Override**: Force specific themes, fonts, or dark mode settings for branded deployments
+- **47 Complete Themes**: All themes from shadcn community with full color palettes and appropriate fonts
+- **24 Font Options**: Comprehensive font library including serif, sans-serif, and monospace options
 
 ### Component Patterns
 - **Server Components**: Default for performance with streaming

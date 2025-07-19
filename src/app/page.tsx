@@ -51,10 +51,10 @@ export default function Home() {
         spacing="xl" 
         className="bg-gradient-to-b from-background to-muted/50"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           {/* Content */}
-          <div className="space-y-8">
-            <div className="space-y-4">
+          <div className="space-y-6 lg:space-y-8">
+            <div className="space-y-3 lg:space-y-4">
               <Badge variant="outline" className="w-fit">
                 <Sparkles className="h-3 w-3 mr-1" />
                 {homepage.hero.badge}
@@ -62,26 +62,26 @@ export default function Home() {
               
               <HeroAnimated />
               
-              <p className="text-lg text-muted-foreground max-w-2xl">
+              <p className="text-base lg:text-lg text-muted-foreground max-w-2xl">
                 {homepage.hero.description}
               </p>
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               {heroStats.map((stat, index) => (
                 <div key={index} className="text-center space-y-1">
                   <div className="flex items-center justify-center">
-                    <stat.icon className="h-4 w-4 text-primary mr-1" />
-                    <span className="text-2xl font-bold">{stat.value}</span>
+                    <stat.icon className="h-3 w-3 lg:h-4 lg:w-4 text-primary mr-1" />
+                    <span className="text-xl lg:text-2xl font-bold">{stat.value}</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  <p className="text-xs lg:text-sm text-muted-foreground">{stat.label}</p>
                 </div>
               ))}
             </div>
 
             {/* CTA */}
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
               <Button size="lg" className="flex-1 sm:flex-none">
                 <BookOpen className="h-4 w-4 mr-2" />
                 {homepage.hero.buttons.startLearning}
@@ -94,30 +94,30 @@ export default function Home() {
           </div>
 
           {/* Visual */}
-          <div className="relative">
+          <div className="relative order-first lg:order-last">
             <div className="aspect-video rounded-lg bg-gradient-to-br from-primary/20 to-secondary/20 flex items-center justify-center border border-border">
               <div className="text-center">
-                <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-primary/20">
-                  <Zap className="h-10 w-10 text-primary" />
+                <div className="mx-auto mb-4 flex h-16 lg:h-20 w-16 lg:w-20 items-center justify-center rounded-full bg-primary/20">
+                  <Zap className="h-8 lg:h-10 w-8 lg:w-10 text-primary" />
                 </div>
-                <p className="text-muted-foreground">{homepage.visual.lightningText}</p>
+                <p className="text-sm lg:text-base text-muted-foreground">{homepage.visual.lightningText}</p>
               </div>
             </div>
             
             {/* Floating content type cards */}
-            <div className="absolute -top-4 -right-4 z-10">
-              <Card className="w-32 p-3">
-                <div className="flex items-center space-x-2">
-                  <div className="h-2 w-2 bg-primary rounded-full"></div>
+            <div className="absolute -top-2 lg:-top-4 -right-2 lg:-right-4 z-10">
+              <Card className="w-28 lg:w-32 p-2 lg:p-3">
+                <div className="flex items-center space-x-1 lg:space-x-2">
+                  <div className="h-1.5 lg:h-2 w-1.5 lg:w-2 bg-primary rounded-full"></div>
                   <span className="text-xs font-medium">{homepage.visual.liveCourse}</span>
                 </div>
               </Card>
             </div>
             
-            <div className="absolute -bottom-4 -left-4 z-10">
-              <Card className="w-36 p-3">
-                <div className="flex items-center space-x-2">
-                  <CheckCircle className="h-4 w-4 text-primary" />
+            <div className="absolute -bottom-2 lg:-bottom-4 -left-2 lg:-left-4 z-10">
+              <Card className="w-32 lg:w-36 p-2 lg:p-3">
+                <div className="flex items-center space-x-1 lg:space-x-2">
+                  <CheckCircle className="h-3 lg:h-4 w-3 lg:w-4 text-primary" />
                   <span className="text-xs font-medium">{homepage.visual.completed}</span>
                 </div>
               </Card>
@@ -133,18 +133,18 @@ export default function Home() {
       <Section spacing="lg" className="bg-muted/50">
         <div className="text-center space-y-6">
           <div className="space-y-2">
-            <h2 className="text-3xl font-bold">{homepage.cta.title}</h2>
-            <p className="text-muted-foreground max-w-2xl mx-auto">
+            <h2 className="text-2xl lg:text-3xl font-bold">{homepage.cta.title}</h2>
+            <p className="text-sm lg:text-base text-muted-foreground max-w-2xl mx-auto">
               {homepage.cta.description}
             </p>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg">
+          <div className="flex flex-col sm:flex-row gap-3 lg:gap-4 justify-center">
+            <Button size="lg" className="w-full sm:w-auto">
               <Sparkles className="h-4 w-4 mr-2" />
               {homepage.cta.buttons.getStarted}
             </Button>
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" className="w-full sm:w-auto">
               <ExternalLink className="h-4 w-4 mr-2" />
               {homepage.cta.buttons.viewCourses}
             </Button>

@@ -86,13 +86,13 @@ export function DocumentsSection() {
           >
             <CarouselContent className="-ml-2 md:-ml-4">
               {filteredDocuments.map((document) => (
-                <CarouselItem key={document.id} className={`pl-2 md:pl-4 ${sectionConfig?.carousel.itemsPerView.tablet === 2 ? 'md:basis-1/2' : ''} ${sectionConfig?.carousel.itemsPerView.desktop === 3 ? 'lg:basis-1/3' : sectionConfig?.carousel.itemsPerView.desktop === 4 ? 'lg:basis-1/4' : 'lg:basis-1/2'}`}>
+                <CarouselItem key={document.id} className={`pl-2 md:pl-4 basis-full ${sectionConfig?.carousel.itemsPerView.tablet === 2 ? 'md:basis-1/2' : ''} ${sectionConfig?.carousel.itemsPerView.desktop === 3 ? 'lg:basis-1/3' : sectionConfig?.carousel.itemsPerView.desktop === 4 ? 'lg:basis-1/4' : 'lg:basis-1/2'}`}>
                   <DocumentCard document={document} />
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious className="-left-12" />
-            <CarouselNext className="-right-12" />
+            <CarouselPrevious className="left-[-10px] translate-x-0 z-10 sm:-left-12 sm:translate-x-0" />
+            <CarouselNext className="right-[-10px] translate-x-0 z-10 sm:-right-12 sm:translate-x-0" />
           </Carousel>
         )}
       </div>

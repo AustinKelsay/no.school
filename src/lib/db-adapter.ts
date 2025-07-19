@@ -5,7 +5,6 @@
 
 import { Course, Resource, Lesson } from '@/data/types'
 import { NostrEvent } from 'snstr'
-import { nostrCourseListEvents, nostrFreeContentEvents, nostrPaidContentEvents } from '@/data/nostr-events'
 import courseSeedData from '@/data/mockDb/Course.json'
 import resourceSeedData from '@/data/mockDb/Resource.json'
 import lessonSeedData from '@/data/mockDb/Lesson.json'
@@ -40,6 +39,29 @@ const lessonData: Lesson[] = lessonSeedData.map(lesson => ({
   resourceId: lesson.resourceId === 'NULL' ? undefined : lesson.resourceId,
   draftId: lesson.draftId === 'NULL' ? undefined : lesson.draftId
 })) as Lesson[]
+
+// Mock Nostr events data - in a real app, these would be fetched from Nostr relays
+// using the noteId references from the database records
+const mockNostrEvents: NostrEvent[] = [
+  // Course event for the starter course
+  {
+    id: "d2797459e3f15491b39225a68146d3ec375f71d01b57cfe3a559179777e20912",
+    pubkey: "f33c8a9617cb15f705fc70cd461cfd6eaf22f9e24c33eabad981648e5ec6f741",
+    created_at: 1740860353,
+    kind: 30004,
+    content: "",
+    sig: "example_signature",
+    tags: [
+      ["d", "f538f5c5-1a72-4804-8eb1-3f05cea64874"],
+      ["name", "PlebDevs Starter Course"],
+      ["about", "Welcome to the PlebDevs starter course! Complete beginner to capable developer course."],
+      ["image", "https://plebdevs-bucket.nyc3.cdn.digitaloceanspaces.com/images/plebdevs-starter.png"],
+      ["t", "beginner"],
+      ["t", "frontend"],
+      ["t", "course"]
+    ]
+  } as NostrEvent
+]
 
 // In-memory storage for runtime modifications
 let coursesInMemory: Course[] = [...courseData]
@@ -102,8 +124,8 @@ export class CourseAdapter {
     const course = coursesInMemory.find(course => course.id === id)
     if (!course) return null
     
-    // Find the associated Nostr note - for demo purposes, we'll use the first available note
-    const note = nostrCourseListEvents.find(event => event.id === id) || nostrCourseListEvents[0]
+    // Find the associated Nostr note - simulate fetching by noteId
+    const note = mockNostrEvents.find(event => event.id === course.noteId) || mockNostrEvents[0]
     
     return {
       ...course,
@@ -209,10 +231,8 @@ export class ResourceAdapter {
     const resource = resourcesInMemory.find(resource => resource.id === id)
     if (!resource) return null
     
-    // Find the associated Nostr note - for demo purposes, we'll use the first available note
-    console.log("id", id);
-    console.log("nostrFreeContentEvents", nostrFreeContentEvents);
-    const note = [...nostrFreeContentEvents, ...nostrPaidContentEvents].find(event => event.id === id) || nostrFreeContentEvents[0]
+    // Find the associated Nostr note - simulate fetching by noteId
+    const note = mockNostrEvents.find(event => event.id === resource.noteId)
     
     return {
       ...resource,
