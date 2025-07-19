@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CourseRepository } from '@/lib/repositories';
+import { CourseAdapter } from '@/lib/db-adapter';
 
 /**
  * GET /api/courses/[id] - Fetch a specific course
@@ -19,7 +19,7 @@ export async function GET(
       );
     }
 
-    const course = await CourseRepository.findById(courseId);
+    const course = await CourseAdapter.findById(courseId);
     
     if (!course) {
       return NextResponse.json(
@@ -56,7 +56,7 @@ export async function PUT(
       );
     }
 
-    const updatedCourse = await CourseRepository.update(courseId, body);
+    const updatedCourse = await CourseAdapter.update(courseId, body);
     
     return NextResponse.json(
       { course: updatedCourse, message: 'Course updated successfully' }
@@ -87,7 +87,7 @@ export async function DELETE(
       );
     }
 
-    const deleted = await CourseRepository.delete(courseId);
+    const deleted = await CourseAdapter.delete(courseId);
     
     if (!deleted) {
       return NextResponse.json(

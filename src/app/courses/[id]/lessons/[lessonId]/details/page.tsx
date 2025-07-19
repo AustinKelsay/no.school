@@ -96,9 +96,9 @@ function LessonNavigation({
   const nextLesson = currentLessonIndex < lessons.length - 1 ? lessons[currentLessonIndex + 1] : null
 
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-2">
       {prevLesson && (
-        <Button variant="outline" size="sm" asChild>
+        <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
           <Link href={`/courses/${courseId}/lessons/${prevLesson.id}/details`}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Previous
@@ -106,7 +106,7 @@ function LessonNavigation({
         </Button>
       )}
       
-      <Button variant="outline" size="sm" asChild>
+      <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
         <Link href={`/courses/${courseId}`}>
           <RotateCcw className="h-4 w-4 mr-1" />
           Back to Course
@@ -114,7 +114,7 @@ function LessonNavigation({
       </Button>
       
       {nextLesson && (
-        <Button size="sm" asChild>
+        <Button size="sm" className="w-full sm:w-auto" asChild>
           <Link href={`/courses/${courseId}/lessons/${nextLesson.id}/details`}>
             Next
             <ArrowRight className="h-4 w-4 ml-1" />
@@ -194,7 +194,7 @@ function LessonMetadata({
   const likesCount = interactions.likes
   
   return (
-    <div className="flex items-center space-x-6 flex-wrap text-sm text-muted-foreground">
+    <div className="flex items-center flex-wrap gap-4 sm:gap-6 text-sm text-muted-foreground">
       <InstructorDisplay instructorPubkey={instructorPubkey} fallbackName={instructorName} />
       
       <div className="flex items-center space-x-1">
@@ -217,8 +217,8 @@ function LessonMetadata({
       )}
       
       {/* Engagement metrics */}
-      <div className="flex items-center space-x-6 flex-wrap">
-        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+      <div className="flex items-center flex-wrap gap-4 sm:gap-6">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
           <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
           <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">
             {isLoadingZaps ? (
@@ -227,9 +227,9 @@ function LessonMetadata({
               zapsCount
             )}
           </span>
-          <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-sm">zaps</span>
+          <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-xs sm:text-sm">zaps</span>
         </div>
-        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
           <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
           <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">
             {isLoadingComments ? (
@@ -238,9 +238,9 @@ function LessonMetadata({
               commentsCount
             )}
           </span>
-          <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-sm">comments</span>
+          <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-xs sm:text-sm">comments</span>
         </div>
-        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
           <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
           <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">
             {isLoadingLikes ? (
@@ -249,7 +249,7 @@ function LessonMetadata({
               likesCount
             )}
           </span>
-          <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-sm">likes</span>
+          <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-xs sm:text-sm">likes</span>
         </div>
       </div>
     </div>
@@ -421,7 +421,7 @@ function LessonContent({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               {getContentTypeIcon(resourceType)}
-              <h1 className="text-3xl font-bold">{resourceTitle}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold">{resourceTitle}</h1>
             </div>
             <div className="flex items-center space-x-2">
               <Badge variant="outline" className="capitalize">

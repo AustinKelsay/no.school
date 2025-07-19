@@ -12,7 +12,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from "@/components/ui/dropdown-menu"
-import { Menu, Search, Zap, Settings, Sun, Moon, Type, Check } from "lucide-react"
+import { Menu, Search, Zap, Settings, Moon, Type, Check } from "lucide-react"
 import { Container } from "./container"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ThemeSelector } from "@/components/theme-selector"

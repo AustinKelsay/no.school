@@ -124,10 +124,10 @@ export function ZapThreads({
   const finalAnchor = eventDetails ? createNaddrAnchor(eventDetails) : anchor!
   const finalAuthor = author || eventDetails?.pubkey
 
-  // Custom CSS variables that match the current theme
+  // Custom CSS variables that match the current theme with responsive font size
   const zapThreadsStyle: React.CSSProperties = {
     '--ztr-font': 'var(--font-family)',
-    '--ztr-font-size': '14px',
+    '--ztr-font-size': 'clamp(13px, 2.5vw, 14px)', // Responsive font size
     '--ztr-text-color': 'hsl(var(--foreground))',
     '--ztr-link-color': 'hsl(var(--primary))',
     '--ztr-background-color': 'hsl(var(--background))',
@@ -146,7 +146,7 @@ export function ZapThreads({
         disable,
         style: {
           width: '100%',
-          minHeight: '200px'
+          minHeight: 'clamp(150px, 30vh, 200px)' // Responsive min height
         }
       })}
     </div>
@@ -158,13 +158,13 @@ export function ZapThreads({
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center space-x-2">
-          <MessageCircle className="h-5 w-5" />
+      <CardHeader className="pb-3 sm:pb-6">
+        <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+          <MessageCircle className="h-4 w-4 sm:h-5 sm:w-5" />
           <span>{title}</span>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0 sm:pt-6 px-3 sm:px-6">
         {zapThreadsElement}
       </CardContent>
     </Card>

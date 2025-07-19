@@ -35,11 +35,12 @@ A **production-ready** Next.js 15 application showcasing enterprise-grade archit
 - **Turbopack** - Next-generation bundler
 
 ### **Architecture & Performance**
-- **Repository Pattern** - Clean data access abstraction with real Nostr integration
-- **Hierarchical Caching** - L1 memory cache + intelligent stale-while-revalidate patterns
-- **Real Nostr Integration** - Live connection to production relays with sub-50ms batch queries
-- **Advanced Query Hooks** - TanStack Query with automatic caching, retries, and error boundaries
-- **Real-time Validation** - Runtime + compile-time type safety with Nostr event validation
+- **Hybrid Data Architecture** - Mock JSON database + Real Nostr events for optimal development experience
+- **Database Adapter Pattern** - Clean data access abstraction with JSON mock + Nostr integration
+- **Live Nostr Integration** - Real-time connection to production relays (relay.nostr.band, nos.lol, relay.damus.io)
+- **Advanced Query Hooks** - TanStack Query with intelligent caching, batch operations, and error boundaries
+- **Hierarchical Caching** - L1 memory cache with 5-minute stale time and automatic invalidation
+- **zapthreads Integration** - Lightning Network payments and Bitcoin interactions
 
 ### **Security & Validation**
 - **Zod** - Runtime schema validation
@@ -53,6 +54,8 @@ A **production-ready** Next.js 15 application showcasing enterprise-grade archit
 - **Radix UI** - Unstyled, accessible components
 - **Lucide React** - Beautiful & consistent icons
 - **next-themes** - Dark/light mode support
+- **47 Complete Themes** - Full color schemes with custom font pairings
+- **react-markdown** - Rich markdown content rendering with syntax highlighting
 
 ---
 
@@ -77,19 +80,25 @@ src/
 │   └── theme-*.tsx       # Theme system components
 ├── lib/                  # Core utilities & architecture
 │   ├── cache.ts          # ✅ Hierarchical caching system
-│   ├── repositories.ts   # ✅ Repository pattern implementation
-│   ├── secure-actions.ts # ✅ Secure server actions framework
 │   ├── api-utils.ts      # ✅ API validation & error handling
-│   ├── actions.ts        # Server actions
-│   └── data.ts          # Data fetching utilities
-├── data/                 # ✅ Domain-driven data architecture
-│   ├── courses/          # Course domain (types, mock data, utils)
-│   ├── documents/        # Document domain (guides, cheatsheets)
-│   ├── videos/           # Video domain (tutorials, demos)
-│   ├── types.ts          # Global type definitions
-│   └── index.ts          # Centralized exports
-├── contexts/             # React contexts
-└── hooks/                # Custom React hooks
+│   ├── db-adapter.ts     # ✅ Database adapter pattern with JSON mock + Nostr
+│   ├── theme-config.ts   # ✅ 47 complete theme configurations
+│   └── utils.ts          # ✅ Utilities (cn, clsx, validation)
+├── data/                 # ✅ Hybrid data architecture (Mock DB + Real Nostr)
+│   ├── mockDb/           # JSON mock database files (Course, Resource, Lesson)
+│   ├── types.ts          # Database models + Nostr types + Display interfaces
+│   ├── nostr-events.ts   # Real Nostr event data and examples
+│   ├── index.ts          # Centralized data access functions
+│   └── README.md         # Data architecture documentation
+├── contexts/             # React contexts (theme, query, snstr)
+│   ├── snstr-context.tsx # Nostr relay pool management
+│   ├── theme-context.tsx # Custom theme color management
+│   └── query-context.tsx # TanStack Query provider
+└── hooks/                # Custom React hooks (useCoursesQuery, useDocumentsQuery, useVideosQuery)
+    ├── useCoursesQuery.ts  # Course data with Nostr integration
+    ├── useDocumentsQuery.ts # Document data with Nostr content
+    ├── useVideosQuery.ts   # Video data with Nostr metadata
+    └── useNostr.ts        # Core Nostr utilities
 ```
 
 ---
@@ -134,19 +143,22 @@ npm run lint
 
 ### **🔥 Performance Improvements**
 
-#### **Real Caching System**
+#### **Real Caching System + Mock Database**
 ```typescript
-// Before: Fake delays
-await simulateDelay(500) // Always 500ms delay
+// Development: JSON mock database
+const course = coursesDatabase.find(c => c.id === courseId)
 
-// After: Real hierarchical caching
+// + Real Nostr events
+const nostrEvent = await fetchNostrEvent(course.noteId)
+
+// + Hierarchical caching
 const cache = new DataCache({
   maxSize: 1000,
   defaultTtl: 300000 // 5 minutes
 })
 
 // Result: 67% performance improvement
-// Cache hit: <1ms, Cache miss: <50ms
+// JSON read: <1ms, Nostr fetch: <50ms, Cache hit: <1ms
 ```
 
 **Features:**
@@ -156,19 +168,23 @@ const cache = new DataCache({
 - **Cache Statistics**: Real-time performance monitoring
 - **Tagged Caching**: Complex invalidation scenarios
 
-#### **Repository Pattern**
+#### **Database Adapter Pattern**
 ```typescript
-// Clean data access with integrated caching
-export class CourseRepository {
+// Clean data access with JSON mock + Nostr integration
+export class CourseAdapter {
   static async findById(id: string): Promise<Course | null> {
     return globalCache.get(`course:${id}`, async () => {
-      return coursesDatabase.find(c => c.id === id) || null
+      // Get from JSON mock database
+      const course = coursesDatabase.find(c => c.id === id)
+      if (!course) return null
+      
+      // Fetch associated Nostr event for rich content
+      if (course.noteId) {
+        const nostrEvent = await fetchNostrEvent(course.noteId)
+        return { ...course, note: nostrEvent }
+      }
+      return course
     })
-  }
-  
-  static async search(query: string): Promise<Course[]> {
-    // Advanced search with relevance scoring
-    // Title matches, description matches, popularity boosts
   }
 }
 ```
@@ -186,8 +202,8 @@ const handleCardClick = () => {
 }
 
 // Detail pages use repository pattern
-const course = await CourseRepository.findById(id)
-const resource = await ResourceRepository.findById(id)
+const course = await CourseAdapter.findById(id)
+const resource = await ResourceAdapter.findById(id)
 ```
 
 ### **🔒 Security Framework**
@@ -438,12 +454,15 @@ try {
 ## 🌟 **Recent Achievements**
 
 ### **🆕 Latest Updates (January 2025)**
-- **✅ Real Nostr Integration**: Live integration with Nostr relays (relay.primal.net, relay.damus.io, nos.lol)
+- **✅ Hybrid Development Setup**: Mock JSON database + Real Nostr events for optimal development experience
+- **✅ Database Adapter Pattern**: Clean abstraction layer with JSON mock + Nostr integration
+- **✅ Real Nostr Integration**: Live connection to production relays (relay.nostr.band, nos.lol, relay.damus.io)
 - **✅ Smart Query Hooks**: Advanced TanStack Query hooks with real-time Nostr data fetching
 - **✅ Batch Nostr Queries**: Efficient batch fetching using 'd' tag queries for optimal performance
 - **✅ Production Nostr Events**: Real course and content events with actual NIP-23/NIP-99 compliance
+- **✅ Lightning Integration**: zapthreads for Bitcoin payments and Lightning Network interactions
+- **✅ 47 Complete Themes**: Advanced theming system with custom color schemes and fonts
 - **✅ Enhanced Caching**: 5-minute stale time with intelligent cache invalidation and error handling
-- **✅ Hybrid Data Architecture**: Seamless integration of database metadata with Nostr content
 - **✅ Type-Safe Navigation**: All routing uses `item.type === 'course'` for consistent behavior
 - **✅ Zero Build Errors**: Complete resolution of all compilation issues with clean linting
 
@@ -466,25 +485,31 @@ try {
 - **Domain Separation**: Organized data architecture by content type
 - **Error Handling**: Structured error classes with proper codes
 
-### **🆕 New Files Added**
+### **🆕 Key Architecture Files**
 - `src/hooks/useCoursesQuery.ts` - Advanced TanStack Query hooks with real Nostr integration
-- `src/hooks/useLessonsQuery.ts` - Lesson query hooks with resource and Nostr note fetching
 - `src/hooks/useDocumentsQuery.ts` - Document query hooks with batch Nostr operations
 - `src/hooks/useVideosQuery.ts` - Video query hooks with metadata parsing
 - `src/hooks/useNostr.ts` - Core Nostr integration utilities and helpers
-- `src/lib/db-adapter.ts` - Database adapter layer with Nostr note integration
+- `src/lib/db-adapter.ts` - Database adapter pattern with JSON mock + Nostr integration
 - `src/contexts/snstr-context.tsx` - Production Nostr relay pool management
-- `src/lib/repositories.ts` - Repository pattern with real-time caching
+- `src/contexts/theme-context.tsx` - Custom theme color management with 47 themes
 - `src/lib/cache.ts` - Hierarchical caching system with statistics
+- `src/lib/theme-config.ts` - 47 complete theme configurations
+- `src/data/types.ts` - Complete type system for Database + Nostr + Display interfaces
+- `src/data/mockDb/` - JSON mock database files (Course.json, Resource.json, Lesson.json)
+- `src/data/nostr-events.ts` - Real Nostr event data and examples
 
 ### **🆕 Enhanced Features**
+- **Hybrid Development Architecture**: Perfect blend of JSON mock database + Real Nostr events for rapid development
 - **Live Nostr Integration**: Real-time connection to production Nostr relays with automatic fallback handling
 - **Advanced Query Hooks**: Professional-grade TanStack Query implementation with intelligent caching and error boundaries
 - **Batch Data Fetching**: Optimized batch queries using Nostr 'd' tags for sub-50ms response times
 - **Production Events**: Real NIP-23 (free) and NIP-99 (paid) events with actual course content and metadata
 - **Smart Content Routing**: Type-based navigation to `/courses/[id]` for courses and `/content/[id]` for resources
-- **Repository Pattern**: Clean data abstraction with integrated hierarchical caching (CourseRepository, ResourceRepository, LessonRepository)
-- **Comprehensive Content Library**: 31 educational resources (6 courses, 13 documents, 12 videos) with real Nostr backing
+- **Database Adapter Pattern**: Clean data abstraction with integrated hierarchical caching (CourseAdapter, ResourceAdapter, LessonAdapter)
+- **Lightning Network Integration**: zapthreads for Bitcoin payments and Lightning interactions
+- **Advanced Theme System**: 47 complete color schemes with custom font pairings and runtime switching
+- **Comprehensive Content Library**: 31 educational resources (6 courses, 13 documents, 12 videos) with hybrid data backing
 - **Performance Monitoring**: Real-time cache statistics, query performance metrics, and Nostr relay health monitoring
 - **Security Validation**: XSS prevention, input sanitization, rate limiting, and secure Nostr event validation
 - **Error Resilience**: Graceful fallbacks, structured error handling, and automatic retry mechanisms
@@ -495,22 +520,34 @@ try {
 
 ### **Database Integration**
 ```typescript
-// Easy migration to real database
-export class DatabaseCourseRepository implements CourseRepository {
+// Easy migration from JSON mock to real database
+export class DatabaseCourseAdapter {
   async findById(id: string): Promise<Course | null> {
+    // Replace JSON file access with database query
     const result = await db.course.findUnique({ where: { id } })
-    return result ? mapDbToUnified(result) : null
+    if (!result) return null
+    
+    // Keep Nostr integration exactly the same
+    if (result.noteId) {
+      const nostrEvent = await fetchNostrEvent(result.noteId)
+      return { ...result, note: nostrEvent }
+    }
+    return result
   }
 }
 ```
 
 ### **Authentication Integration**
 ```typescript
-// Ready for NextAuth.js or similar
+// Ready for NextAuth.js or similar - works with JSON mock or real DB
 export const createCourse = createAction(
   CourseCreateSchema,
   async (data, context) => {
-    // Automatic auth checks
+    // Create in JSON mock (development) or database (production)
+    const course = await CourseAdapter.create(data)
+    
+    // Publish to Nostr for decentralized content
+    await publishCourseEvent(course, context.user.nostrKey)
   },
   {
     requireAuth: true,

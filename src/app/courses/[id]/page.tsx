@@ -17,6 +17,7 @@ import { encodePublicKey } from 'snstr'
 import { useCopy, getCopy } from '@/lib/copy'
 import { ZapThreads } from '@/components/ui/zap-threads'
 import { useInteractions } from '@/hooks/useInteractions'
+import { preserveLineBreaks } from '@/lib/text-utils'
 import { 
   Zap, 
   Clock, 
@@ -82,16 +83,16 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2">
-            <GraduationCap className="h-5 w-5" />
+        <CardHeader className="pb-3 sm:pb-6">
+          <CardTitle className="flex items-center space-x-2 text-base sm:text-lg">
+            <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />
             <span>{course.labels.courseLessons}</span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
+        <CardContent className="pt-0 sm:pt-6">
+          <div className="space-y-3 sm:space-y-4">
             {lessons.map((lesson, index) => {
               // Use enhanced lesson data from useLessonsQuery hook
               const lessonTitle = lesson.title || getCopy('lessons.lessonNumber', { index: lesson.index + 1 })
@@ -99,16 +100,16 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
               const isPremium = lesson.isPremium || false
 
               return (
-                <div key={lesson.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                  <div className="flex items-center space-x-4">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-sm font-medium">
+                <div key={lesson.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
+                    <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-primary/20 text-xs sm:text-sm font-medium flex-shrink-0">
                       {index + 1}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium truncate">
+                      <h4 className="font-medium truncate text-sm sm:text-base">
                         {lessonTitle}
                       </h4>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground flex-nowrap">
+                      <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap">
                         <div className="flex items-center space-x-1 flex-shrink-0">
                           <Clock className="h-3 w-3 flex-shrink-0" />
                           <span className="whitespace-nowrap">{lesson.duration || '30 min'}</span>
@@ -119,10 +120,10 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
                       </div>
                     </div>
                   </div>
-                  <Button variant="outline" size="sm" asChild>
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto sm:flex-shrink-0" asChild>
                     <Link href={`/courses/${courseId}/lessons/${lesson.id}/details`}>
                       <Play className="h-4 w-4 mr-2" />
-                      {getCopy('course.buttons.start')}
+                      <span className="sm:inline">{getCopy('course.buttons.start')}</span>
                     </Link>
                   </Button>
                 </div>
@@ -300,7 +301,7 @@ function CoursePageContent({ courseId }: { courseId: string }) {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
             <div className="space-y-6">
               <div className="space-y-2">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center flex-wrap gap-2">
                   <Badge variant="secondary" className="capitalize">
                     {category}
                   </Badge>
@@ -313,14 +314,14 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                     </Badge>
                   )}
                 </div>
-                <h1 className="text-4xl font-bold">{title}</h1>
-                <p className="text-lg text-muted-foreground">
-                  {description}
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight">{title}</h1>
+                <p className="text-lg text-muted-foreground" style={preserveLineBreaks(description).style}>
+                  {preserveLineBreaks(description).content}
                 </p>
               </div>
 
-              <div className="flex items-center space-x-6 flex-wrap">
-                <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+              <div className="flex items-center flex-wrap gap-4 sm:gap-6">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
                   <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
                   <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">
                     {isLoadingZaps ? (
@@ -329,10 +330,10 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                       zapsCount.toLocaleString()
                     )}
                   </span>
-                  <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-sm">zaps</span>
+                  <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-xs sm:text-sm">zaps</span>
                 </div>
                 
-                <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
                   <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
                   <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">
                     {isLoadingComments ? (
@@ -341,10 +342,10 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                       commentsCount
                     )}
                   </span>
-                  <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-sm">comments</span>
+                  <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-xs sm:text-sm">comments</span>
                 </div>
                 
-                <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
                   <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
                   <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">
                     {isLoadingLikes ? (
@@ -353,32 +354,32 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                       likesCount
                     )}
                   </span>
-                  <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-sm">likes</span>
+                  <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-xs sm:text-sm">likes</span>
                 </div>
                 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1.5 sm:space-x-2">
                   <BookOpen className="h-5 w-5 text-muted-foreground" />
                   <span>{lessonCount} lessons</span>
                 </div>
 
                 {estimatedDuration > 0 && (
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1.5 sm:space-x-2">
                     <Clock className="h-5 w-5 text-muted-foreground" />
                     <span>{formatDuration(estimatedDuration)}</span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center space-x-4">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
                 {!isPremium ? (
-                  <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+                  <Button size="lg" className="bg-primary hover:bg-primary/90 w-full sm:w-auto" asChild>
                     <Link href={lessonsData.length > 0 ? `/courses/${id}/lessons/${lessonsData[0].id}/details` : `/courses/${id}`}>
                       <GraduationCap className="h-5 w-5 mr-2" />
                       Start Learning
                     </Link>
                   </Button>
                 ) : (
-                  <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+                  <Button size="lg" className="bg-primary hover:bg-primary/90 w-full sm:w-auto" asChild>
                     <Link href="/auth/signin">
                       <User className="h-5 w-5 mr-2" />
                       Login to Access

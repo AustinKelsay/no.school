@@ -15,6 +15,7 @@ import { OptimizedImage } from '@/components/ui/optimized-image'
 import { encodePublicKey } from 'snstr'
 import { ZapThreads } from '@/components/ui/zap-threads'
 import { useInteractions } from '@/hooks/useInteractions'
+import { preserveLineBreaks } from '@/lib/text-utils'
 import { 
   Zap, 
   Clock, 
@@ -241,7 +242,7 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:items-start">
             <div className="space-y-6">
               <div className="space-y-2">
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center flex-wrap gap-2">
                   <Badge variant="secondary" className="capitalize">
                     {topics[0] || 'general'}
                   </Badge>
@@ -252,14 +253,14 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                     {difficulty}
                   </Badge>
                 </div>
-                <h1 className="text-4xl font-bold">{title}</h1>
-                <p className="text-lg text-muted-foreground">
-                  {description}
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight">{title}</h1>
+                <p className="text-lg text-muted-foreground" style={preserveLineBreaks(description).style}>
+                  {preserveLineBreaks(description).content}
                 </p>
               </div>
 
-              <div className="flex items-center space-x-6">
-                <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+              <div className="flex items-center flex-wrap gap-4 sm:gap-6">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
                   <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
                   <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">
                     {isLoadingZaps ? (
@@ -268,10 +269,10 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                       zapsCount.toLocaleString()
                     )}
                   </span>
-                  <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-sm">zaps</span>
+                  <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-xs sm:text-sm">zaps</span>
                 </div>
                 
-                <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
                   <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
                   <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">
                     {isLoadingComments ? (
@@ -280,10 +281,10 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                       commentsCount
                     )}
                   </span>
-                  <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-sm">comments</span>
+                  <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-xs sm:text-sm">comments</span>
                 </div>
                 
-                <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+                <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
                   <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
                   <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">
                     {isLoadingLikes ? (
@@ -292,24 +293,24 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                       reactionsCount
                     )}
                   </span>
-                  <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-sm">likes</span>
+                  <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-xs sm:text-sm">likes</span>
                 </div>
                 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-1.5 sm:space-x-2">
                   <Eye className="h-5 w-5 text-muted-foreground" />
                   <span>{viewCount?.toLocaleString() || 0} views</span>
                 </div>
                 
                 {duration && (
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-1.5 sm:space-x-2">
                     <Clock className="h-5 w-5 text-muted-foreground" />
                     <span>{duration}</span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center space-x-4">
-                <Button size="lg" className="bg-primary hover:bg-primary/90" asChild>
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                <Button size="lg" className="bg-primary hover:bg-primary/90 w-full sm:w-auto" asChild>
                   <Link href={`/content/${resourceId}/details`}>
                     {getResourceTypeIcon(type)}
                     <span className="ml-2">

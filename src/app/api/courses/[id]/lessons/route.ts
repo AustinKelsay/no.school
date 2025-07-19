@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { LessonRepository } from '@/lib/repositories'
+import { LessonAdapter } from '@/lib/db-adapter'
 
 export async function GET(
   request: NextRequest,
@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-    const lessons = await LessonRepository.findByCourseId(id)
+    const lessons = await LessonAdapter.findByCourseId(id)
     
     return NextResponse.json({ lessons })
   } catch (error) {

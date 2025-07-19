@@ -124,7 +124,7 @@ function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEven
   return (
     <div className="space-y-4">
       {/* Basic metadata */}
-      <div className="flex items-center space-x-6 flex-wrap text-sm text-muted-foreground">
+      <div className="flex items-center flex-wrap gap-4 sm:gap-6 text-sm text-muted-foreground">
         <div className="flex items-center space-x-1">
           <User className="h-4 w-4" />
           <span>
@@ -161,8 +161,8 @@ function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEven
       </div>
       
       {/* Engagement metrics */}
-      <div className="flex items-center space-x-6 flex-wrap">
-        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+      <div className="flex items-center flex-wrap gap-4 sm:gap-6">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
           <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
           <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">
             {interactionsLoading ? (
@@ -171,10 +171,10 @@ function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEven
               zapsCount.toLocaleString()
             )}
           </span>
-          <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-sm">zaps</span>
+          <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-xs sm:text-sm">zaps</span>
         </div>
         
-        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
           <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
           <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">
             {interactionsLoading ? (
@@ -183,10 +183,10 @@ function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEven
               commentsCount
             )}
           </span>
-          <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-sm">comments</span>
+          <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-xs sm:text-sm">comments</span>
         </div>
         
-        <div className="flex items-center space-x-2 transition-colors cursor-pointer group">
+        <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
           <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
           <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">
             {interactionsLoading ? (
@@ -195,7 +195,7 @@ function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEven
               reactionsCount
             )}
           </span>
-          <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-sm">likes</span>
+          <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-xs sm:text-sm">likes</span>
         </div>
       </div>
     </div>
@@ -273,8 +273,8 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
     <div className="space-y-6">
       {/* Content Header */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center flex-wrap gap-2">
             <Badge variant="secondary" className="capitalize">
               {category}
             </Badge>
@@ -291,8 +291,8 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
             )}
           </div>
           
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" asChild>
+          <div className="flex items-center space-x-2 w-full sm:w-auto">
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
               <Link href={`/content/${resourceId}`}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Overview
@@ -301,7 +301,7 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
           </div>
         </div>
 
-        <h1 className="text-4xl font-bold">{title}</h1>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight">{title}</h1>
         
         <ContentMetadata event={event} parsedEvent={parsedEvent} />
       </div>
@@ -398,14 +398,14 @@ function ResourceDetailsContent({ resourceId }: { resourceId: string }) {
       <Section spacing="lg">
         <div className="space-y-6">
           {/* Navigation */}
-          <div className="flex items-center space-x-2">
-            <Button variant="ghost" size="sm" asChild>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-2">
+            <Button variant="ghost" size="sm" className="justify-start w-full sm:w-auto" asChild>
               <Link href={`/content/${resourceId}`}>
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Back to Overview
               </Link>
             </Button>
-            <span className="text-muted-foreground">•</span>
+            <span className="text-muted-foreground hidden sm:inline">•</span>
             <div className="flex items-center space-x-2">
               <FileText className="h-4 w-4" />
               <span className="text-sm text-muted-foreground">

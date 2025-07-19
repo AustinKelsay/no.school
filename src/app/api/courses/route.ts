@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CourseRepository } from '@/lib/repositories';
+import { CourseAdapter } from '@/lib/db-adapter';
 import type { Course } from '@/data/types';
 
 /**
@@ -13,21 +13,19 @@ export async function GET(request: NextRequest) {
   const page = parseInt(searchParams.get('page') || '1');
 
   try {
-    // Use repository to get courses with filtering
-    const allCourses = await CourseRepository.findAll(
-      category ? { category } : {}
-    );
-
-    // Implement pagination
-    const startIndex = (page - 1) * limit;
-    const endIndex = startIndex + limit;
-    const paginatedCourses = allCourses.slice(startIndex, endIndex);
-
-    return NextResponse.json({
-      courses: paginatedCourses,
-      total: allCourses.length,
+    // Use adapter to get courses with pagination
+    const result = await CourseAdapter.findAllPaginated({
       page,
-      totalPages: Math.ceil(allCourses.length / limit),
+      pageSize: limit
+    });
+
+    // Note: Category filtering would be implemented via Nostr event filtering
+    // For now, return all courses since filtering happens on Nostr side
+    return NextResponse.json({
+      courses: result.data,
+      total: result.pagination.totalItems,
+      page: result.pagination.page,
+      totalPages: result.pagination.totalPages,
     });
   } catch {
     return NextResponse.json(
@@ -65,7 +63,7 @@ export async function POST(request: NextRequest) {
       noteId: `course-${Date.now()}-note` // Reference to Nostr event
     };
 
-    const createdCourse = await CourseRepository.create(newCourse);
+    const createdCourse = await CourseAdapter.create(newCourse);
 
     return NextResponse.json(
       { course: createdCourse, message: 'Course created successfully' },
