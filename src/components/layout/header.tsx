@@ -10,6 +10,7 @@ import { Menu, Search, Zap } from "lucide-react"
 import { Container } from "./container"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ThemeSelector } from "@/components/theme-selector"
+import { FontToggle } from "@/components/font-toggle"
 import Link from "next/link"
 import { useCopy } from "@/lib/copy"
 
@@ -61,6 +62,7 @@ export function Header() {
         {/* Right-aligned Actions */}
         <div className="flex flex-1 items-center justify-end space-x-4">
           <ThemeSelector />
+          <FontToggle />
           <ThemeToggle />
           <Button size="sm">{navigation.buttons.login}</Button>
         </div>
