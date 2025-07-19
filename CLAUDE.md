@@ -119,11 +119,14 @@ middleware.ts             # Security headers, CSP, CORS
 - **Parser Functions**: `parseCourseEvent()` and `parseEvent()` in types.ts convert Nostr events to UI data
 
 #### Theme System
-- `src/contexts/theme-context.tsx` - **Custom theme color management with 23 variants**
-- `src/lib/theme-config.ts` - **Theme configurations and color schemes**
+- `src/contexts/theme-context.tsx` - **Custom theme color management with 47 complete themes**
+- `src/lib/theme-config.ts` - **47 theme configurations with full color schemes and fonts**
+- `src/lib/theme-ui-config.ts` - **Theme UI configuration system for toggling controls**
+- `config/theme.json` - **Theme and font configuration for deployment customization**
 - Global CSS variables in `src/app/globals.css` for dynamic theme colors
 
 #### Configuration
+- `config/theme.json` - **Theme UI controls and default value configuration**
 - `next.config.ts` - **Performance optimizations, security headers, image config**
 - `middleware.ts` - **Security middleware with CSP headers and CORS**
 - `components.json` - **shadcn/ui configuration**
@@ -154,7 +157,33 @@ RESTful API structure in `src/app/api/`:
 
 ## 🎯 **Recent Improvements**
 
-### Smart Image Optimization (Latest)
+### Theme Configuration System (Latest)
+- **Configurable UI Controls**: Control visibility of theme selector, font toggle, and dark mode toggle via `config/theme.json`
+- **Default Value Override**: Force specific themes, fonts, or dark mode settings for branded deployments
+- **47 Complete Themes**: All themes from shadcn community with full color palettes and appropriate fonts
+- **24 Font Options**: Comprehensive font library including serif, sans-serif, and monospace options
+- **Validation System**: Built-in validation to ensure configured themes and fonts exist
+- **Documentation**: Complete configuration guide in `docs/theme-configuration.md`
+
+**Configuration Examples**:
+```json
+{
+  "ui": {
+    "showThemeSelector": false,
+    "showFontToggle": true,
+    "showThemeToggle": true
+  },
+  "defaults": {
+    "theme": "cosmic-night",
+    "font": "inter",
+    "darkMode": true
+  }
+}
+```
+
+This enables corporate deployments with locked branding while maintaining user choice when desired.
+
+### Smart Image Optimization
 - **OptimizedImage Component**: Automatically handles images from any domain without manual configuration
 - **Intelligent Domain Detection**: Checks if domains are configured for optimization
 - **Seamless Fallback**: Uses `unoptimized` prop for unknown domains while maintaining all Next.js Image benefits

@@ -179,6 +179,69 @@ export const availableFonts: FontConfig[] = [
     value: "system-mono",
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
     fontWeight: "400"
+  },
+  {
+    name: "Space Mono",
+    value: "space-mono",
+    fontFamily: "Space Mono, ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+    fontWeight: "400",
+    googleFontUrl: "https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap"
+  },
+  {
+    name: "Lora",
+    value: "lora",
+    fontFamily: "Lora, ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
+    fontWeight: "400",
+    googleFontUrl: "https://fonts.googleapis.com/css2?family=Lora:wght@400;500;600;700&display=swap"
+  },
+  {
+    name: "Merriweather",
+    value: "merriweather",
+    fontFamily: "Merriweather, ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
+    fontWeight: "400",
+    googleFontUrl: "https://fonts.googleapis.com/css2?family=Merriweather:wght@400;500;600;700&display=swap"
+  },
+  {
+    name: "Space Grotesk",
+    value: "space-grotesk",
+    fontFamily: "Space Grotesk, ui-sans-serif, system-ui, sans-serif",
+    fontWeight: "400",
+    googleFontUrl: "https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+  },
+  {
+    name: "Open Sans",
+    value: "open-sans",
+    fontFamily: "Open Sans, ui-sans-serif, system-ui, sans-serif",
+    fontWeight: "400",
+    googleFontUrl: "https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap"
+  },
+  {
+    name: "Press Start 2P",
+    value: "press-start",
+    fontFamily: "Press Start 2P, ui-monospace, SFMono-Regular, 'SF Mono', Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
+    fontWeight: "400",
+    googleFontUrl: "https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap"
+  },
+  {
+    name: "Quicksand",
+    value: "quicksand",
+    fontFamily: "Quicksand, ui-sans-serif, system-ui, sans-serif",
+    fontWeight: "400",
+    googleFontUrl: "https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap"
+  },
+  {
+    name: "Raleway",
+    value: "raleway",
+    fontFamily: "Raleway, ui-sans-serif, system-ui, sans-serif",
+    fontWeight: "400",
+    googleFontUrl: "https://fonts.googleapis.com/css2?family=Raleway:wght@400;500;600;700&display=swap"
+  },
+  {
+    name: "Libre Baskerville",
+    value: "libre-baskerville",
+    fontFamily: "Libre Baskerville, ui-serif, Georgia, Cambria, 'Times New Roman', Times, serif",
+    fontWeight: "400",
+    googleFontUrl: "https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;500;600;700&display=swap"
   }
 ]
 

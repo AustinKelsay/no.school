@@ -1,0 +1,40 @@
+{
+  "ui": {
+    "showThemeSelector": true,
+    "showFontToggle": true,
+    "showThemeToggle": true
+  },
+  "defaults": {
+    "theme": null,
+    "font": null,
+    "darkMode": null
+  },
+  "_comments": {
+    "ui.showThemeSelector": "Show/hide the theme selector dropdown in the header",
+    "ui.showFontToggle": "Show/hide the font override toggle in the header", 
+    "ui.showThemeToggle": "Show/hide the dark/light mode toggle in the header",
+    "defaults.theme": "Force a specific theme (e.g., 'cosmic-night', 'elegant-luxury'). Set to null to use user preference/localStorage",
+    "defaults.font": "Force a specific font (e.g., 'inter', 'poppins'). Set to null to use theme default or user preference",
+    "defaults.darkMode": "Force dark/light mode (true=dark, false=light, null=system/user preference)"
+  },
+  "_examples": {
+    "hideAllToggles": {
+      "ui": {
+        "showThemeSelector": false,
+        "showFontToggle": false,
+        "showThemeToggle": false
+      }
+    },
+    "forceDarkCosmicTheme": {
+      "defaults": {
+        "theme": "cosmic-night",
+        "darkMode": true
+      }
+    },
+    "forceInterFont": {
+      "defaults": {
+        "font": "inter"
+      }
+    }
+  }
+}

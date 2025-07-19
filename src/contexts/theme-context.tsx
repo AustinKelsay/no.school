@@ -13,6 +13,7 @@ import {
   availableFonts,
   FontConfig
 } from "@/lib/theme-config"
+import { getDefaultTheme as getConfigDefaultTheme, getDefaultFont } from "@/lib/theme-ui-config"
 
 interface SimpleThemeContextType {
   currentTheme: ThemeName
@@ -33,23 +34,33 @@ const ThemeContext = createContext<SimpleThemeContextType | undefined>(undefined
 export function ThemeColorProvider({ children }: { children: ReactNode }) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
-  const [currentTheme, setCurrentThemeState] = useState<ThemeName>(defaultThemeName)
-  const [fontOverride, setFontOverrideState] = useState<string | null>(null)
+  
+  // Get initial values from config or fallback to defaults
+  const configDefaultTheme = getConfigDefaultTheme()
+  const configDefaultFont = getDefaultFont()
+  const initialTheme = configDefaultTheme || defaultThemeName
+  const initialFont = configDefaultFont || null
+  
+  const [currentTheme, setCurrentThemeState] = useState<ThemeName>(initialTheme)
+  const [fontOverride, setFontOverrideState] = useState<string | null>(initialFont)
 
   // Initialize from localStorage after mount (prevents hydration mismatch)
   useEffect(() => {
     const savedTheme = localStorage.getItem("complete-theme") as ThemeName
     const savedFont = localStorage.getItem("font-override")
     
-    if (savedTheme && completeThemes.find(theme => theme.value === savedTheme)) {
-      setCurrentThemeState(savedTheme)
-    }
+    // Only use saved values if no config defaults are set, or if saved values exist
+    const themeToUse = savedTheme && completeThemes.find(theme => theme.value === savedTheme) 
+      ? savedTheme 
+      : (configDefaultTheme || defaultThemeName)
     
-    if (savedFont) {
-      setFontOverrideState(savedFont)
-    }
+    const fontToUse = savedFont || configDefaultFont
+    
+    setCurrentThemeState(themeToUse)
+    setFontOverrideState(fontToUse)
     
     setMounted(true)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Apply theme when mounted and when theme changes
@@ -95,11 +106,11 @@ export function ThemeColorProvider({ children }: { children: ReactNode }) {
   if (!mounted) {
     // Provide default values during SSR/before mount
     const defaultValue: SimpleThemeContextType = {
-      currentTheme: defaultThemeName,
+      currentTheme: initialTheme,
       setCurrentTheme: () => {},
-      themeConfig: getDefaultTheme(),
+      themeConfig: getCompleteTheme(initialTheme) || getDefaultTheme(),
       availableThemes: [...completeThemes].sort((a, b) => a.name.localeCompare(b.name)),
-      fontOverride: null,
+      fontOverride: initialFont,
       setFontOverride: () => {},
     }
     

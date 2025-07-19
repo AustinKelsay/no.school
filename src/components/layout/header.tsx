@@ -13,6 +13,7 @@ import { ThemeSelector } from "@/components/theme-selector"
 import { FontToggle } from "@/components/font-toggle"
 import Link from "next/link"
 import { useCopy } from "@/lib/copy"
+import { shouldShowThemeSelector, shouldShowFontToggle, shouldShowThemeToggle } from "@/lib/theme-ui-config"
 
 /**
  * Header component for the main navigation
@@ -61,9 +62,9 @@ export function Header() {
 
         {/* Right-aligned Actions */}
         <div className="flex flex-1 items-center justify-end space-x-4">
-          <ThemeSelector />
-          <FontToggle />
-          <ThemeToggle />
+          {shouldShowThemeSelector() && <ThemeSelector />}
+          {shouldShowFontToggle() && <FontToggle />}
+          {shouldShowThemeToggle() && <ThemeToggle />}
           <Button size="sm">{navigation.buttons.login}</Button>
         </div>
       </Container>
