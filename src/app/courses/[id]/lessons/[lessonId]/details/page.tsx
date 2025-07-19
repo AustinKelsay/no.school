@@ -2,18 +2,17 @@
 
 import { Suspense, useEffect, useState } from 'react'
 import React from 'react'
-import { notFound } from 'next/navigation'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
-import { getResourceContent, getEstimatedReadingTime, formatContentForDisplay, type ResourceContent } from '@/lib/content-utils'
+import { getEstimatedReadingTime, formatContentForDisplay } from '@/lib/content-utils'
 import { parseCourseEvent, parseEvent } from '@/lib/content-utils'
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
 import { VideoPlayer } from '@/components/ui/video-player'
-import { ResourceActions } from '@/components/ui/resource-actions'
+import { ZapThreads } from '@/components/ui/zap-threads'
 import { useCourseQuery } from '@/hooks/useCoursesQuery'
 import { useLessonsQuery, useLessonQuery } from '@/hooks/useLessonsQuery'
 import { 
@@ -28,13 +27,11 @@ import {
   FileText,
   RotateCcw,
   Zap,
-  Eye,
   MessageCircle,
   Heart
 } from 'lucide-react'
 import Link from 'next/link'
 import { Lesson } from '@/data/types'
-import type { Metadata } from 'next'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { encodePublicKey } from 'snstr'
 
@@ -530,6 +527,19 @@ function LessonContent({
             </div>
           </CardContent>
         </Card>
+      )}
+      
+      {/* Comments Section */}
+      {lessonData.resource?.note && (
+        <ZapThreads
+          eventDetails={{
+            identifier: lessonData.resource.id,
+            pubkey: lessonData.resource.note.pubkey,
+            kind: lessonData.resource.note.kind,
+            relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
+          }}
+          title="Lesson Comments & Discussion"
+        />
       )}
     </div>
   )

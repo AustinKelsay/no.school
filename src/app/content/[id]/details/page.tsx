@@ -14,6 +14,7 @@ import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
 import { encodePublicKey } from 'snstr'
 import { VideoPlayer } from '@/components/ui/video-player'
 import { ResourceActions } from '@/components/ui/resource-actions'
+import { ZapThreads } from '@/components/ui/zap-threads'
 import { 
   Zap, 
   Clock, 
@@ -365,6 +366,17 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
           </CardContent>
         </Card>
       )}
+      
+      {/* Comments Section */}
+      <ZapThreads
+        eventDetails={{
+          identifier: resourceId,
+          pubkey: event.pubkey,
+          kind: event.kind,
+          relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
+        }}
+        title="Comments & Discussion"
+      />
     </div>
   )
 }

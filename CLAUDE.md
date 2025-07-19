@@ -252,3 +252,12 @@ Current implementation uses JSON files for development:
 # When implementing tests, check the codebase first to determine the testing approach
 # Ask the user for specific test commands if tests are added in the future
 ```
+
+## Important Development Workflow
+
+When making changes to this codebase:
+1. **Always run linting**: Use `npm run lint` after making changes
+2. **Check build success**: Run `npm run build` to ensure no compilation errors
+3. **Repository Pattern**: Use repositories for all data access - never access data directly
+4. **Type Safety**: Maintain strict TypeScript compliance with runtime Zod validation
+5. **Caching**: All repository methods include built-in caching for performance

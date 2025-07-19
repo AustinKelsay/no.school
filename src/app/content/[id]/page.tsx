@@ -13,6 +13,7 @@ import { parseEvent } from '@/data/types'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { encodePublicKey } from 'snstr'
+import { ZapThreads } from '@/components/ui/zap-threads'
 import { 
   Zap, 
   Clock, 
@@ -445,6 +446,19 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                 </CardContent>
               </Card>
             </div>
+          </div>
+          
+          {/* Comments Section */}
+          <div className="mt-8">
+            <ZapThreads
+              eventDetails={{
+                identifier: resourceId,
+                pubkey: event.pubkey,
+                kind: event.kind,
+                relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
+              }}
+              title="Resource Discussion"
+            />
           </div>
         </div>
       </Section>

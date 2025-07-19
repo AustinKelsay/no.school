@@ -15,6 +15,7 @@ import { useLessonsQuery, type LessonWithResource } from '@/hooks/useLessonsQuer
 import { parseCourseEvent, parseEvent } from '@/lib/content-utils'
 import { encodePublicKey } from 'snstr'
 import { useCopy, getCopy } from '@/lib/copy'
+import { ZapThreads } from '@/components/ui/zap-threads'
 import { 
   Zap, 
   Clock, 
@@ -546,6 +547,21 @@ function CoursePageContent({ courseId }: { courseId: string }) {
               </Card>
             </div>
           </div>
+          
+          {/* Comments Section */}
+          {courseData.note && (
+            <div className="mt-8">
+              <ZapThreads
+                eventDetails={{
+                  identifier: courseId,
+                  pubkey: courseData.note.pubkey,
+                  kind: courseData.note.kind,
+                  relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
+                }}
+                title="Course Discussion"
+              />
+            </div>
+          )}
         </div>
       </Section>
     </MainLayout>
