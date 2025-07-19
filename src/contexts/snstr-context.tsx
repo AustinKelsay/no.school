@@ -8,7 +8,6 @@ const DEFAULT_RELAYS = [
   'wss://relay.nostr.band',
   'wss://nos.lol',
   'wss://relay.damus.io',
-  'wss://relay.snort.social',
   'wss://relay.primal.net',
   'wss://nostr.land',
   'wss://nostrue.com',

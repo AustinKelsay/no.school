@@ -135,6 +135,7 @@ function VideoCard({ video }: { video: VideoResourceWithNote }) {
     featured: false,
     topics: video.note?.tags.filter(tag => tag[0] === "t").map(tag => tag[1]) || [],
     additionalLinks: video.note?.tags.filter(tag => tag[0] === "r").map(tag => tag[1]) || [],
+    noteId: video.note?.id || video.noteId,
   };
 
   return <ContentCard item={contentItem} variant="content" showContentTypeTags={false} />;

@@ -130,6 +130,7 @@ function CourseCard({ course }: { course: CourseWithNote }) {
     featured: false,
     topics: course.note?.tags.filter(tag => tag[0] === "t").map(tag => tag[1]) || [],
     additionalLinks: course.note?.tags.filter(tag => tag[0] === "l").map(tag => tag[1]) || [],
+    noteId: course.note?.id || course.noteId,
   };
 
   return <ContentCard item={contentItem} variant="content" showContentTypeTags={false} />;

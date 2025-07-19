@@ -135,6 +135,7 @@ function DocumentCard({ document }: { document: DocumentResourceWithNote }) {
     featured: false,
     topics: document.note?.tags.filter(tag => tag[0] === "t").map(tag => tag[1]) || [],
     additionalLinks: document.note?.tags.filter(tag => tag[0] === "r").map(tag => tag[1]) || [],
+    noteId: document.note?.id || document.noteId,
   };
 
   return <ContentCard item={contentItem} variant="content" showContentTypeTags={false} />;

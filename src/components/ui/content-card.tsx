@@ -84,33 +84,21 @@ export function ContentCard({
   // State to store the instructor's profile data
   const [instructorProfile, setInstructorProfile] = useState<NormalizedProfile | null>(null)
   
-  // Helper function to extract event ID from noteId (handles both hex and naddr formats)
+  // Helper function to extract hex event ID for interactions
   const getEventId = (noteId: string | undefined): string | undefined => {
     if (!noteId) return undefined
     
-    // If it's already a hex string (64 chars), return as-is
+    // Only use 64-character hex event IDs
     if (noteId.length === 64 && /^[a-f0-9]+$/i.test(noteId)) {
       return noteId
     }
     
-    // If it starts with naddr, decode it to get the actual event details
-    if (noteId.startsWith('naddr')) {
-      try {
-        const decoded = decodeAddress(noteId as `${string}1${string}`)
-        // For naddr, we'll use the d-tag identifier since our useInteractions hook now supports it
-        return decoded.identifier || noteId
-      } catch (error) {
-        console.error('Failed to decode naddr:', error)
-        return undefined
-      }
-    }
-    
-    // Return the noteId as-is for other formats
-    return noteId
+    return undefined
   }
 
   // Get interaction data from Nostr if this is a content item with a note ID
   const eventId = isContent ? getEventId(item.noteId) : undefined
+  
   const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
     eventId,
     realtime: false,
@@ -219,7 +207,7 @@ export function ContentCard({
               <Zap className="h-3 w-3 text-muted-foreground group-hover:text-amber-500 transition-colors" />
               <span className="text-xs font-bold text-foreground group-hover:text-amber-500 transition-colors">
                 {isLoadingZaps ? (
-                  <div className="w-3 h-3 rounded-full border border-amber-500 border-t-transparent animate-spin"></div>
+                  <div className="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin"></div>
                 ) : (
                   zapsCount.toLocaleString()
                 )}
@@ -231,7 +219,7 @@ export function ContentCard({
               <MessageCircle className="h-3 w-3 text-muted-foreground group-hover:text-blue-500 transition-colors" />
               <span className="text-xs font-bold text-foreground group-hover:text-blue-500 transition-colors">
                 {isLoadingComments ? (
-                  <div className="w-3 h-3 rounded-full border border-blue-500 border-t-transparent animate-spin"></div>
+                  <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
                 ) : (
                   commentsCount
                 )}
@@ -243,7 +231,7 @@ export function ContentCard({
               <Heart className="h-3 w-3 text-muted-foreground group-hover:text-pink-500 transition-colors" />
               <span className="text-xs font-bold text-foreground group-hover:text-pink-500 transition-colors">
                 {isLoadingLikes ? (
-                  <div className="w-3 h-3 rounded-full border border-pink-500 border-t-transparent animate-spin"></div>
+                  <div className="w-4 h-4 rounded-full border-2 border-pink-500 border-t-transparent animate-spin"></div>
                 ) : (
                   reactionsCount
                 )}

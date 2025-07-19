@@ -64,6 +64,7 @@ export default function ContentPage() {
           published: true,
           topics: course.note?.tags.filter(tag => tag[0] === "t").map(tag => tag[1]) || [],
           additionalLinks: course.note?.tags.filter(tag => tag[0] === "r").map(tag => tag[1]) || [],
+          noteId: course.note?.id || course.noteId,
         }
         allItems.push(courseItem)
       })
@@ -95,6 +96,7 @@ export default function ContentPage() {
           published: true,
           topics: video.note?.tags.filter(tag => tag[0] === "t").map(tag => tag[1]) || [],
           additionalLinks: video.note?.tags.filter(tag => tag[0] === "r").map(tag => tag[1]) || [],
+          noteId: video.note?.id || video.noteId,
         }
         allItems.push(videoItem)
       })
@@ -126,6 +128,7 @@ export default function ContentPage() {
           published: true,
           topics: document.note?.tags.filter(tag => tag[0] === "t").map(tag => tag[1]) || [],
           additionalLinks: document.note?.tags.filter(tag => tag[0] === "r").map(tag => tag[1]) || [],
+          noteId: document.note?.id || document.noteId,
         }
         allItems.push(documentItem)
       })

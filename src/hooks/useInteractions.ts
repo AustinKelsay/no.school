@@ -35,6 +35,11 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  
+  // Individual loading states for each interaction type
+  const [isLoadingZaps, setIsLoadingZaps] = useState(false);
+  const [isLoadingLikes, setIsLoadingLikes] = useState(false);
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
 
   // Use refs to persist arrays across effect re-runs
   const zapsRef = useRef<NostrEvent[]>([]);
@@ -46,10 +51,16 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
     if (!eventId || eventId.length !== 64) {
       setInteractions({ zaps: 0, likes: 0, comments: 0 });
       setIsLoading(false);
+      setIsLoadingZaps(false);
+      setIsLoadingLikes(false);
+      setIsLoadingComments(false);
       return;
     }
 
     setIsLoading(true);
+    setIsLoadingZaps(true);
+    setIsLoadingLikes(true);
+    setIsLoadingComments(true);
     setIsError(false);
     setError(null);
 
@@ -100,8 +111,13 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
           }
         );
 
-        // Stop loading after subscriptions are set up
-        setIsLoading(false);
+        // Give subscriptions time to receive initial data
+        setTimeout(() => {
+          setIsLoadingZaps(false);
+          setIsLoadingLikes(false);
+          setIsLoadingComments(false);
+          setIsLoading(false);
+        }, 5000); // Wait 5 seconds for initial data
 
         // Close subscriptions after 20 seconds
         const cleanup = setTimeout(() => {
@@ -122,6 +138,9 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
         setIsError(true);
         setError(err as Error);
         setIsLoading(false);
+        setIsLoadingZaps(false);
+        setIsLoadingLikes(false);
+        setIsLoadingComments(false);
       }
     };
 
@@ -138,9 +157,9 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
     isLoading,
     isError,
     error,
-    // Individual loading states - all share the same loading state for simplicity
-    isLoadingZaps: isLoading,
-    isLoadingLikes: isLoading,
-    isLoadingComments: isLoading
+    // Individual loading states for each interaction type
+    isLoadingZaps,
+    isLoadingLikes,
+    isLoadingComments
   };
 }
