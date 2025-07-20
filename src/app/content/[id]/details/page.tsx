@@ -17,6 +17,7 @@ import { ResourceActions } from '@/components/ui/resource-actions'
 import { ZapThreads } from '@/components/ui/zap-threads'
 import { useInteractions } from '@/hooks/useInteractions'
 import { useCommentThreads, formatCommentCount } from '@/hooks/useCommentThreads'
+import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
 import { 
   Zap, 
   Clock, 
@@ -210,6 +211,7 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
   const [event, setEvent] = useState<NostrEvent | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [idResult, setIdResult] = useState<UniversalIdResult | null>(null)
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -217,10 +219,43 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
         setLoading(true)
         setError(null)
         
-        const nostrEvent = await fetchSingleEvent({
-          kinds: [30023, 30403], // Long-form content and drafts
-          '#d': [resourceId]
-        })
+        // Resolve the universal ID to determine how to fetch the content
+        const resolved = resolveUniversalId(resourceId)
+        setIdResult(resolved)
+        
+        let nostrEvent: NostrEvent | null = null
+        
+        // Fetch based on ID type
+        if (resolved.idType === 'nevent' && resolved.decodedData && typeof resolved.decodedData === 'object' && resolved.decodedData !== null) {
+          const data = resolved.decodedData as Record<string, unknown>
+          if (typeof data.id === 'string') {
+            // Direct event ID from nevent
+            nostrEvent = await fetchSingleEvent({
+              ids: [data.id]
+            })
+          }
+        } else if (resolved.idType === 'naddr' && resolved.decodedData && typeof resolved.decodedData === 'object' && resolved.decodedData !== null) {
+          const data = resolved.decodedData as Record<string, unknown>
+          if (typeof data.identifier === 'string') {
+            // Addressable event by identifier
+            nostrEvent = await fetchSingleEvent({
+              kinds: [30023, 30402, 30403], // Long-form content, paid content, and drafts
+              '#d': [data.identifier],
+              authors: typeof data.author === 'string' ? [data.author] : undefined
+            })
+          }
+        } else if (resolved.idType === 'note' || resolved.idType === 'hex') {
+          // Direct event ID
+          nostrEvent = await fetchSingleEvent({
+            ids: [resolved.resolvedId]
+          })
+        } else {
+          // Database ID or other format - try as identifier
+          nostrEvent = await fetchSingleEvent({
+            kinds: [30023, 30402, 30403], // Long-form content, paid content, and drafts
+            '#d': [resolved.resolvedId]
+          })
+        }
         
         if (nostrEvent) {
           setEvent(nostrEvent)

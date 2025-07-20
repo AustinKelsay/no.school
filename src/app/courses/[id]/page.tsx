@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,6 +18,7 @@ import { useCopy, getCopy } from '@/lib/copy'
 import { ZapThreads } from '@/components/ui/zap-threads'
 import { useInteractions } from '@/hooks/useInteractions'
 import { preserveLineBreaks } from '@/lib/text-utils'
+import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
 import { 
   Zap, 
   Clock, 
@@ -142,11 +143,19 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
 function CoursePageContent({ courseId }: { courseId: string }) {
   const { fetchProfile, normalizeKind0 } = useNostr()
   const [instructorProfile, setInstructorProfile] = useState<NormalizedProfile | null>(null)
+  const [idResult, setIdResult] = useState<UniversalIdResult | null>(null)
   const { course, errors, pricing } = useCopy()
   
+  // Resolve the universal ID to get the actual course ID for queries
+  const resolvedCourseId = React.useMemo(() => {
+    const resolved = resolveUniversalId(courseId)
+    setIdResult(resolved)
+    return resolved.resolvedId
+  }, [courseId])
+  
   // Use hooks to fetch course data and lessons with Nostr integration
-  const { course: courseData, isLoading: courseLoading, isError, error } = useCourseQuery(courseId)
-  const { lessons: lessonsData, isLoading: lessonsLoading } = useLessonsQuery(courseId)
+  const { course: courseData, isLoading: courseLoading, isError, error } = useCourseQuery(resolvedCourseId)
+  const { lessons: lessonsData, isLoading: lessonsLoading } = useLessonsQuery(resolvedCourseId)
 
   // Get real interaction data if course has a Nostr event - call hook unconditionally at top level
   const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({

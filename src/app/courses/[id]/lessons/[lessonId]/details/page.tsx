@@ -1,7 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
-import React from 'react'
+import React, { Suspense, useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -36,6 +35,7 @@ import { LessonWithResource } from '@/hooks/useLessonsQuery'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { useInteractions } from '@/hooks/useInteractions'
 import { encodePublicKey } from 'snstr'
+import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
 
 interface LessonDetailsPageProps {
   params: Promise<{
@@ -266,10 +266,21 @@ function LessonContent({
   courseId: string
   lessonId: string 
 }) {
+  // Resolve universal IDs for both course and lesson
+  const resolvedCourseId = React.useMemo(() => {
+    const resolved = resolveUniversalId(courseId)
+    return resolved.resolvedId
+  }, [courseId])
+  
+  const resolvedLessonId = React.useMemo(() => {
+    const resolved = resolveUniversalId(lessonId)
+    return resolved.resolvedId
+  }, [lessonId])
+  
   // Use the new hooks to fetch lesson and course data with Nostr integration
-  const { lesson: lessonData, isLoading: lessonLoading, isError: lessonError } = useLessonQuery(lessonId)
-  const { course: courseData, isLoading: courseLoading } = useCourseQuery(courseId)
-  const { lessons: lessonsData, isLoading: lessonsDataLoading } = useLessonsQuery(courseId)
+  const { lesson: lessonData, isLoading: lessonLoading, isError: lessonError } = useLessonQuery(resolvedLessonId)
+  const { course: courseData, isLoading: courseLoading } = useCourseQuery(resolvedCourseId)
+  const { lessons: lessonsData, isLoading: lessonsDataLoading } = useLessonsQuery(resolvedCourseId)
 
   const loading = lessonLoading || courseLoading || lessonsDataLoading
 
@@ -373,7 +384,7 @@ function LessonContent({
   // Use enhanced lesson displays from useLessonsQuery hook
   const lessonDisplays = lessonsData || []
   
-  const currentLessonIndex = lessonDisplays.findIndex(l => l.id === lessonId)
+  const currentLessonIndex = lessonDisplays.findIndex(l => l.id === resolvedLessonId)
   
   const getContentTypeIcon = (type: string) => {
     switch (type) {
@@ -454,7 +465,7 @@ function LessonContent({
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-4">
               <LessonNavigation 
-                courseId={courseId} 
+                courseId={resolvedCourseId} 
                 currentLessonIndex={currentLessonIndex} 
                 lessons={lessonDisplays}
               />
@@ -500,14 +511,14 @@ function LessonContent({
                   <div
                     key={l.id}
                     className={`flex items-center space-x-3 p-2 rounded-lg transition-colors ${
-                      l.id === lessonId 
+                      l.id === resolvedLessonId 
                         ? 'bg-primary/10 border border-primary/20' 
                         : 'hover:bg-muted/50'
                     }`}
                   >
                     <div className="flex-shrink-0">
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                        l.id === lessonId 
+                        l.id === resolvedLessonId 
                           ? 'bg-primary text-primary-foreground' 
                           : 'bg-muted text-muted-foreground'
                       }`}>
@@ -516,9 +527,9 @@ function LessonContent({
                     </div>
                     <div className="flex-1 min-w-0">
                       <Link 
-                        href={`/courses/${courseId}/lessons/${l.id}/details`}
+                        href={`/courses/${resolvedCourseId}/lessons/${l.id}/details`}
                         className={`block text-sm truncate ${
-                          l.id === lessonId 
+                          l.id === resolvedLessonId 
                             ? 'font-semibold' 
                             : 'hover:underline'
                         }`}
