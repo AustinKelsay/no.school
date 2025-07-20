@@ -24,6 +24,8 @@ import { shouldShowThemeSelector, shouldShowFontToggle, shouldShowThemeToggle } 
 import { useTheme } from "next-themes"
 import { useThemeColor } from "@/contexts/theme-context"
 import { availableFonts, ThemeName } from "@/lib/theme-config"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 /**
  * Header component for the main navigation
@@ -34,9 +36,18 @@ export function Header() {
   const { site, navigation } = useCopy()
   const { theme, setTheme, resolvedTheme } = useTheme()
   const { fontOverride, setFontOverride, themeConfig, currentTheme, setCurrentTheme, availableThemes } = useThemeColor()
+  const router = useRouter()
+  const [searchQuery, setSearchQuery] = useState("")
 
   function handleThemeSelect(themeName: ThemeName) {
     setCurrentTheme(themeName)
+  }
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault()
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery)}`)
+    }
   }
   
   return (
@@ -57,10 +68,18 @@ export function Header() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem>{navigation.menuItems.content}</DropdownMenuItem>
-              <DropdownMenuItem>{navigation.menuItems.feeds}</DropdownMenuItem>
-              <DropdownMenuItem>{navigation.menuItems.subscribe}</DropdownMenuItem>
-              <DropdownMenuItem>{navigation.menuItems.about}</DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/content">{navigation.menuItems.content}</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/feeds">{navigation.menuItems.feeds}</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/subscribe">{navigation.menuItems.subscribe}</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/about">{navigation.menuItems.about}</Link>
+              </DropdownMenuItem>
               
                               {/* Theme and Style Settings - Only show on mobile */}
                 {(shouldShowThemeSelector() || shouldShowFontToggle() || shouldShowThemeToggle()) && (
@@ -156,28 +175,34 @@ export function Header() {
 
         {/* Centered Search Bar */}
         <div className="flex flex-none justify-center px-4 lg:px-6">
-          <div className="relative hidden w-full max-w-md sm:block">
+          <form onSubmit={handleSearch} className="relative hidden w-full max-w-md sm:block">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder={navigation.searchPlaceholder}
               className="w-full pl-10"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
             />
-          </div>
+          </form>
         </div>
 
         {/* Right-aligned Actions */}
         <div className="flex flex-1 items-center justify-end space-x-1 sm:space-x-2 md:space-x-4">
           {/* Search icon - only show on mobile */}
-          <Button variant="ghost" size="icon" className="sm:hidden">
-            <Search className="h-4 w-4" />
-          </Button>
+          <Link href="/search" className="sm:hidden">
+            <Button variant="ghost" size="icon">
+              <Search className="h-4 w-4" />
+            </Button>
+          </Link>
           
           {/* Theme controls - only show on desktop */}
           {shouldShowThemeSelector() && <div className="hidden sm:block"><ThemeSelector /></div>}
           {shouldShowFontToggle() && <div className="hidden md:block"><FontToggle /></div>}
           {shouldShowThemeToggle() && <div className="hidden sm:block"><ThemeToggle /></div>}
           
-          <Button size="sm" className="text-xs sm:text-sm">{navigation.buttons.login}</Button>
+          <Link href="/login">
+            <Button size="sm" className="text-xs sm:text-sm">{navigation.buttons.login}</Button>
+          </Link>
         </div>
       </Container>
     </header>

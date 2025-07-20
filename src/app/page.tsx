@@ -14,6 +14,7 @@ import {
   Sparkles,
   CheckCircle
 } from "lucide-react"
+import Link from "next/link"
 
 import { CoursesSection } from "@/components/homepage/courses-section"
 import { VideosSection } from "@/components/homepage/videos-section"
@@ -81,14 +82,18 @@ export default function Home() {
 
             {/* CTA */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4">
-              <Button size="lg" className="w-full sm:w-auto sm:flex-none">
-                <BookOpen className="h-4 w-4 mr-2" />
-                {homepage.hero.buttons.startLearning}
-              </Button>
-              <Button variant="outline" size="lg" className="w-full sm:w-auto sm:flex-none">
-                <Video className="h-4 w-4 mr-2" />
-                {homepage.hero.buttons.watchDemo}
-              </Button>
+              <Link href="/courses">
+                <Button size="lg" className="w-full sm:w-auto sm:flex-none">
+                  <BookOpen className="h-4 w-4 mr-2" />
+                  {homepage.hero.buttons.startLearning}
+                </Button>
+              </Link>
+              <Link href="/demo">
+                <Button variant="outline" size="lg" className="w-full sm:w-auto sm:flex-none">
+                  <Video className="h-4 w-4 mr-2" />
+                  {homepage.hero.buttons.watchDemo}
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -139,14 +144,18 @@ export default function Home() {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4 justify-center">
-            <Button size="lg" className="w-full sm:w-auto sm:min-w-[140px]">
-              <Sparkles className="h-4 w-4 mr-2" />
-              {homepage.cta.buttons.getStarted}
-            </Button>
-            <Button variant="outline" size="lg" className="w-full sm:w-auto sm:min-w-[140px]">
-              <ExternalLink className="h-4 w-4 mr-2" />
-              {homepage.cta.buttons.viewCourses}
-            </Button>
+            <Link href="/signup">
+              <Button size="lg" className="w-full sm:w-auto sm:min-w-[140px]">
+                <Sparkles className="h-4 w-4 mr-2" />
+                {homepage.cta.buttons.getStarted}
+              </Button>
+            </Link>
+            <Link href="/courses">
+              <Button variant="outline" size="lg" className="w-full sm:w-auto sm:min-w-[140px]">
+                <ExternalLink className="h-4 w-4 mr-2" />
+                {homepage.cta.buttons.viewCourses}
+              </Button>
+            </Link>
           </div>
         </div>
       </Section>
