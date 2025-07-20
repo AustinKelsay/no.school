@@ -88,7 +88,7 @@ export function Header() {
                           <Settings className="mr-2 h-4 w-4" />
                           Theme
                         </DropdownMenuSubTrigger>
-                        <DropdownMenuSubContent className="w-64">
+                        <DropdownMenuSubContent className="w-64 max-h-80 overflow-y-auto">
                           {availableThemes.map((themeOption) => (
                             <DropdownMenuItem
                               key={themeOption.value}
