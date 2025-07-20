@@ -29,6 +29,7 @@ import {
   Tag
 } from 'lucide-react'
 import type { NostrEvent } from 'snstr'
+import { DEFAULT_RELAYS } from '@/contexts/snstr-context'
 
 interface ResourcePageProps {
   params: Promise<{
@@ -453,7 +454,7 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                 identifier: resourceId,
                 pubkey: event.pubkey,
                 kind: event.kind,
-                relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
+                relays: DEFAULT_RELAYS
               }}
               title="Comments"
             />

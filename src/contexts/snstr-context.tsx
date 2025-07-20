@@ -4,7 +4,7 @@ import { createContext, useContext, useRef, ReactNode } from 'react';
 import { RelayPool, Filter, NostrEvent } from 'snstr';
 
 // Default relay URLs
-const DEFAULT_RELAYS = [
+export const DEFAULT_RELAYS = [
   'wss://relay.nostr.band',
   'wss://nos.lol',
   'wss://relay.damus.io',

@@ -34,6 +34,7 @@ import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { useInteractions } from '@/hooks/useInteractions'
 import { encodePublicKey } from 'snstr'
 import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
+import { DEFAULT_RELAYS } from '@/contexts/snstr-context'
 
 interface LessonDetailsPageProps {
   params: Promise<{
@@ -554,7 +555,7 @@ function LessonContent({
               identifier: lessonData.resource.id,
               pubkey: lessonData.resource.note.pubkey,
               kind: lessonData.resource.note.kind,
-              relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
+              relays: DEFAULT_RELAYS
             }}
             title="Comments"
           />

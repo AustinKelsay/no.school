@@ -29,7 +29,7 @@ import {
   GraduationCap,
   User
 } from 'lucide-react'
-import type { Metadata } from 'next'
+import { DEFAULT_RELAYS } from '@/contexts/snstr-context'
 
 interface CoursePageProps {
   params: Promise<{
@@ -529,7 +529,7 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                   identifier: courseId,
                   pubkey: courseData.note.pubkey,
                   kind: courseData.note.kind,
-                  relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
+                  relays: DEFAULT_RELAYS
                 }}
                 title="Comments"
               />
