@@ -13,44 +13,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { AuthLayout } from '@/components/auth/auth-layout'
+import { authConfig } from '@/lib/auth'
 
 export default function VerifyRequestPage() {
   const searchParams = useSearchParams()
   const email = searchParams.get('email')
+  const copy = authConfig.copy.verifyRequest
 
   return (
     <AuthLayout 
-      title="Check your email"
-      description="We've sent you a magic link to sign in"
+      title={copy.title}
+      description={copy.description}
     >
       <Card>
           <CardHeader>
-            <CardTitle className="text-center">Email Sent!</CardTitle>
+            <CardTitle className="text-center">{copy.cardTitle}</CardTitle>
             <CardDescription className="text-center">
-              {email ? `We sent a magic link to ${email}` : 'We sent you a magic link'}
+              {email ? copy.cardDescription.replace('{email}', email) : copy.cardDescriptionNoEmail}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Alert>
               <div className="space-y-2">
-                <p className="font-medium">Next steps:</p>
+                <p className="font-medium">{copy.steps.title}</p>
                 <ol className="list-decimal list-inside space-y-1 text-sm">
-                  <li>Check your email inbox (and spam folder)</li>
-                  <li>Click the magic link in the email</li>
-                  <li>You&apos;ll be automatically signed in</li>
+                  <li>{copy.steps.step1}</li>
+                  <li>{copy.steps.step2}</li>
+                  <li>{copy.steps.step3}</li>
                 </ol>
               </div>
             </Alert>
 
                          <div className="text-center text-sm text-muted-foreground space-y-2">
-               <p>The magic link will expire in 24 hours.</p>
+               <p>{copy.expiry}</p>
                <p>
-                 Didn&apos;t receive the email?{' '}
+                 {copy.noEmail}{' '}
                  <Link 
                    href="/auth/signin" 
                    className="text-primary hover:text-primary/80 underline"
                  >
-                   Try again
+                   {copy.tryAgain}
                  </Link>
                </p>
              </div>
@@ -58,7 +60,7 @@ export default function VerifyRequestPage() {
             <div className="text-center">
               <Button variant="outline" asChild>
                 <Link href="/">
-                  Return to Home
+                  {copy.returnHome}
                 </Link>
               </Button>
             </div>

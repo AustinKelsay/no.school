@@ -13,65 +13,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { AuthLayout } from '@/components/auth/auth-layout'
+import { authConfig } from '@/lib/auth'
 
-// Error code to message mapping
-const errorMessages: Record<string, { title: string; description: string; action: string }> = {
-  CredentialsSignin: {
-    title: 'Authentication Failed',
-    description: 'The credentials you provided are invalid. Please check your information and try again.',
-    action: 'Try signing in again'
-  },
-  EmailSignin: {
-    title: 'Email Signin Error',
-    description: 'There was an error sending your magic link. Please try again.',
-    action: 'Request new magic link'
-  },
-  OAuthSignin: {
-    title: 'OAuth Signin Error',
-    description: 'There was an error with the OAuth provider. Please try again.',
-    action: 'Try again'
-  },
-  OAuthCallback: {
-    title: 'OAuth Callback Error',
-    description: 'There was an error processing the OAuth callback. Please try again.',
-    action: 'Try again'
-  },
-  EmailCreateAccount: {
-    title: 'Email Account Creation Error',
-    description: 'There was an error creating your account with this email. Please try again.',
-    action: 'Try again'
-  },
-  Callback: {
-    title: 'Callback Error',
-    description: 'There was an error during the authentication callback. Please try again.',
-    action: 'Try again'
-  },
-  OAuthCreateAccount: {
-    title: 'OAuth Account Creation Error',
-    description: 'There was an error creating your account with the OAuth provider. Please try again.',
-    action: 'Try again'
-  },
-  SessionRequired: {
-    title: 'Session Required',
-    description: 'You need to be signed in to access this page.',
-    action: 'Sign in'
-  },
-  Default: {
-    title: 'Authentication Error',
-    description: 'An unexpected error occurred during authentication. Please try again.',
-    action: 'Try again'
-  }
-}
 
 export default function AuthErrorPage() {
   const searchParams = useSearchParams()
   const errorCode = searchParams.get('error') || 'Default'
-  const errorInfo = errorMessages[errorCode] || errorMessages.Default
+  const copy = authConfig.copy.error
+  const errorInfo = copy.errorMessages[errorCode as keyof typeof copy.errorMessages] || copy.errorMessages.Default
 
   return (
     <AuthLayout 
-      title="Oops! Something went wrong"
-      description="We encountered an issue with your authentication"
+      title={copy.title}
+      description={copy.description}
     >
       <Card>
           <CardHeader>
@@ -87,7 +41,7 @@ export default function AuthErrorPage() {
               <div className="space-y-2">
                 <p className="font-medium">Error Code: {errorCode}</p>
                 <p className="text-sm">
-                  If this problem persists, please contact support with the error code above.
+                  {copy.persistentError}
                 </p>
               </div>
             </Alert>
@@ -101,19 +55,19 @@ export default function AuthErrorPage() {
 
               <Button variant="outline" asChild className="w-full">
                 <Link href="/">
-                  Return to Home
+                  {copy.returnHome}
                 </Link>
               </Button>
             </div>
 
                          <div className="text-center text-sm text-muted-foreground">
                <p>
-                 Need help?{' '}
+                 {copy.needHelp}{' '}
                  <Link 
                    href="/support" 
                    className="text-primary hover:text-primary/80 underline"
                  >
-                   Contact Support
+                   {copy.contactSupport}
                  </Link>
                </p>
              </div>

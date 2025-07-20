@@ -10,12 +10,18 @@
     "darkMode": null
   },
   "_comments": {
-    "ui.showThemeSelector": "Show/hide the theme selector dropdown in the header",
-    "ui.showFontToggle": "Show/hide the font override toggle in the header", 
-    "ui.showThemeToggle": "Show/hide the dark/light mode toggle in the header",
-    "defaults.theme": "Force a specific theme (e.g., 'cosmic-night', 'elegant-luxury'). Set to null to use user preference/localStorage",
-    "defaults.font": "Force a specific font (e.g., 'inter', 'poppins'). Set to null to use theme default or user preference",
-    "defaults.darkMode": "Force dark/light mode (true=dark, false=light, null=system/user preference)"
+    "_overview": "Theme configuration system - controls theme UI controls visibility and default values for branded deployments",
+    "ui": "UI control visibility settings - determines which theme controls appear in the application header",
+    "ui.showThemeSelector": "Show/hide the theme selector dropdown in header. Controls access to 47+ available color themes (cosmic-night, elegant-luxury, etc.)",
+    "ui.showFontToggle": "Show/hide the font selection menu in header. Controls access to 24+ available fonts (Inter, Poppins, etc.)",
+    "ui.showThemeToggle": "Show/hide the dark/light mode toggle button in header. Controls manual dark mode switching.",
+    "defaults": "Default/forced theme values - overrides user preferences for branded deployments",
+    "defaults.theme": "Force a specific color theme (e.g., 'cosmic-night', 'elegant-luxury'). null = user choice via localStorage. When set, users cannot change theme.",
+    "defaults.font": "Force a specific font (e.g., 'inter', 'poppins'). null = theme default or user preference. When set, users cannot change font.",
+    "defaults.darkMode": "Force dark/light mode. true=always dark, false=always light, null=system preference or user choice. When set, users cannot toggle mode.",
+    "_priority": "Configuration priority: forced defaults (highest) > user localStorage > system defaults (lowest)",
+    "_validation": "All configured values are validated against available themes/fonts. Invalid values fall back to defaults with error logging.",
+    "_usage": "Used by ThemeProvider, Header component, and theme context to control theme system behavior across the application."
   },
   "_examples": {
     "hideAllToggles": {

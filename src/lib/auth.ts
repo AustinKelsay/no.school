@@ -5,6 +5,7 @@
  * - PostgreSQL adapter via Prisma
  * - Email magic link authentication
  * - Custom NIP07 Nostr browser extension authentication
+ * - Configurable settings via config/auth.json
  */
 
 import { NextAuthOptions } from 'next-auth'
@@ -14,6 +15,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import { prisma } from './prisma'
 import type { Adapter } from 'next-auth/adapters'
 import type { NostrEvent } from 'snstr'
+import authConfig from '../../config/auth.json'
 
 /**
  * Verify NIP07 public key format
@@ -25,11 +27,12 @@ function verifyNostrPubkey(pubkey: string): boolean {
 
 
 
-export const authOptions: NextAuthOptions = {
-  adapter: PrismaAdapter(prisma) as Adapter,
-  
-  providers: [
-    // Email Magic Link Provider
+// Build providers array based on configuration
+const providers = []
+
+// Add Email Provider if enabled
+if (authConfig.providers.email.enabled) {
+  providers.push(
     EmailProvider({
       server: {
         host: process.env.EMAIL_SERVER_HOST,
@@ -40,10 +43,14 @@ export const authOptions: NextAuthOptions = {
         },
       },
       from: process.env.EMAIL_FROM,
-      maxAge: 24 * 60 * 60, // 24 hours
-    }),
-    
-    // Custom NIP07 Nostr Credentials Provider
+      maxAge: authConfig.providers.email.maxAge,
+    })
+  )
+}
+
+// Add Nostr Provider if enabled
+if (authConfig.providers.nostr.enabled) {
+  providers.push(
     CredentialsProvider({
       id: 'nostr',
       name: 'Nostr (NIP07)',
@@ -70,14 +77,18 @@ export const authOptions: NextAuthOptions = {
             where: { pubkey: credentials.pubkey }
           })
 
-          if (!user) {
+          if (!user && authConfig.providers.nostr.autoCreateUser) {
             // Create new user with Nostr pubkey
             user = await prisma.user.create({
               data: {
                 pubkey: credentials.pubkey,
-                username: `nostr_${credentials.pubkey.substring(0, 8)}`,
+                username: `${authConfig.providers.nostr.usernamePrefix}${credentials.pubkey.substring(0, authConfig.providers.nostr.usernameLength)}`,
               }
             })
+          }
+
+          if (!user) {
+            throw new Error('User not found and auto-creation disabled')
           }
 
           return {
@@ -93,7 +104,13 @@ export const authOptions: NextAuthOptions = {
         }
       }
     })
-  ],
+  )
+}
+
+export const authOptions: NextAuthOptions = {
+  adapter: PrismaAdapter(prisma) as Adapter,
+  
+  providers,
 
   callbacks: {
     async jwt({ token, user, account }) {
@@ -115,22 +132,23 @@ export const authOptions: NextAuthOptions = {
     },
 
     async redirect({ url, baseUrl }) {
-      // Redirect to home after successful auth
+      // Use configured redirect URL after successful auth
       if (url.startsWith('/')) return `${baseUrl}${url}`
       if (new URL(url).origin === baseUrl) return url
-      return baseUrl
+      return `${baseUrl}${authConfig.security.redirectAfterSignin}`
     }
   },
 
   pages: {
-    signIn: '/auth/signin',
-    verifyRequest: '/auth/verify-request',
-    error: '/auth/error',
+    signIn: authConfig.pages.signin,
+    verifyRequest: authConfig.pages.verifyRequest,
+    error: authConfig.pages.error,
   },
 
   session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    strategy: authConfig.session.strategy as 'jwt' | 'database',
+    maxAge: authConfig.session.maxAge,
+    updateAge: authConfig.session.updateAge,
   },
 
   events: {
@@ -145,5 +163,5 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development',
 }
 
-// Export helper functions for NIP07 authentication
-export { verifyNostrPubkey } 
+// Export helper functions and configuration
+export { verifyNostrPubkey, authConfig } 

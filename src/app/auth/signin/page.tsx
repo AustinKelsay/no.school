@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
 import { AuthLayout } from '@/components/auth/auth-layout'
 import { hasNip07Support } from 'snstr'
+import { authConfig } from '@/lib/auth'
 
 interface NostrWindow extends Window {
   nostr?: {
@@ -48,6 +49,7 @@ export default function SignInPage() {
 
   const callbackUrl = searchParams.get('callbackUrl') || '/'
   const errorType = searchParams.get('error')
+  const copy = authConfig.copy.signin
 
   // Handle email magic link sign in
   const handleEmailSignIn = useCallback(async (e: React.FormEvent) => {
@@ -66,16 +68,16 @@ export default function SignInPage() {
       })
 
       if (result?.error) {
-        setError('Failed to send magic link. Please try again.')
+        setError(copy.messages.emailError)
       } else {
-        setMessage(`Check your email! We've sent a magic link to ${email}`)
+        setMessage(copy.messages.emailSent.replace('{email}', email))
       }
     } catch (err) {
-      setError('Something went wrong. Please try again.')
+      setError(copy.messages.genericError)
     } finally {
       setIsLoading(false)
     }
-  }, [email, callbackUrl])
+  }, [email, callbackUrl, copy.messages.emailError, copy.messages.emailSent, copy.messages.genericError])
 
   // Handle NIP07 Nostr sign in
   const handleNostrSignIn = useCallback(async () => {
@@ -84,7 +86,7 @@ export default function SignInPage() {
 
     try {
       if (!hasNip07Support()) {
-        setError('Nostr browser extension not found. Please install a NIP07-compatible extension like Alby, nos2x, or Flamingo.')
+        setError(copy.messages.nostrExtensionMissing)
         return
       }
 
@@ -99,23 +101,23 @@ export default function SignInPage() {
       })
 
       if (result?.error) {
-        setError('Nostr authentication failed. Please try again.')
+        setError(copy.messages.nostrError)
       } else {
         // Success - redirect will be handled by NextAuth
         router.push(callbackUrl)
       }
     } catch (err) {
       console.error('Nostr sign in error:', err)
-      setError(err instanceof Error ? err.message : 'Failed to authenticate with Nostr extension')
+      setError(err instanceof Error ? err.message : copy.messages.nostrError)
     } finally {
       setIsNostrLoading(false)
     }
-  }, [callbackUrl, router])
+  }, [callbackUrl, router, copy.messages.nostrError, copy.messages.nostrExtensionMissing])
 
   return (
     <AuthLayout 
-      title="Sign in to your account"
-      description="Choose your preferred authentication method"
+      title={copy.title}
+      description={copy.description}
     >
       {/* Error Display */}
       {(error || errorType) && (
@@ -133,11 +135,12 @@ export default function SignInPage() {
 
       <div className="space-y-6">
           {/* Email Magic Link Authentication */}
+          {authConfig.features.showEmailProvider && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Email Magic Link</CardTitle>
+              <CardTitle className="text-lg">{copy.emailCard.title}</CardTitle>
               <CardDescription>
-                We&apos;ll send you a secure link to sign in
+                {copy.emailCard.description}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -145,7 +148,7 @@ export default function SignInPage() {
                 <div>
                   <Input
                     type="email"
-                    placeholder="Enter your email address"
+                    placeholder={copy.emailCard.placeholder}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
@@ -157,28 +160,32 @@ export default function SignInPage() {
                   className="w-full"
                   disabled={isLoading || !email}
                 >
-                  {isLoading ? 'Sending...' : 'Send Magic Link'}
+                  {isLoading ? copy.emailCard.loadingButton : copy.emailCard.button}
                 </Button>
               </form>
             </CardContent>
           </Card>
+          )}
 
           {/* Divider */}
+          {authConfig.features.showEmailProvider && authConfig.features.showNostrProvider && (
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-background px-2 text-muted-foreground">Or</span>
+              <span className="bg-background px-2 text-muted-foreground">{copy.dividerText}</span>
             </div>
           </div>
+          )}
 
           {/* NIP07 Nostr Authentication */}
+          {authConfig.features.showNostrProvider && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Nostr Extension (NIP07)</CardTitle>
+              <CardTitle className="text-lg">{copy.nostrCard.title}</CardTitle>
               <CardDescription>
-                Sign in with your Nostr browser extension
+                {copy.nostrCard.description}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -188,20 +195,23 @@ export default function SignInPage() {
                 variant="outline"
                 disabled={isNostrLoading}
               >
-                {isNostrLoading ? 'Connecting...' : 'Sign in with Nostr'}
+                {isNostrLoading ? copy.nostrCard.loadingButton : copy.nostrCard.button}
               </Button>
                              <p className="mt-2 text-xs text-muted-foreground">
-                 Requires a NIP07-compatible browser extension like Alby, nos2x, or Flamingo
+                 {copy.nostrCard.helpText}
                </p>
             </CardContent>
           </Card>
+          )}
               </div>
 
+      {authConfig.features.requireTermsAcceptance && (
       <div className="text-center text-sm text-muted-foreground">
         <p>
-          By signing in, you agree to our terms of service and privacy policy.
+          {copy.termsText}
         </p>
       </div>
+      )}
     </AuthLayout>
   )
 } 
