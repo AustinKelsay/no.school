@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  db:
+    container_name: noschool-db
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: no_school
+      POSTGRES_USER: noschool
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U noschool -d no_school"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    container_name: noschool-app
+    build:
+      context: .
+      target: development
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=development
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    command: sh -c "npx prisma migrate dev --name init && npm run dev"
+
+volumes:
+  postgres_data:

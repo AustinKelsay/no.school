@@ -29,6 +29,9 @@ This is a **Next.js 15** application with **React 19** using the App Router patt
 - **@tanstack/react-query** for data fetching and caching
 - **zapthreads** for Lightning Network integration and Bitcoin payments
 - **react-markdown** with syntax highlighting for content rendering
+- **NextAuth.js** with Prisma adapter for authentication
+- **Prisma** with PostgreSQL for database management
+- **NIP07** Nostr browser extension authentication support
 
 ### Key Architectural Patterns
 
@@ -127,11 +130,14 @@ middleware.ts             # Security headers, CSP, CORS
 - `config/theme.json` - **Theme and font configuration for deployment customization**
 - Global CSS variables in `src/app/globals.css` for dynamic theme colors
 
-#### Configuration
+#### Configuration & Authentication
 - `config/theme.json` - **Theme UI controls and default value configuration**
 - `next.config.ts` - **Performance optimizations, security headers, image config**
 - `middleware.ts` - **Security middleware with CSP headers and CORS**
 - `components.json` - **shadcn/ui configuration**
+- `src/lib/auth.ts` - **NextAuth.js configuration with email & NIP07 Nostr authentication**
+- `prisma/schema.prisma` - **Complete database schema with User, Course, Resource models**
+- `src/lib/prisma.ts` - **Prisma client configuration and connection management**
 
 ### Data Flow Architecture
 
@@ -205,12 +211,15 @@ The platform manages three content types:
 - **Secure Error Messages**: No sensitive data leakage
 - **API Error Consistency**: Structured JSON error responses
 
-### Mock Data System
-Current implementation uses JSON files for development:
-- `src/data/mockDb/Course.json` - Course database records
-- `src/data/mockDb/Resource.json` - Resource database records  
-- `src/data/mockDb/Lesson.json` - Lesson database records
-- Combined with Nostr event parsing to create full display data
+### Database & Authentication System
+Production-ready PostgreSQL database with hybrid development approach:
+- **Production Database**: Full Prisma schema with User, Course, Resource, Lesson, Purchase models
+- **Authentication**: NextAuth.js with email magic links + NIP07 Nostr browser extension support
+- **Development Mode**: JSON mock files (`src/data/mockDb/`) + real Nostr events for rapid development
+- **User Management**: Complete user profiles with pubkeys, email verification, roles, and Lightning addresses
+- **Payment Tracking**: Purchase model tracks course/resource payments in sats
+- **Progress Tracking**: UserLesson and UserCourse models for learning progress and completion
+- **Badge System**: Nostr-based achievements and course completion badges
 
 ### Production Features
 - **Health Monitoring**: `/api/health` endpoint with proper status codes
@@ -218,6 +227,19 @@ Current implementation uses JSON files for development:
 - **Cache Statistics**: Real-time performance monitoring
 - **Build Optimization**: Zero compilation errors with Turbopack
 - **Containerization**: Docker support for deployment
+
+## Database Commands
+
+```bash
+# Database operations (requires DATABASE_URL environment variable)
+npx prisma generate     # Generate Prisma client
+npx prisma db push      # Push schema changes to database
+npx prisma migrate dev  # Create and apply new migration
+npx prisma studio       # Open Prisma Studio for database browsing
+
+# Development with hybrid data
+npm run dev             # Uses JSON mock data + real Nostr events for optimal development experience
+```
 
 ## Testing Commands
 
@@ -235,3 +257,6 @@ When making changes to this codebase:
 3. **Database Adapter Pattern**: Use adapters for all data access - never access data directly
 4. **Type Safety**: Maintain strict TypeScript compliance with runtime Zod validation
 5. **Caching**: All adapter methods include built-in caching for performance
+6. **Database Changes**: Use `npx prisma generate` after schema changes, `npx prisma db push` for development
+7. **Authentication Flow**: Test both email magic links and NIP07 Nostr authentication
+8. **Environment Variables**: Ensure DATABASE_URL and NEXTAUTH_SECRET are properly configured

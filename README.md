@@ -41,12 +41,16 @@ A **production-ready** Next.js 15 application showcasing enterprise-grade archit
 - **Advanced Query Hooks** - TanStack Query with intelligent caching, batch operations, and error boundaries
 - **Hierarchical Caching** - L1 memory cache with 5-minute stale time and automatic invalidation
 - **zapthreads Integration** - Lightning Network payments and Bitcoin interactions
+- **Production Database** - PostgreSQL with Prisma ORM for scalable data management
+- **NextAuth.js Authentication** - Email magic links + NIP07 Nostr browser extension support
 
 ### **Security & Validation**
 - **Zod** - Runtime schema validation
 - **Rate Limiting** - Per-user, per-action protection
 - **Input Sanitization** - XSS and injection prevention
-- **Role-based Access** - Authentication and authorization ready
+- **Role-based Access** - Complete authentication and authorization system
+- **NextAuth.js Security** - CSRF protection, secure session management
+- **NIP07 Authentication** - Secure Nostr browser extension integration
 
 ### **Styling & UI**
 - **Tailwind CSS v4** - Utility-first CSS framework
@@ -119,6 +123,14 @@ cd no.school
 # Install dependencies
 npm install
 
+# Set up environment variables
+cp .env.example .env.local
+# Add your DATABASE_URL and NEXTAUTH_SECRET
+
+# Set up database (optional for development)
+npx prisma generate
+npx prisma db push
+
 # Start development server
 npm run dev
 ```
@@ -128,13 +140,18 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 ### **Build & Deploy**
 
 ```bash
+# Database operations
+npx prisma generate     # Generate Prisma client
+npx prisma db push      # Push schema to database
+npx prisma studio       # Open database browser
+
 # Build for production
 npm run build
 
 # Run linting
 npm run lint
 
-# Both commands now execute successfully with zero errors! ✅
+# All commands execute successfully with zero errors! ✅
 ```
 
 ---
@@ -226,10 +243,11 @@ export const enrollInCourse = createAction(
 **Security Features:**
 - **Input Validation**: Comprehensive Zod schemas
 - **Rate Limiting**: Configurable per-user limits
-- **Authentication**: Ready for NextAuth.js integration
-- **Role-based Access**: User, admin, instructor roles
+- **Authentication**: NextAuth.js with email + NIP07 Nostr integration
+- **Role-based Access**: User, admin, instructor roles with database backing
 - **Error Security**: No sensitive data leakage
 - **Input Sanitization**: XSS and injection prevention
+- **Session Management**: Secure database sessions with Prisma adapter
 
 ### **🎭 Error Handling**
 
@@ -454,6 +472,9 @@ try {
 ## 🌟 **Recent Achievements**
 
 ### **🆕 Latest Updates (January 2025)**
+- **✅ Production Authentication System**: NextAuth.js with email magic links + NIP07 Nostr browser extension
+- **✅ PostgreSQL Database**: Complete Prisma schema with User, Course, Resource, and Purchase models
+- **✅ User Management**: Profile system with pubkeys, roles, Lightning addresses, and progress tracking
 - **✅ Hybrid Development Setup**: Mock JSON database + Real Nostr events for optimal development experience
 - **✅ Database Adapter Pattern**: Clean abstraction layer with JSON mock + Nostr integration
 - **✅ Real Nostr Integration**: Live connection to production relays (relay.nostr.band, nos.lol, relay.damus.io)
@@ -539,21 +560,39 @@ export class DatabaseCourseAdapter {
 
 ### **Authentication Integration**
 ```typescript
-// Ready for NextAuth.js or similar - works with JSON mock or real DB
+// NextAuth.js with database backing - production ready
 export const createCourse = createAction(
   CourseCreateSchema,
   async (data, context) => {
-    // Create in JSON mock (development) or database (production)
-    const course = await CourseAdapter.create(data)
+    // Create in Prisma database (production) or JSON mock (development)
+    const course = await CourseAdapter.create({
+      ...data,
+      userId: context.session.user.id // From NextAuth session
+    })
     
     // Publish to Nostr for decentralized content
-    await publishCourseEvent(course, context.user.nostrKey)
+    if (context.session.user.nostrKey) {
+      await publishCourseEvent(course, context.session.user.nostrKey)
+    }
   },
   {
     requireAuth: true,
     allowedRoles: ['admin', 'instructor']
   }
 )
+
+// User authentication with email + Nostr support
+const authOptions = {
+  adapter: PrismaAdapter(prisma),
+  providers: [
+    EmailProvider({
+      // Magic link authentication
+    }),
+    CredentialsProvider({
+      // NIP07 Nostr browser extension authentication
+    })
+  ]
+}
 ```
 
 ---

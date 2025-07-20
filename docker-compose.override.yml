@@ -1,0 +1,26 @@
+# This file automatically extends docker-compose.yml for local development
+version: "3.8"
+
+services:
+  db:
+    ports:
+      - "5432:5432"
+    environment:
+      # Enable logging for development
+      POSTGRES_LOG_STATEMENT: all
+    volumes:
+      # Add init scripts if needed
+      - ./prisma/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+  app:
+    environment:
+      # Enable hot reloading and debugging
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+    volumes:
+      # Bind mount source code for hot reloading
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    stdin_open: true
+    tty: true

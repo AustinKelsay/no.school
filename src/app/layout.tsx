@@ -5,6 +5,7 @@ import { ConfiguredThemeProvider } from "@/components/configured-theme-provider"
 import { ThemeColorProvider } from "@/contexts/theme-context";
 import { SnstrProvider } from "@/contexts/snstr-context";
 import { QueryProvider } from "@/contexts/query-provider";
+import { SessionProvider } from "@/contexts/session-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,9 +35,11 @@ export default function RootLayout({
         <ConfiguredThemeProvider>
           <ThemeColorProvider>
             <QueryProvider>
-              <SnstrProvider>
-                {children}
-              </SnstrProvider>
+              <SessionProvider>
+                <SnstrProvider>
+                  {children}
+                </SnstrProvider>
+              </SessionProvider>
             </QueryProvider>
           </ThemeColorProvider>
         </ConfiguredThemeProvider>

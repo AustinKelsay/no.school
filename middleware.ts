@@ -1,10 +1,15 @@
+/**
+ * Next.js Middleware
+ * 
+ * This middleware handles:
+ * - Security headers
+ * - CORS for API routes
+ * - Basic routing (NextAuth handles its own auth routes)
+ */
+
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-/**
- * Middleware function for handling authentication, security, and routing
- * Runs before each request to apply security headers and route protection
- */
 export function middleware(request: NextRequest) {
   const response = NextResponse.next()
 
@@ -15,7 +20,7 @@ export function middleware(request: NextRequest) {
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
 
-  // Add CSP header for enhanced security
+  // Add CSP header for enhanced security (relaxed for NextAuth)
   const cspHeader = `
     default-src 'self';
     script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live;
@@ -46,34 +51,19 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // Protected routes (implement authentication logic here)
-  const protectedRoutes = ['/dashboard', '/profile', '/settings']
-  const isProtectedRoute = protectedRoutes.some(route => 
-    request.nextUrl.pathname.startsWith(route)
-  )
-
-  if (isProtectedRoute) {
-    // For now, allow all requests - implement your auth logic here
-    // const token = request.cookies.get('auth-token')
-    // if (!token) {
-    //   return NextResponse.redirect(new URL('/login', request.url))
-    // }
-  }
-
   return response
 }
 
-/**
- * Configuration for middleware matching
- * Specify which paths should trigger the middleware
- */
 export const config = {
   matcher: [
-    // Match all request paths except for the ones starting with:
-    // - _next/static (static files)
-    // - _next/image (image optimization files)
-    // - favicon.ico (favicon file)
-    // - public folder
-    '/((?!_next/static|_next/image|favicon.ico|public/).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api/auth (NextAuth routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder
+     */
+    '/((?!api/auth|_next/static|_next/image|favicon.ico|public/).*)',
   ],
 } 
