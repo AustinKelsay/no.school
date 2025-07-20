@@ -88,24 +88,12 @@ export default function SignInPage() {
         return
       }
 
-      // Get user's public key
+      // Get user's public key from the extension
       const pubkey = await (window as NostrWindow).nostr!.getPublicKey()
-      
-      // Create authentication event to sign
-      const event = {
-        kind: 22242, // Authentication event kind
-        created_at: Math.floor(Date.now() / 1000),
-        tags: [['auth', 'noschool-login']],
-        content: `Authenticating with no.school at ${new Date().toISOString()}`,
-      }
 
-      // Sign the event with browser extension
-      const signedEvent = await (window as NostrWindow).nostr!.signEvent(event)
-
-      // Authenticate with NextAuth
+      // Authenticate with NextAuth using just the public key
       const result = await signIn('nostr', {
         pubkey,
-        signedEvent: JSON.stringify(signedEvent),
         callbackUrl,
         redirect: false,
       })

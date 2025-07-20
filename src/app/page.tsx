@@ -19,8 +19,9 @@ import Link from "next/link"
 import { CoursesSection } from "@/components/homepage/courses-section"
 import { VideosSection } from "@/components/homepage/videos-section"
 import { DocumentsSection } from "@/components/homepage/documents-section"
+import { SessionLogger } from "@/components/session-logger"
 import { useCopy } from "@/lib/copy"
-import { getContentConfig, getEnabledHomepageSections } from "@/lib/content-config"
+import { getEnabledHomepageSections } from "@/lib/content-config"
 
 interface HeroStat {
   value: string
@@ -46,6 +47,9 @@ export default function Home() {
 
   return (
     <MainLayout>
+      {/* Session Logger - logs session info to console */}
+      <SessionLogger />
+      
       {/* Hero Section */}
       <Section 
         spacing="xl" 

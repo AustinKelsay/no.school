@@ -16,35 +16,11 @@ import type { Adapter } from 'next-auth/adapters'
 import type { NostrEvent } from 'snstr'
 
 /**
- * Verify NIP07 authentication event
+ * Verify NIP07 public key format
  */
-async function verifyNostrAuth(signedEvent: NostrEvent): Promise<boolean> {
-  try {
-    // Basic validation - in production you'd want proper cryptographic verification
-    if (!signedEvent.sig || !signedEvent.pubkey) {
-      console.error('Missing signature or pubkey')
-      return false
-    }
-    
-    // Verify this is a recent event (within 10 minutes)
-    const now = Math.floor(Date.now() / 1000)
-    const timeDiff = now - signedEvent.created_at
-    if (timeDiff > 600) { // 10 minutes
-      console.error('Event too old')
-      return false
-    }
-    
-    // Verify it's an authentication event (kind 22242 is common for auth)
-    if (signedEvent.kind !== 22242) {
-      console.error('Invalid event kind for authentication')
-      return false
-    }
-    
-    return true
-  } catch (error) {
-    console.error('Error verifying Nostr authentication:', error)
-    return false
-  }
+function verifyNostrPubkey(pubkey: string): boolean {
+  // Check if it's a valid hex string of 64 characters (32 bytes)
+  return /^[a-f0-9]{64}$/i.test(pubkey)
 }
 
 
@@ -76,31 +52,17 @@ export const authOptions: NextAuthOptions = {
           label: 'Public Key', 
           type: 'text',
           placeholder: 'Your Nostr public key (hex format)'
-        },
-        signedEvent: { 
-          label: 'Signed Event', 
-          type: 'text',
-          placeholder: 'JSON signed event from browser extension'
         }
       },
-      async authorize(credentials, req) {
-        if (!credentials?.pubkey || !credentials?.signedEvent) {
-          throw new Error('Missing required credentials')
+      async authorize(credentials) {
+        if (!credentials?.pubkey) {
+          throw new Error('Missing public key')
         }
 
         try {
-          // Parse the signed event
-          const signedEvent: NostrEvent = JSON.parse(credentials.signedEvent)
-          
-          // Verify the pubkey matches
-          if (signedEvent.pubkey !== credentials.pubkey) {
-            throw new Error('Public key mismatch')
-          }
-
-          // Verify the authentication
-          const isValid = await verifyNostrAuth(signedEvent)
-          if (!isValid) {
-            throw new Error('Invalid Nostr authentication')
+          // Verify the public key format
+          if (!verifyNostrPubkey(credentials.pubkey)) {
+            throw new Error('Invalid public key format')
           }
 
           // Check if user exists or create new user
@@ -184,4 +146,4 @@ export const authOptions: NextAuthOptions = {
 }
 
 // Export helper functions for NIP07 authentication
-export { verifyNostrAuth } 
+export { verifyNostrPubkey } 
