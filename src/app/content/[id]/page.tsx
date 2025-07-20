@@ -15,10 +15,10 @@ import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-rout
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { encodePublicKey } from 'snstr'
 import { ZapThreads } from '@/components/ui/zap-threads'
+import { InteractionMetrics } from '@/components/ui/interaction-metrics'
 import { useInteractions } from '@/hooks/useInteractions'
 import { preserveLineBreaks } from '@/lib/text-utils'
 import { 
-  Zap, 
   Clock, 
   FileText, 
   Play, 
@@ -26,9 +26,7 @@ import {
   Eye,
   BookOpen,
   Video,
-  Tag,
-  MessageCircle,
-  Heart
+  Tag
 } from 'lucide-react'
 import type { NostrEvent } from 'snstr'
 
@@ -295,41 +293,14 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
               </div>
 
               <div className="flex items-center flex-wrap gap-4 sm:gap-6">
-                <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
-                  <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
-                  <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">
-                    {isLoadingZaps ? (
-                      <div className="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin"></div>
-                    ) : (
-                      zapsCount.toLocaleString()
-                    )}
-                  </span>
-                  <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-xs sm:text-sm">zaps</span>
-                </div>
-                
-                <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
-                  <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
-                  <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">
-                    {isLoadingComments ? (
-                      <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
-                    ) : (
-                      commentsCount
-                    )}
-                  </span>
-                  <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-xs sm:text-sm">comments</span>
-                </div>
-                
-                <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
-                  <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
-                  <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">
-                    {isLoadingLikes ? (
-                      <div className="w-4 h-4 rounded-full border-2 border-pink-500 border-t-transparent animate-spin"></div>
-                    ) : (
-                      reactionsCount
-                    )}
-                  </span>
-                  <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-xs sm:text-sm">likes</span>
-                </div>
+                <InteractionMetrics
+                  zapsCount={zapsCount}
+                  commentsCount={commentsCount}
+                  likesCount={reactionsCount}
+                  isLoadingZaps={isLoadingZaps}
+                  isLoadingComments={isLoadingComments}
+                  isLoadingLikes={isLoadingLikes}
+                />
                 
                 <div className="flex items-center space-x-1.5 sm:space-x-2">
                   <Eye className="h-5 w-5 text-muted-foreground" />
@@ -476,7 +447,7 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
           </div>
           
           {/* Comments Section */}
-          <div className="mt-8">
+          <div className="mt-8" data-comments-section>
             <ZapThreads
               eventDetails={{
                 identifier: resourceId,
@@ -484,7 +455,7 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                 kind: event.kind,
                 relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
               }}
-              title="Resource Discussion"
+              title="Comments"
             />
           </div>
         </div>

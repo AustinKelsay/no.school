@@ -12,6 +12,7 @@ import { parseCourseEvent, parseEvent } from '@/lib/content-utils'
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
 import { VideoPlayer } from '@/components/ui/video-player'
 import { ZapThreads } from '@/components/ui/zap-threads'
+import { InteractionMetrics } from '@/components/ui/interaction-metrics'
 import { useCourseQuery } from '@/hooks/useCoursesQuery'
 import { useLessonsQuery, useLessonQuery } from '@/hooks/useLessonsQuery'
 import { 
@@ -24,10 +25,7 @@ import {
   BookOpen, 
   Video, 
   FileText,
-  RotateCcw,
-  Zap,
-  MessageCircle,
-  Heart
+  RotateCcw
 } from 'lucide-react'
 import Link from 'next/link'
 import { Lesson } from '@/data/types'
@@ -217,41 +215,15 @@ function LessonMetadata({
       )}
       
       {/* Engagement metrics */}
-      <div className="flex items-center flex-wrap gap-4 sm:gap-6">
-        <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
-          <Zap className="h-5 w-5 text-muted-foreground group-hover:text-amber-500 transition-colors" />
-          <span className="font-medium text-foreground group-hover:text-amber-500 transition-colors">
-            {isLoadingZaps ? (
-              <div className="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin"></div>
-            ) : (
-              zapsCount
-            )}
-          </span>
-          <span className="text-muted-foreground group-hover:text-amber-500 transition-colors text-xs sm:text-sm">zaps</span>
-        </div>
-        <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
-          <MessageCircle className="h-5 w-5 text-muted-foreground group-hover:text-blue-500 transition-colors" />
-          <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">
-            {isLoadingComments ? (
-              <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
-            ) : (
-              commentsCount
-            )}
-          </span>
-          <span className="text-muted-foreground group-hover:text-blue-500 transition-colors text-xs sm:text-sm">comments</span>
-        </div>
-        <div className="flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer group">
-          <Heart className="h-5 w-5 text-muted-foreground group-hover:text-pink-500 transition-colors" />
-          <span className="font-medium text-foreground group-hover:text-pink-500 transition-colors">
-            {isLoadingLikes ? (
-              <div className="w-4 h-4 rounded-full border-2 border-pink-500 border-t-transparent animate-spin"></div>
-            ) : (
-              likesCount
-            )}
-          </span>
-          <span className="text-muted-foreground group-hover:text-pink-500 transition-colors text-xs sm:text-sm">likes</span>
-        </div>
-      </div>
+      <InteractionMetrics
+        zapsCount={zapsCount}
+        commentsCount={commentsCount}
+        likesCount={likesCount}
+        isLoadingZaps={isLoadingZaps}
+        isLoadingComments={isLoadingComments}
+        isLoadingLikes={isLoadingLikes}
+        compact
+      />
     </div>
   )
 }
@@ -576,15 +548,17 @@ function LessonContent({
       
       {/* Comments Section */}
       {lessonData.resource?.note && (
-        <ZapThreads
-          eventDetails={{
-            identifier: lessonData.resource.id,
-            pubkey: lessonData.resource.note.pubkey,
-            kind: lessonData.resource.note.kind,
-            relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
-          }}
-          title="Lesson Comments & Discussion"
-        />
+        <div data-comments-section>
+          <ZapThreads
+            eventDetails={{
+              identifier: lessonData.resource.id,
+              pubkey: lessonData.resource.note.pubkey,
+              kind: lessonData.resource.note.kind,
+              relays: ['wss://relay.damus.io', 'wss://nos.lol', 'wss://relay.nostr.band']
+            }}
+            title="Comments"
+          />
+        </div>
       )}
     </div>
   )
