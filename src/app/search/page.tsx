@@ -1,44 +1,17 @@
 "use client"
 
-import { useState, useEffect, useCallback, Suspense } from "react"
+import { useState, useEffect, useMemo, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { Container } from "@/components/layout/container"
 import { Section } from "@/components/layout/section"
-import { SearchResultCard } from "@/components/ui/search-result-card"
+import { SearchContentCard } from "@/components/ui/search-content-card"
 import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Search, Loader2 } from "lucide-react"
 import { useDebounce } from "@/hooks/use-debounce"
-import { HighlightText, SubtleHighlightText } from "@/components/ui/highlight-text"
-import { CourseWithNote, ResourceWithNote } from "@/lib/db-adapter"
+import { useNostrSearch } from "@/hooks/useNostrSearch"
+import type { ContentItem } from '@/data/types'
 import { cn } from "@/lib/utils"
-
-interface SearchResult extends CourseWithNote, ResourceWithNote {
-  type: 'course' | 'resource'
-  keyword?: string
-}
-
-interface SearchResponse {
-  data: {
-    results: SearchResult[]
-    pagination: {
-      page: number
-      pageSize: number
-      totalItems: number
-      totalPages: number
-      hasNext: boolean
-      hasPrev: boolean
-    }
-    query: string
-    type: string
-    summary?: {
-      courses: number
-      resources: number
-      total: number
-    }
-  }
-}
 
 function SearchContent() {
   const searchParams = useSearchParams()
@@ -46,53 +19,63 @@ function SearchContent() {
   
   const [searchQuery, setSearchQuery] = useState(searchParams?.get('q') || '')
   const [searchType, setSearchType] = useState<'all' | 'courses' | 'resources'>('all')
-  const [results, setResults] = useState<SearchResult[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [pagination, setPagination] = useState({
-    page: 1,
-    pageSize: 20,
-    totalItems: 0,
-    totalPages: 0,
-    hasNext: false,
-    hasPrev: false
-  })
-  const [summary, setSummary] = useState<{ courses: number; resources: number; total: number } | null>(null)
   
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
   
-  // Perform search
-  const performSearch = useCallback(async (query: string, type: string = 'all', page: number = 1) => {
-    if (!query || query.length < 3) {
-      setResults([])
-      setError(null)
-      return
-    }
-    
-    setIsLoading(true)
-    setError(null)
-    
-    try {
-      const response = await fetch(
-        `/api/search?q=${encodeURIComponent(query)}&type=${type}&page=${page}&pageSize=20`
-      )
-      
-      if (!response.ok) {
-        throw new Error('Search failed')
+  // Use Nostr search hook
+  const { 
+    results: searchResults = [], 
+    isLoading, 
+    error,
+    refetch 
+  } = useNostrSearch(debouncedSearchQuery, {
+    enabled: debouncedSearchQuery.length >= 3,
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
+  })
+  
+  // Transform search results to ContentItem format
+  const contentItems = useMemo(() => {
+    return searchResults.map(result => {
+      const contentItem: ContentItem = {
+        id: result.id,
+        type: result.type === 'course' ? 'course' : (result.type === 'resource' ? 'document' : 'video'),
+        title: result.title,
+        description: result.description,
+        category: result.isPremium ? 'Premium' : 'Free',
+        difficulty: 'beginner' as const,
+        image: result.image || '',
+        tags: [],
+        instructor: result.instructor || '',
+        instructorPubkey: '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        price: result.price || 0,
+        isPremium: result.isPremium,
+        rating: 4.5,
+        published: true,
+        topics: result.tags || [result.category || ''].filter(Boolean),
+        additionalLinks: [],
+        noteId: undefined,
       }
-      
-      const data: SearchResponse = await response.json()
-      
-      setResults(data.data.results)
-      setPagination(data.data.pagination)
-      setSummary(data.data.summary || null)
-    } catch (err) {
-      setError('Failed to search. Please try again.')
-      setResults([])
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+      return contentItem
+    })
+  }, [searchResults])
+
+  // Filter results based on search type
+  const filteredResults = useMemo(() => {
+    if (searchType === 'all') return contentItems
+    if (searchType === 'courses') return contentItems.filter(item => item.type === 'course')
+    if (searchType === 'resources') return contentItems.filter(item => item.type === 'document' || item.type === 'video')
+    return contentItems
+  }, [contentItems, searchType])
+  
+  // Calculate summary stats
+  const summary = useMemo(() => {
+    const courses = contentItems.filter(item => item.type === 'course').length
+    const resources = contentItems.filter(item => item.type === 'document' || item.type === 'video').length
+    return { courses, resources, total: courses + resources }
+  }, [contentItems])
   
   // Update URL when search query changes
   useEffect(() => {
@@ -103,19 +86,11 @@ function SearchContent() {
     }
   }, [debouncedSearchQuery, router, searchParams])
   
-  // Perform search when debounced query or type changes
-  useEffect(() => {
-    performSearch(debouncedSearchQuery, searchType, pagination.page)
-  }, [debouncedSearchQuery, searchType, performSearch, pagination.page])
-  
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
-    performSearch(searchQuery, searchType, 1)
-  }
-  
-  const handlePageChange = (newPage: number) => {
-    setPagination(prev => ({ ...prev, page: newPage }))
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    if (debouncedSearchQuery.length >= 3) {
+      refetch()
+    }
   }
   
   return (
@@ -126,7 +101,7 @@ function SearchContent() {
           <div className="text-center space-y-2">
             <h1 className="text-3xl font-bold">Search Content</h1>
             <p className="text-muted-foreground">
-              Find courses and resources by keyword
+              Search courses and resources from Nostr relays
             </p>
           </div>
           
@@ -139,7 +114,7 @@ function SearchContent() {
               )} />
               <Input
                 type="search"
-                placeholder="Search for courses, resources, topics... (min 3 characters)"
+                placeholder="Search Nostr content... (min 3 characters)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className={cn(
@@ -187,7 +162,9 @@ function SearchContent() {
             )}
             
             {error && (
-              <p className="text-center text-destructive">{error}</p>
+              <p className="text-center text-destructive">
+                {error instanceof Error ? error.message : 'Failed to search. Please try again.'}
+              </p>
             )}
             
             {isLoading && (
@@ -196,68 +173,41 @@ function SearchContent() {
               </div>
             )}
             
-            {!isLoading && results.length > 0 && (
+            {!isLoading && filteredResults.length > 0 && (
               <>
                 {/* Search Results Summary */}
                 <div className="text-center mb-6">
                   <p className="text-muted-foreground">
-                    Found {pagination.totalItems} result{pagination.totalItems !== 1 ? 's' : ''} for{' '}
+                    Found {filteredResults.length} result{filteredResults.length !== 1 ? 's' : ''} for{' '}
                     <span className="inline-block bg-primary/10 text-primary px-2 py-1 rounded font-medium">
                       &quot;{searchQuery}&quot;
                     </span>
                   </p>
                 </div>
                 
-                <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-2">
-                  {results.map((result) => (
-                    <SearchResultCard
-                      key={result.id}
-                      id={result.id}
-                      type={result.type}
-                      title={result.note?.tags.find(t => t[0] === 'name' || t[0] === 'title')?.[1] || 'Untitled'}
-                      description={result.note?.tags.find(t => t[0] === 'about' || t[0] === 'description' || t[0] === 'summary')?.[1] || ''}
-                      category={result.note?.tags.find(t => t[0] === 'l' || t[0] === 't')?.[1] || 'general'}
-                      instructor={result.userId}
-                      image={result.note?.tags.find(t => t[0] === 'image')?.[1]}
-                      price={result.price}
-                      isPremium={result.price > 0}
-                      keyword={searchQuery}
+                <div className="grid gap-4 sm:grid-cols-1">
+                  {filteredResults.map((item) => (
+                    <SearchContentCard
+                      key={item.id}
+                      item={item}
+                      searchKeyword={searchQuery}
+                      onTagClick={(tag) => {
+                        // Handle tag click for filtering if needed
+                        console.log('Tag clicked:', tag)
+                      }}
                     />
                   ))}
                 </div>
-                
-                {/* Pagination */}
-                {pagination.totalPages > 1 && (
-                  <div className="flex justify-center gap-2 mt-8">
-                    <Button
-                      variant="outline"
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={!pagination.hasPrev}
-                    >
-                      Previous
-                    </Button>
-                    <span className="flex items-center px-4">
-                      Page {pagination.page} of {pagination.totalPages}
-                    </span>
-                    <Button
-                      variant="outline"
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={!pagination.hasNext}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                )}
               </>
             )}
             
-            {!isLoading && searchQuery.length >= 3 && results.length === 0 && (
+            {!isLoading && searchQuery.length >= 3 && filteredResults.length === 0 && !error && (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">
-                  No results found for &quot;{searchQuery}&quot;
+                  No results found for &quot;{searchQuery}&quot; on Nostr relays
                 </p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  Try searching with different keywords
+                  Try searching with different keywords or check relay connectivity
                 </p>
               </div>
             )}

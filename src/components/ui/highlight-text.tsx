@@ -32,12 +32,16 @@ export function HighlightText({ text, highlight, className }: HighlightTextProps
           <mark
             key={index}
             className={cn(
-              // Use theme colors for highlighting
-              "bg-primary/20 text-primary-foreground font-medium rounded-sm px-0.5",
+              // Better contrast with stronger background and proper text color
+              "bg-primary/30 text-primary font-semibold rounded-sm px-1 py-0.5",
+              // Ensure good contrast in all themes
+              "shadow-sm border border-primary/20",
               // Add subtle animation
-              "transition-colors duration-200",
-              // Dark mode support
-              "dark:bg-primary/30 dark:text-primary-foreground",
+              "transition-all duration-200",
+              // Dark mode with higher contrast
+              "dark:bg-primary/40 dark:text-primary-foreground dark:border-primary/30",
+              // Light mode with better readability
+              "light:bg-primary/25 light:text-primary-800",
               className
             )}
           >
@@ -108,10 +112,13 @@ export function SubtleHighlightText({ text, highlight, className }: HighlightTex
           <mark
             key={index}
             className={cn(
-              // Subtle highlight for descriptions
-              "bg-muted text-foreground font-medium",
-              "border-l-2 border-primary pl-1",
-              "transition-colors duration-200",
+              // Better contrast for descriptions with stronger background
+              "bg-primary/20 text-primary font-semibold rounded-sm px-1 py-0.5",
+              // Add border and shadow for better definition
+              "border border-primary/25 shadow-sm",
+              "transition-all duration-200",
+              // Dark mode improvements
+              "dark:bg-primary/30 dark:text-primary-foreground dark:border-primary/40",
               className
             )}
           >

@@ -13,7 +13,8 @@ import {
   Zap,
   Lock,
   Play,
-  FileText
+  FileText,
+  Unlock
 } from "lucide-react"
 import { useRouter } from 'next/navigation'
 import { cn } from "@/lib/utils"
@@ -65,17 +66,6 @@ export function SearchResultCard({
         return <FileText className="h-4 w-4" />
     }
   }
-  
-  const getTypeBadgeColor = () => {
-    switch (type) {
-      case 'course':
-        return 'bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-300'
-      case 'resource':
-        return 'bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-300'
-      default:
-        return 'bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300'
-    }
-  }
 
   return (
     <Card 
@@ -93,22 +83,26 @@ export function SearchResultCard({
             {/* Type Badge */}
             <div className="flex items-center gap-2">
               <Badge 
-                variant="secondary" 
-                className={cn(
-                  "flex items-center gap-1 text-xs font-medium transition-colors",
-                  getTypeBadgeColor()
-                )}
+                variant="outline"
+                className="flex items-center gap-1 text-xs transition-colors"
               >
                 {getTypeIcon()}
                 {type === 'course' ? 'Course' : 'Resource'}
               </Badge>
               
-              {/* Premium Badge */}
-              {isPremium && (
-                <Badge variant="default" className="flex items-center gap-1 text-xs">
-                  <Lock className="h-3 w-3" />
-                  {price > 0 ? `${price} sats` : 'Premium'}
-                </Badge>
+              {/* Premium/Free Badge - using theme-aware classes */}
+              {isPremium ? (
+                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-primary/10 border border-primary/20">
+                  <Lock className="h-3 w-3 text-primary" />
+                  <span className="text-xs font-medium text-primary">
+                    {price > 0 ? `${price} sats` : 'Premium'}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-muted border border-border">
+                  <Unlock className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs font-medium text-muted-foreground">Free</span>
+                </div>
               )}
             </div>
             

@@ -20,6 +20,7 @@ export interface SearchResult {
   isPremium: boolean
   matchScore: number
   keyword: string // Store the original search keyword for highlighting
+  tags?: string[] // All tags from Nostr events
   highlights: {
     title?: string
     description?: string
