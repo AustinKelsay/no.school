@@ -163,6 +163,10 @@ model Lesson {
     createdAt   DateTime     @default(now())
     updatedAt   DateTime     @updatedAt
     userLessons UserLesson[]
+
+    @@unique([courseId, index])
+    @@unique([resourceId, index])
+    @@unique([draftId, index])
 }
 
 model DraftLesson {
@@ -176,6 +180,10 @@ model DraftLesson {
     index         Int
     createdAt     DateTime    @default(now())
     updatedAt     DateTime    @updatedAt
+
+    @@unique([courseDraftId, index])
+    @@unique([resourceId, index])
+    @@unique([draftId, index])
 }
 
 model UserLesson {
@@ -248,7 +256,7 @@ model PlatformLightningAddress {
     invoiceMacaroon String
     lndCert         String?
     lndHost         String
-    lndPort         String  @default("8080")
+    lndPort         Int     @default(8080)
 }
 
 model Badge {

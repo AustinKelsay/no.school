@@ -16,7 +16,7 @@ RUN npm ci
 # Development image for hot reloading
 FROM base AS development
 WORKDIR /app
-RUN apk add --no-cache openssl
+RUN apk add --no-cache openssl postgresql-client
 COPY package.json package-lock.json* ./
 RUN npm install
 COPY . .

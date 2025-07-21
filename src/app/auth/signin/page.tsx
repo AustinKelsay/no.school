@@ -20,6 +20,7 @@ import { Container } from '@/components/layout/container'
 import { Section } from '@/components/layout/section'
 import { hasNip07Support } from 'snstr'
 import { authConfigClient } from '@/lib/auth-config-client'
+import { validateCallbackUrlFromParams } from '@/lib/url-utils'
 import { Mail, Github, Zap, KeyRound, UserX, Sparkles, ArrowRight, HelpCircle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -56,7 +57,7 @@ export default function SignInPage() {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
-  const callbackUrl = searchParams.get('callbackUrl') || '/'
+  const callbackUrl = validateCallbackUrlFromParams(searchParams, 'callbackUrl', '/')
   const errorType = searchParams.get('error')
   const copy = authConfigClient.copy.signin
 

@@ -202,10 +202,19 @@ if (authConfig.providers.nostr.enabled) {
 
 // Add GitHub Provider if enabled
 if (authConfig.providers.github.enabled) {
+  // Validate required GitHub environment variables
+  if (!process.env.GITHUB_CLIENT_ID) {
+    throw new Error('GitHub provider is enabled but GITHUB_CLIENT_ID environment variable is missing. Please set GITHUB_CLIENT_ID in your environment variables.')
+  }
+  
+  if (!process.env.GITHUB_CLIENT_SECRET) {
+    throw new Error('GitHub provider is enabled but GITHUB_CLIENT_SECRET environment variable is missing. Please set GITHUB_CLIENT_SECRET in your environment variables.')
+  }
+
   providers.push(
     GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID!,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
       profile(profile) {
         // Check if user is in allowed list (if configured)
         const allowedUsers = authConfig.providers.github.allowedUsers as string[]
@@ -376,6 +385,41 @@ export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
   
   providers,
+
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === 'production' 
+        ? '__Secure-next-auth.session-token'
+        : 'next-auth.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    },
+    callbackUrl: {
+      name: process.env.NODE_ENV === 'production'
+        ? '__Secure-next-auth.callback-url'
+        : 'next-auth.callback-url',
+      options: {
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    },
+    csrfToken: {
+      name: process.env.NODE_ENV === 'production'
+        ? '__Host-next-auth.csrf-token'
+        : 'next-auth.csrf-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production'
+      }
+    }
+  },
 
   callbacks: {
     async jwt({ token, user, account }) {
