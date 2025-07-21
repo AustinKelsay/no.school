@@ -38,7 +38,14 @@ services:
       - .:/app
       - /app/node_modules
       - /app/.next
-    command: sh -c "chmod +x /app/wait-for-db.sh && /app/wait-for-db.sh db 5432 'npx prisma migrate dev --name init && npm run dev'"
+    command: >
+      sh -c "
+        chmod +x /app/wait-for-db.sh &&
+        /app/wait-for-db.sh db 5432 &&
+        npx prisma db push &&
+        npx prisma generate &&
+        npm run dev
+      "
 
 volumes:
   postgres_data:

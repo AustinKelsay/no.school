@@ -475,11 +475,14 @@ try {
 ## 🌟 **Recent Achievements**
 
 ### **🆕 Latest Updates (January 2025)**
-- **✅ Universal Nostr Authentication System**: Revolutionary ephemeral keypair generation for ALL authentication methods
-- **✅ Multi-Provider Authentication**: Email magic links, GitHub OAuth, Anonymous login, and NIP07 Nostr browser extension
-- **✅ Automatic Nostr Integration**: Every user gets Nostr capabilities regardless of their chosen login method
+- **✅ Dual Authentication Architecture**: Revolutionary Nostr-first vs OAuth-first identity system
+- **✅ Profile Source Authority**: Nostr-first accounts sync from relays, OAuth-first maintain OAuth profile authority
+- **✅ Universal Nostr Capabilities**: 100% of users get Nostr functionality with appropriate key custody models
+- **✅ Smart Profile Sync**: Real-time Nostr profile updates for NIP07/Anonymous users, OAuth stability for Email/GitHub users
+- **✅ Identity Flow Control**: Clear data flow - Nostr→Database vs OAuth→Database based on account type
+- **✅ Enhanced Security Boundaries**: User custody (NIP07), platform custody (Anonymous), transparent background (Email/GitHub)
+- **✅ Multi-Provider Support**: Email magic links, GitHub OAuth, Anonymous experimentation, and NIP07 browser extension
 - **✅ PostgreSQL Database**: Complete Prisma schema with User, Course, Resource, and Purchase models
-- **✅ Enhanced Security Model**: User-controlled keys (NIP07) vs system-managed ephemeral keys (Email/GitHub/Anonymous)
 - **✅ Hybrid Development Setup**: Mock JSON database + Real Nostr events for optimal development experience
 - **✅ Database Adapter Pattern**: Clean abstraction layer with JSON mock + Nostr integration
 - **✅ Real Nostr Integration**: Live connection to production relays (relay.nostr.band, nos.lol, relay.damus.io)
@@ -563,52 +566,67 @@ export class DatabaseCourseAdapter {
 }
 ```
 
-### **🔐 Universal Nostr Authentication System**
+### **🔐 Dual Authentication Architecture: Nostr-First vs OAuth-First**
 
-#### **Revolutionary Ephemeral Keypair Generation**
+#### **Revolutionary Identity-Source System**
 ```typescript
 /**
- * EPHEMERAL KEYPAIR SYSTEM - Every user gets Nostr capabilities
+ * DUAL AUTHENTICATION ARCHITECTURE - Two distinct paradigms
  * 
- * 1. NIP07 Authentication (nostr provider):
- *    - Users authenticate with their own Nostr keypair via browser extension
- *    - We store only the public key (pubkey) in the database
- *    - Private key (privkey) is NOT stored - users manage their own keys
- *    - Session includes pubkey but NOT privkey (for security)
+ * 🔵 NOSTR-FIRST ACCOUNTS (Nostr as identity source):
+ * --------------------------------------------------
+ * • NIP07 Authentication (nostr provider) - User custody of keys
+ * • Anonymous Authentication (anonymous provider) - Platform custody for experimentation
  * 
- * 2. Anonymous Authentication (anonymous provider):
- *    - System generates fresh Nostr keypair for each anonymous session
- *    - Both pubkey and privkey are stored in database (ephemeral account)
- *    - Session includes both pubkey AND privkey (user can sign events)
+ * Behavior:
+ * - Nostr profile is the SOURCE OF TRUTH for user data
+ * - Profile sync happens on every login from Nostr relays
+ * - Database user fields are updated if Nostr profile differs
+ * - User's Nostr identity drives their platform identity
  * 
- * 3. Email/GitHub Authentication (email/github providers):
- *    - System automatically generates Nostr keypair on user creation or first sign-in
- *    - Both pubkey and privkey are stored in database (ephemeral account)
- *    - Session includes both pubkey AND privkey (user can sign events)
- *    - This happens transparently - users don't know they have Nostr keys
+ * 🟠 OAUTH-FIRST ACCOUNTS (Platform as identity source):
+ * -----------------------------------------------------
+ * • Email Authentication (email provider) - May not know about Nostr
+ * • GitHub Authentication (github provider) - May not know about Nostr
+ * 
+ * Behavior:
+ * - OAuth profile is the SOURCE OF TRUTH for user data
+ * - Ephemeral Nostr keypairs generated for background Nostr functionality
+ * - No profile sync from Nostr - OAuth data takes precedence
+ * - Platform identity drives their Nostr identity (not vice versa)
  */
 
-// Automatic keypair generation in NextAuth events
+// OAUTH-FIRST: Ephemeral keypair generation for transparent Nostr access
 events: {
   async createUser({ user }) {
-    // Generate ephemeral Nostr keypair for non-Nostr users
+    // Only OAuth-first accounts get ephemeral keys automatically
     if (!user.pubkey) {
       const keys = await generateKeypair()
       await prisma.user.update({
         where: { id: user.id },
         data: {
           pubkey: keys.publicKey,
-          privkey: keys.privateKey, // Only for ephemeral accounts
+          privkey: keys.privateKey, // Background Nostr capabilities
         }
       })
     }
+  },
+  
+  async signIn({ user, account }) {
+    // NOSTR-FIRST: Sync profile from Nostr relays (source of truth)
+    const isNostrFirst = ['nostr', 'anonymous', 'recovery'].includes(account?.provider)
+    if (user.pubkey && isNostrFirst) {
+      await syncUserProfileFromNostr(user.id, user.pubkey)
+    }
+    // OAUTH-FIRST: Skip Nostr sync, OAuth profile is authoritative
   }
 }
 
-// Smart session management
+// Universal session with proper key handling
 async session({ session, token }) {
-  // Check if user has ephemeral keys by looking for stored privkey
   if (session.user.pubkey) {
+    // Include privkey for ephemeral accounts (anonymous, email, GitHub)
+    // NIP07 users never have privkey stored (user-controlled keys)
     const dbUser = await prisma.user.findUnique({
       where: { id: token.userId },
       select: { privkey: true }
@@ -616,60 +634,68 @@ async session({ session, token }) {
     if (dbUser?.privkey) {
       session.user.privkey = dbUser.privkey // Enable client-side signing
     }
-    // NIP07 users won't have privkey stored (security)
   }
 }
 ```
 
-#### **Multi-Provider Support**
+#### **Four Authentication Methods with Universal Nostr Capabilities**
 ```typescript
-// Four authentication methods, all get Nostr capabilities
 const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
-    // 1. Email Magic Links + Ephemeral Keys
+    // 🟠 OAUTH-FIRST: Email Magic Links (User may not know about Nostr)
     EmailProvider({
       server: process.env.EMAIL_SERVER,
       from: process.env.EMAIL_FROM
+      // → Gets ephemeral keypair for background Nostr functionality
+      // → Email profile is source of truth, no Nostr profile sync
     }),
     
-    // 2. GitHub OAuth + Ephemeral Keys  
+    // 🟠 OAUTH-FIRST: GitHub OAuth (User may not know about Nostr)  
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET
+      // → Gets ephemeral keypair for background Nostr functionality  
+      // → GitHub profile is source of truth, no Nostr profile sync
     }),
     
-    // 3. Anonymous Login + Fresh Keys
+    // 🔵 NOSTR-FIRST: Anonymous (User trying things out)
     CredentialsProvider({
       id: 'anonymous',
       async authorize() {
         const keys = await generateKeypair()
-        // Create anonymous user with fresh keypair
+        // Create anonymous user with fresh keypair (platform custody)
         const user = await prisma.user.create({
           data: {
             pubkey: keys.publicKey,
-            privkey: keys.privateKey,
+            privkey: keys.privateKey, // Platform manages keys for experiments
             username: `anon_${keys.publicKey.substring(0, 8)}`
           }
         })
+        // → Attempts to sync with any existing Nostr profile
+        await syncUserProfileFromNostr(user.id, keys.publicKey)
         return user
       }
     }),
     
-    // 4. NIP07 Browser Extension (User-Controlled Keys)
+    // 🔵 NOSTR-FIRST: NIP07 Browser Extension (User in custody)
     CredentialsProvider({
       id: 'nostr',
       async authorize(credentials) {
-        // User provides their own pubkey via browser extension
-        // We store ONLY the pubkey, never the private key
+        // User provides pubkey via browser extension (user controls keys)
         let user = await prisma.user.findUnique({
           where: { pubkey: credentials.pubkey }
         })
         if (!user) {
           user = await prisma.user.create({
-            data: { pubkey: credentials.pubkey }
+            data: { 
+              pubkey: credentials.pubkey 
+              // No privkey stored - user has custody via browser extension
+            }
           })
         }
+        // → ALWAYS sync profile from Nostr (source of truth)
+        await syncUserProfileFromNostr(user.id, credentials.pubkey)
         return user
       }
     })
@@ -677,12 +703,25 @@ const authOptions = {
 }
 ```
 
-#### **Security Model Benefits**
-- **Universal Access**: 100% of users can participate in Nostr functionality
-- **Security Boundaries**: Clear separation between user-controlled vs system-managed keys
-- **Transparent Integration**: Email/GitHub users get Web3 capabilities without knowing it
-- **Future-Proof**: Ready for NIP46 remote signing integration
-- **Client-Side Signing**: Ephemeral account users can sign Nostr events directly in browser
+#### **Identity-Source Architecture Benefits**
+
+**🔵 Nostr-First Accounts (NIP07 & Anonymous):**
+- **Profile Sovereignty**: Nostr profile always overrides database values
+- **Real-time Sync**: Profile changes on Nostr immediately reflect in platform
+- **Key Management**: Clear separation of user custody (NIP07) vs platform custody (Anonymous)
+- **Identity Flow**: Nostr → Database (Nostr profile drives platform identity)
+
+**🟠 OAuth-First Accounts (Email & GitHub):**
+- **Familiar Experience**: Standard OAuth flow, no Nostr knowledge required
+- **Transparent Web3**: Background Nostr capabilities without user awareness
+- **Profile Stability**: OAuth profile data remains authoritative and stable
+- **Identity Flow**: OAuth Provider → Database (Platform identity drives Nostr keys)
+
+**Universal Benefits:**
+- **100% Nostr Access**: All users can participate in Nostr functionality regardless of login method
+- **Appropriate Custody**: User-controlled keys for Nostr users, platform-managed for others
+- **Future-Ready**: Seamless upgrade path to NIP46 remote signing
+- **Client-Side Signing**: Ephemeral account users can sign Nostr events in browser
 
 ---
 

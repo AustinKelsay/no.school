@@ -10,41 +10,55 @@
  * - Ephemeral Nostr keypair generation for non-Nostr accounts
  * - Configurable settings via config/auth.json
  * 
- * EPHEMERAL KEYPAIR SYSTEM:
+ * DUAL AUTHENTICATION ARCHITECTURE:
+ * ================================
+ * 
+ * This system supports TWO distinct authentication paradigms:
+ * 
+ * 🔵 NOSTR-FIRST ACCOUNTS (Nostr as identity source):
+ * --------------------------------------------------
+ * • NIP07 Authentication (nostr provider)
+ * • Anonymous Authentication (anonymous provider)
+ * 
+ * Behavior:
+ * - Nostr profile is the SOURCE OF TRUTH for user data
+ * - Profile sync happens on every login from Nostr relays
+ * - Database user fields are updated if Nostr profile differs
+ * - User's Nostr identity drives their platform identity
+ * 
+ * 🟠 OAUTH-FIRST ACCOUNTS (Platform as identity source):
+ * -----------------------------------------------------
+ * • Email Authentication (email provider)
+ * • GitHub Authentication (github provider)
+ * 
+ * Behavior:
+ * - OAuth profile is the SOURCE OF TRUTH for user data
+ * - Ephemeral Nostr keypairs generated for background Nostr functionality
+ * - No profile sync from Nostr - OAuth data takes precedence
+ * - Platform identity drives their Nostr identity (not vice versa)
+ * 
+ * TECHNICAL IMPLEMENTATION:
  * ========================
  * 
- * This system ensures ALL users have Nostr capabilities regardless of their authentication method:
+ * All users get Nostr capabilities, but the data flow differs:
  * 
- * 1. NIP07 Authentication (nostr provider):
- *    - Users authenticate with their own Nostr keypair via browser extension
- *    - We store only the public key (pubkey) in the database
- *    - Private key (privkey) is NOT stored - users manage their own keys
- *    - Session includes pubkey but NOT privkey (for security)
+ * 1. NOSTR-FIRST (NIP07 & Anonymous):
+ *    - Profile metadata flows: Nostr → Database
+ *    - Database acts as cache of Nostr profile
+ *    - Changes to Nostr profile automatically sync to platform
  * 
- * 2. Anonymous Authentication (anonymous provider):
- *    - System generates fresh Nostr keypair for each anonymous session
- *    - Both pubkey and privkey are stored in database (ephemeral account)
- *    - Session includes both pubkey AND privkey (user can sign events)
+ * 2. OAUTH-FIRST (Email & GitHub):
+ *    - Profile metadata flows: OAuth Provider → Database
+ *    - Ephemeral Nostr keys generated for protocol participation
+ *    - No automatic sync from Nostr (OAuth data is authoritative)
  * 
- * 3. Email/GitHub Authentication (email/github providers):
- *    - System automatically generates Nostr keypair on user creation or first sign-in
- *    - Both pubkey and privkey are stored in database (ephemeral account)
- *    - Session includes both pubkey AND privkey (user can sign events)
- *    - This happens transparently - users don't know they have Nostr keys
+ * SECURITY & PRIVACY:
+ * ===================
  * 
- * 4. Future NIP46 Authentication (nip46 provider - not implemented yet):
- *    - Users authenticate via remote signing protocol
- *    - Similar to NIP07, we store only pubkey
- *    - Private key remains on remote signer, not in our database
- *    - Session includes pubkey but NOT privkey
- * 
- * SECURITY CONSIDERATIONS:
- * =======================
- * 
- * - NIP07/NIP46 users: Private keys never touch our system (user-controlled)
- * - Ephemeral accounts: Private keys stored encrypted in database
- * - Session privkey is only exposed for accounts that need client-side signing
- * - Provider tracking ensures we only expose privkey to appropriate account types
+ * - Nostr-first: Private keys managed by user (NIP07) or platform (anonymous)
+ * - OAuth-first: Ephemeral private keys stored encrypted in database
+ * - Session privkey only exposed for accounts that need client-side signing
+ * - Provider tracking ensures correct key handling per account type
  */
 
 import { NextAuthOptions } from 'next-auth'
@@ -54,8 +68,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import GitHubProvider from 'next-auth/providers/github'
 import { prisma } from './prisma'
 import type { Adapter } from 'next-auth/adapters'
-import type { NostrEvent } from 'snstr'
-import { generateKeypair, decodePrivateKey, getPublicKey } from 'snstr'
+import { generateKeypair, decodePrivateKey, getPublicKey, RelayPool } from 'snstr'
 import authConfig from '../../config/auth.json'
 
 /**
@@ -118,6 +131,153 @@ function derivePublicKey(privateKeyHex: string): string {
   }
 }
 
+/**
+ * Fetch Nostr profile metadata from relays
+ */
+async function fetchNostrProfile(pubkey: string): Promise<{ name?: string; picture?: string; about?: string; nip05?: string; lud16?: string; banner?: string } | null> {
+  try {
+    // Initialize relay pool with default relays
+    const relayPool = new RelayPool([
+      'wss://relay.nostr.band',
+      'wss://nos.lol',
+      'wss://relay.damus.io'
+    ])
+
+    // Fetch the user's profile metadata (kind 0 event)
+    const profileEvent = await relayPool.get(
+      ['wss://relay.nostr.band', 'wss://nos.lol', 'wss://relay.damus.io'],
+      { kinds: [0], authors: [pubkey] },
+      { timeout: 5000 }
+    )
+
+    // Close the relay pool
+    await relayPool.close()
+
+    if (!profileEvent || profileEvent.kind !== 0) {
+      return null
+    }
+
+    // Parse the profile metadata
+    try {
+      const profileData = JSON.parse(profileEvent.content)
+      return {
+        name: profileData.name || profileData.username || profileData.display_name,
+        picture: profileData.picture || profileData.avatar || profileData.image,
+        about: profileData.about || profileData.bio,
+        nip05: profileData.nip05,
+        lud16: profileData.lud16,
+        banner: profileData.banner
+      }
+    } catch (parseError) {
+      console.error('Failed to parse profile metadata:', parseError)
+      return null
+    }
+  } catch (error) {
+    console.error('Failed to fetch Nostr profile:', error)
+    return null
+  }
+}
+
+/**
+ * NOSTR-FIRST PROFILE SYNC SYSTEM:
+ * ================================
+ * 
+ * This function syncs user profiles from Nostr relays (source of truth) to our database.
+ * ONLY used for NOSTR-FIRST accounts (NIP07 and Anonymous providers).
+ * 
+ * OAuth-first accounts (Email/GitHub) do NOT use this - their OAuth profile data
+ * is the authoritative source and takes precedence over any Nostr profile data.
+ * 
+ * Nostr-first flow:
+ * 1. Fetch profile metadata from Nostr relays
+ * 2. Compare with current database values  
+ * 3. Update database fields if Nostr data differs (Nostr wins)
+ * 4. Return updated user data
+ * 
+ * This ensures Nostr-first accounts always reflect their latest Nostr profile.
+ */
+async function syncUserProfileFromNostr(userId: string, pubkey: string): Promise<{ id: string; pubkey: string | null; email: string | null; username: string | null; avatar: string | null; nip05: string | null; lud16: string | null; privkey: string | null; emailVerified: Date | null; createdAt: Date; updatedAt: Date } | null> {
+  try {
+    console.log(`Syncing profile from Nostr for user ${userId} (pubkey: ${pubkey.substring(0, 8)}...)`)
+    
+    // Step 1: Fetch profile metadata from Nostr
+    const nostrProfile = await fetchNostrProfile(pubkey)
+    
+    if (!nostrProfile) {
+      console.log('No Nostr profile found, keeping existing database values')
+      return await prisma.user.findUnique({ where: { id: userId } })
+    }
+    
+    console.log('Fetched Nostr profile:', {
+      name: nostrProfile.name,
+      picture: !!nostrProfile.picture,
+      nip05: nostrProfile.nip05,
+      lud16: nostrProfile.lud16
+    })
+    
+    // Step 2: Get current database values
+    const currentUser = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { 
+        username: true, 
+        avatar: true, 
+        nip05: true, 
+        lud16: true 
+      }
+    })
+    
+    if (!currentUser) {
+      throw new Error('User not found in database')
+    }
+    
+    // Step 3: Determine what needs to be updated (Nostr is source of truth)
+    const updates: { username?: string; avatar?: string; nip05?: string; lud16?: string } = {}
+    
+    // Update username if Nostr has a name and it's different
+    if (nostrProfile.name && nostrProfile.name !== currentUser.username) {
+      updates.username = nostrProfile.name
+      console.log(`Updating username: ${currentUser.username} -> ${nostrProfile.name}`)
+    }
+    
+    // Update avatar if Nostr has a picture and it's different
+    if (nostrProfile.picture && nostrProfile.picture !== currentUser.avatar) {
+      updates.avatar = nostrProfile.picture
+      console.log(`Updating avatar: ${!!currentUser.avatar} -> ${!!nostrProfile.picture}`)
+    }
+    
+    // Update nip05 if Nostr has one and it's different
+    if (nostrProfile.nip05 && nostrProfile.nip05 !== currentUser.nip05) {
+      updates.nip05 = nostrProfile.nip05
+      console.log(`Updating nip05: ${currentUser.nip05} -> ${nostrProfile.nip05}`)
+    }
+    
+    // Update lud16 if Nostr has one and it's different
+    if (nostrProfile.lud16 && nostrProfile.lud16 !== currentUser.lud16) {
+      updates.lud16 = nostrProfile.lud16
+      console.log(`Updating lud16: ${currentUser.lud16} -> ${nostrProfile.lud16}`)
+    }
+    
+    // Step 4: Apply updates if there are any changes
+    if (Object.keys(updates).length > 0) {
+      console.log(`Applying ${Object.keys(updates).length} profile updates from Nostr`)
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: updates
+      })
+      console.log('Profile sync completed successfully')
+      return updatedUser
+    } else {
+      console.log('No profile changes detected, keeping existing values')
+      return await prisma.user.findUnique({ where: { id: userId } })
+    }
+    
+  } catch (error) {
+    console.error('Failed to sync user profile from Nostr:', error)
+    // Return existing user data on error to prevent auth failure
+    return await prisma.user.findUnique({ where: { id: userId } })
+  }
+}
+
 
 
 // Build providers array based on configuration
@@ -171,17 +331,24 @@ if (authConfig.providers.nostr.enabled) {
           })
 
           if (!user && authConfig.providers.nostr.autoCreateUser) {
-            // Create new user with Nostr pubkey
+            // Create new user with Nostr pubkey (initial minimal data)
             user = await prisma.user.create({
               data: {
                 pubkey: credentials.pubkey,
                 username: `${authConfig.providers.nostr.usernamePrefix}${credentials.pubkey.substring(0, authConfig.providers.nostr.usernameLength)}`,
               }
             })
+            console.log('Created new NIP07 user:', user.id)
           }
 
           if (!user) {
             throw new Error('User not found and auto-creation disabled')
+          }
+
+          // NOSTR-FIRST: Sync profile from Nostr (source of truth) for NIP07 users
+          const syncedUser = await syncUserProfileFromNostr(user.id, credentials.pubkey)
+          if (syncedUser) {
+            user = syncedUser
           }
 
           return {
@@ -261,12 +428,12 @@ if (authConfig.providers.anonymous.enabled) {
             throw new Error('Generated invalid public key format')
           }
 
-          // Generate anonymous user data
+          // Generate anonymous user data as fallback
           const userData = generateAnonymousUserData(keys.publicKey)
 
           // Create new anonymous user if auto-creation is enabled
           if (authConfig.providers.anonymous.autoCreateUser) {
-            const user = await prisma.user.create({
+            let user = await prisma.user.create({
               data: {
                 pubkey: keys.publicKey,
                 privkey: keys.privateKey, // Store for anonymous accounts
@@ -276,6 +443,17 @@ if (authConfig.providers.anonymous.enabled) {
                 lud16: userData.lud16,
               }
             })
+            console.log('Created new anonymous user:', user.id)
+
+            // NOSTR-FIRST: Try to sync profile from Nostr (source of truth) for anonymous users
+            // This allows users with existing Nostr profiles to have them recognized
+            const syncedUser = await syncUserProfileFromNostr(user.id, keys.publicKey)
+            if (syncedUser) {
+              user = syncedUser
+              console.log('Synced anonymous user profile from Nostr')
+            } else {
+              console.log('No Nostr profile found for anonymous user, using generated data')
+            }
 
             return {
               id: user.id,
@@ -553,21 +731,20 @@ export const authOptions: NextAuthOptions = {
       console.log('New user created:', user.email || user.pubkey || user.username)
       
       /**
-       * EPHEMERAL KEYPAIR GENERATION ON USER CREATION:
-       * ==============================================
+       * OAUTH-FIRST: EPHEMERAL KEYPAIR GENERATION ON USER CREATION
+       * ==========================================================
        * 
-       * When a new user is created via email or GitHub authentication,
-       * they don't have Nostr keys yet. We automatically generate an
-       * ephemeral keypair for them so they can participate in Nostr
-       * functionality without knowing they're using Nostr.
+       * When a new OAuth-first user is created via email or GitHub,
+       * they don't have Nostr keys yet. Generate ephemeral background 
+       * keys for transparent Nostr protocol participation.
        * 
-       * This does NOT apply to:
-       * - NIP07 users (they provide their own pubkey)
-       * - Anonymous users (they get keys in the authorize function)
-       * - Future NIP46 users (they'll have remote keys)
+       * This does NOT apply to Nostr-first providers:
+       * - NIP07 users: Provide their own pubkey via browser extension
+       * - Anonymous users: Get keys generated in authorize function
+       * - Recovery users: Already have existing keys
        * 
-       * The generated keypair is stored in our database and made
-       * available to the client for event signing.
+       * OAuth-first users get background Nostr capabilities while
+       * maintaining their OAuth identity as the primary source of truth.
        */
       if (!user.pubkey) {
         try {
@@ -582,7 +759,7 @@ export const authOptions: NextAuthOptions = {
                 privkey: keys.privateKey,
               }
             })
-            console.log('Generated ephemeral Nostr keypair for user:', user.email || user.username)
+            console.log('Generated ephemeral Nostr keypair for OAuth-first user:', user.email || user.username)
           }
         } catch (error) {
           console.error('Failed to generate ephemeral Nostr keypair:', error)
@@ -593,26 +770,26 @@ export const authOptions: NextAuthOptions = {
       console.log('User signed in:', user.email || user.pubkey || user.username, 'via', account?.provider)
       
       /**
-       * EPHEMERAL KEYPAIR GENERATION ON SIGN IN:
-       * ========================================
+       * OAUTH-FIRST: EPHEMERAL KEYPAIR GENERATION ON SIGN IN
+       * ====================================================
        * 
-       * For existing users who signed up before the ephemeral keypair
-       * system was implemented, we generate keys on their next sign-in.
+       * For existing OAuth-first users (email/GitHub) who signed up before 
+       * the ephemeral keypair system, generate background Nostr keys on sign-in.
        * 
-       * This ensures backward compatibility - all existing email/GitHub
-       * users will get Nostr capabilities without any action required.
+       * This ensures backward compatibility - all OAuth-first users get 
+       * background Nostr capabilities without knowing about it.
        * 
-       * Provider exclusions:
-       * - 'nostr': These users already have their own keys
-       * - 'anonymous': These users get keys in the authorize function
-       * - 'nip46' (future): These users will have remote keys
+       * Exclusions (these providers handle keys differently):
+       * - 'nostr': Nostr-first users provide their own keys via NIP07
+       * - 'anonymous': Nostr-first users get keys in the authorize function  
+       * - 'recovery': Users recovering with existing keys
        */
-      if (!user.pubkey && account?.provider && !['nostr', 'anonymous'].includes(account.provider)) {
+      if (!user.pubkey && account?.provider && !['nostr', 'anonymous', 'recovery'].includes(account.provider)) {
         try {
           const keys = await generateKeypair()
           
           if (keys && keys.publicKey && keys.privateKey) {
-            // Update user with generated Nostr keys
+            // Update user with generated ephemeral Nostr keys
             await prisma.user.update({
               where: { id: user.id },
               data: {
@@ -620,11 +797,38 @@ export const authOptions: NextAuthOptions = {
                 privkey: keys.privateKey,
               }
             })
-            console.log('Generated ephemeral Nostr keypair for existing user:', user.email || user.username)
+            console.log('Generated ephemeral Nostr keypair for OAuth-first user:', user.email || user.username)
           }
         } catch (error) {
-          console.error('Failed to generate ephemeral Nostr keypair for existing user:', error)
+          console.error('Failed to generate ephemeral Nostr keypair for OAuth-first user:', error)
         }
+      }
+      
+      /**
+       * NOSTR-FIRST: PROFILE SYNC ON SIGN IN
+       * ====================================
+       * 
+       * ONLY for Nostr-first accounts (NIP07, anonymous, recovery), sync their 
+       * profile from Nostr as the source of truth on each sign-in.
+       * 
+       * OAuth-first accounts (email, GitHub) do NOT sync from Nostr - their
+       * OAuth profile data remains authoritative. They get ephemeral Nostr
+       * keys for protocol participation but maintain OAuth-based identity.
+       * 
+       * This ensures Nostr-first users' profiles stay current with their
+       * latest Nostr profile updates.
+       */
+      const isNostrFirstProvider = ['nostr', 'anonymous', 'recovery'].includes(account?.provider || '')
+      if (user.pubkey && isNostrFirstProvider) {
+        try {
+          console.log(`NOSTR-FIRST: Syncing profile from Nostr for ${account?.provider} user:`, user.email || user.username || user.pubkey?.substring(0, 8))
+          await syncUserProfileFromNostr(user.id, user.pubkey)
+        } catch (error) {
+          console.error('Failed to sync Nostr profile for Nostr-first account:', error)
+          // Don't fail the sign-in if profile sync fails
+        }
+      } else if (user.pubkey && !isNostrFirstProvider) {
+        console.log(`OAUTH-FIRST: Skipping Nostr profile sync for ${account?.provider} user - OAuth profile is authoritative`)
       }
     }
   },
@@ -633,4 +837,4 @@ export const authOptions: NextAuthOptions = {
 }
 
 // Export helper functions and configuration
-export { verifyNostrPubkey, authConfig } 
+export { verifyNostrPubkey, authConfig, syncUserProfileFromNostr, fetchNostrProfile } 
