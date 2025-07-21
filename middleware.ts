@@ -20,14 +20,22 @@ export function middleware(request: NextRequest) {
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
 
-  // Add CSP header for enhanced security (relaxed for NextAuth)
+  // Add CSP header for enhanced security
+  const isDevelopment = process.env.NODE_ENV === 'development'
+  
+  // In development, allow unsafe directives for Turbopack hot reloading
+  // In production, remove unsafe directives for better security
+  const scriptSrc = isDevelopment 
+    ? "'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live"
+    : "'self' https://vercel.live"
+    
   const cspHeader = `
     default-src 'self';
-    script-src 'self' 'unsafe-eval' 'unsafe-inline' https://vercel.live;
+    script-src ${scriptSrc};
     style-src 'self' 'unsafe-inline';
-    img-src 'self' blob: data: https://images.unsplash.com https://avatars.githubusercontent.com https://api.dicebear.com;
+    img-src 'self' blob: data: https://images.unsplash.com https://avatars.githubusercontent.com https://api.dicebear.com https://i.ytimg.com https://yt3.ggpht.com https://nyc3.digitaloceanspaces.com;
     font-src 'self' https://fonts.gstatic.com;
-    connect-src 'self' https://vitals.vercel-insights.com;
+    connect-src 'self' https://vitals.vercel-insights.com wss://relay.nostr.band wss://nos.lol wss://relay.damus.io;
     media-src 'self';
     object-src 'none';
     base-uri 'self';
@@ -38,10 +46,21 @@ export function middleware(request: NextRequest) {
   
   response.headers.set('Content-Security-Policy', cspHeader)
 
-  // Handle API routes
+  // Handle API routes with environment-aware CORS
   if (request.nextUrl.pathname.startsWith('/api/')) {
-    // Add CORS headers for API routes
-    response.headers.set('Access-Control-Allow-Origin', '*')
+    // Configure CORS based on environment
+    const allowedOrigins = process.env.ALLOWED_ORIGINS 
+      ? process.env.ALLOWED_ORIGINS.split(',')
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'] // Development defaults
+    
+    const origin = request.headers.get('origin')
+    const isAllowedOrigin = !origin || allowedOrigins.includes(origin)
+    
+    if (isAllowedOrigin) {
+      response.headers.set('Access-Control-Allow-Origin', origin || '*')
+      response.headers.set('Access-Control-Allow-Credentials', 'true')
+    }
+    
     response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
     response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
     
