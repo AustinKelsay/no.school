@@ -1,8 +1,8 @@
 /**
- * Authentication Sign-In Page
+ * Clean OAuth-style Authentication Sign-In Page
  * 
- * This page provides both email magic link and NIP07 Nostr authentication
- * Users can choose their preferred method to authenticate
+ * Modern authentication interface with multiple providers
+ * Follows current design patterns with proper spacing and visual hierarchy
  */
 
 'use client'
@@ -10,13 +10,18 @@
 import { useState, useCallback } from 'react'
 import { signIn, getSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
-import { AuthLayout } from '@/components/auth/auth-layout'
+import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Container } from '@/components/layout/container'
+import { Section } from '@/components/layout/section'
 import { hasNip07Support } from 'snstr'
 import { authConfigClient } from '@/lib/auth-config-client'
+import { Mail, Github, Zap, KeyRound, UserX, Sparkles, ArrowRight, HelpCircle } from 'lucide-react'
+import Link from 'next/link'
 
 interface NostrWindow extends Window {
   nostr?: {
@@ -42,10 +47,12 @@ export default function SignInPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
+  const [privateKey, setPrivateKey] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isNostrLoading, setIsNostrLoading] = useState(false)
   const [isGithubLoading, setIsGithubLoading] = useState(false)
   const [isAnonymousLoading, setIsAnonymousLoading] = useState(false)
+  const [isRecoveryLoading, setIsRecoveryLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
@@ -158,38 +165,178 @@ export default function SignInPage() {
     }
   }, [callbackUrl, router, copy.messages.anonymousError, copy.messages.genericError])
 
+  // Handle Recovery sign in
+  const handleRecoverySignIn = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!privateKey) return
+
+    setIsRecoveryLoading(true)
+    setError('')
+
+    try {
+      const result = await signIn('recovery', {
+        privateKey,
+        callbackUrl,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError(copy.messages.recoveryError || copy.messages.genericError)
+      } else {
+        // Success - redirect will be handled by NextAuth
+        router.push(callbackUrl)
+      }
+    } catch (err) {
+      console.error('Recovery sign in error:', err)
+      setError(copy.messages.recoveryError || copy.messages.genericError)
+    } finally {
+      setIsRecoveryLoading(false)
+    }
+  }, [privateKey, callbackUrl, router, copy.messages.recoveryError, copy.messages.genericError])
+
   return (
-    <AuthLayout 
-      title={copy.title}
-      description={copy.description}
-    >
-      {/* Error Display */}
-      {(error || errorType) && (
-        <Alert variant="destructive">
-          {error || (errorType === 'CredentialsSignin' ? 'Authentication failed. Please try again.' : 'An error occurred during sign in.')}
-        </Alert>
-      )}
+    <TooltipProvider>
+      <div className="min-h-screen bg-gradient-to-b from-background to-muted/50">
+        <Container className="py-8 lg:py-16">
+          <Section className="max-w-4xl mx-auto">
+            {/* Header */}
+            <div className="text-center space-y-4 mb-12">
+              <Badge variant="outline" className="w-fit mx-auto">
+                <Sparkles className="h-3 w-3 mr-1" />
+                Lightning & Nostr Enabled
+              </Badge>
+              
+              <h1 className="text-3xl lg:text-4xl font-bold">{copy.title}</h1>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                {copy.description}
+              </p>
+            </div>
 
-      {/* Success Message */}
-      {message && (
-        <Alert>
-          {message}
-        </Alert>
-      )}
+          {/* Error Display */}
+          {(error || errorType) && (
+            <Alert variant="destructive" className="mb-8 max-w-2xl mx-auto">
+              {error || (errorType === 'CredentialsSignin' ? 'Authentication failed. Please try again.' : 'An error occurred during sign in.')}
+            </Alert>
+          )}
 
-      <div className="space-y-6">
-          {/* Email Magic Link Authentication */}
-          {authConfigClient.features.showEmailProvider && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{copy.emailCard.title}</CardTitle>
-              <CardDescription>
-                {copy.emailCard.description}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleEmailSignIn} className="space-y-4">
-                <div>
+          {/* Success Message */}
+          {message && (
+            <Alert className="mb-8 max-w-2xl mx-auto border-green-200 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950 dark:text-green-200">
+              {message}
+            </Alert>
+          )}
+
+          <div className="max-w-md mx-auto space-y-4">
+            {/* Primary OAuth Buttons */}
+            <div className="space-y-3">
+              {/* GitHub Authentication */}
+              {authConfigClient.features.showGithubProvider && (
+                <div className="relative">
+                  <Button 
+                    onClick={handleGithubSignIn}
+                    className="w-full h-12 text-base"
+                    variant="outline"
+                    size="lg"
+                    disabled={isGithubLoading}
+                  >
+                    <Github className="h-5 w-5 mr-3" />
+                    {isGithubLoading ? copy.githubCard.loadingButton : copy.githubCard.button}
+                    {!isGithubLoading && <ArrowRight className="ml-auto h-4 w-4" />}
+                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <div className="space-y-1">
+                        <p className="font-medium">{copy.githubCard.title}</p>
+                        <p className="text-sm">{copy.githubCard.description}</p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+
+              {/* Nostr Extension */}
+              {authConfigClient.features.showNostrProvider && (
+                <div className="relative">
+                  <Button 
+                    onClick={handleNostrSignIn}
+                    className="w-full h-12 text-base"
+                    size="lg"
+                    disabled={isNostrLoading}
+                  >
+                    <Zap className="h-5 w-5 mr-3" />
+                    {isNostrLoading ? copy.nostrCard.loadingButton : copy.nostrCard.button}
+                    {!isNostrLoading && <ArrowRight className="ml-auto h-4 w-4" />}
+                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <div className="space-y-2">
+                        <p className="font-medium">{copy.nostrCard.title}</p>
+                        <p className="text-sm">{copy.nostrCard.description}</p>
+                        <p className="text-xs text-muted-foreground">{copy.nostrCard.helpText}</p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+
+              {/* Anonymous Access */}
+              {authConfigClient.features.showAnonymousProvider && (
+                <div className="relative">
+                  <Button 
+                    onClick={handleAnonymousSignIn}
+                    className="w-full h-12 text-base"
+                    variant="outline"
+                    size="lg"
+                    disabled={isAnonymousLoading}
+                  >
+                    <UserX className="h-5 w-5 mr-3" />
+                    {isAnonymousLoading ? copy.anonymousCard.loadingButton : copy.anonymousCard.button}
+                    {!isAnonymousLoading && <ArrowRight className="ml-auto h-4 w-4" />}
+                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
+                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="max-w-xs">
+                      <div className="space-y-2">
+                        <p className="font-medium">{copy.anonymousCard.title}</p>
+                        <p className="text-sm">{copy.anonymousCard.description}</p>
+                        <p className="text-xs text-muted-foreground">{copy.anonymousCard.helpText}</p>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              )}
+            </div>
+
+            {/* Divider */}
+            {authConfigClient.features.showEmailProvider && (
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
+                </div>
+              </div>
+            )}
+
+            {/* Email Form */}
+            {authConfigClient.features.showEmailProvider && (
+              <div className="relative">
+                <form onSubmit={handleEmailSignIn} className="space-y-3">
                   <Input
                     type="email"
                     placeholder={copy.emailCard.placeholder}
@@ -197,112 +344,128 @@ export default function SignInPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={isLoading}
+                    className="h-12 text-base"
                   />
-                </div>
-                <Button 
-                  type="submit" 
-                  className="w-full"
-                  disabled={isLoading || !email}
-                >
-                  {isLoading ? copy.emailCard.loadingButton : copy.emailCard.button}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-          )}
+                  <Button 
+                    type="submit" 
+                    className="w-full h-12 text-base"
+                    size="lg"
+                    disabled={isLoading || !email}
+                  >
+                    <Mail className="h-5 w-5 mr-3" />
+                    {isLoading ? copy.emailCard.loadingButton : copy.emailCard.button}
+                    {!isLoading && <ArrowRight className="ml-auto h-4 w-4" />}
+                  </Button>
+                </form>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button className="absolute -right-10 top-6 p-1 hover:bg-muted rounded-full transition-colors">
+                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right" className="max-w-xs">
+                    <div className="space-y-1">
+                      <p className="font-medium">{copy.emailCard.title}</p>
+                      <p className="text-sm">{copy.emailCard.description}</p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+            )}
 
-          {/* Divider */}
-          {authConfigClient.features.showEmailProvider && (authConfigClient.features.showNostrProvider || authConfigClient.features.showGithubProvider || authConfigClient.features.showAnonymousProvider) && (
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-border" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-background px-2 text-muted-foreground">{copy.dividerText}</span>
+            {/* Recovery Section */}
+            {authConfigClient.features.showRecoveryProvider && (
+              <>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-dashed" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">Account Recovery</span>
+                  </div>
+                </div>
+
+                <Card className="border-dashed relative">
+                  <CardContent className="pt-6">
+                    <div className="space-y-3">
+                      <div className="text-center space-y-1">
+                        <KeyRound className="h-8 w-8 mx-auto text-muted-foreground" />
+                        <h3 className="font-medium">{copy.recoveryCard.title}</h3>
+                        <p className="text-sm text-muted-foreground">{copy.recoveryCard.description}</p>
+                      </div>
+                      
+                      <form onSubmit={handleRecoverySignIn} className="space-y-3">
+                        <Input
+                          type="password"
+                          placeholder={copy.recoveryCard.placeholder}
+                          value={privateKey}
+                          onChange={(e) => setPrivateKey(e.target.value)}
+                          required
+                          disabled={isRecoveryLoading}
+                          className="h-11 font-mono text-sm"
+                        />
+                        <Button 
+                          type="submit" 
+                          className="w-full h-11"
+                          variant="outline"
+                          disabled={isRecoveryLoading || !privateKey}
+                        >
+                          {isRecoveryLoading ? copy.recoveryCard.loadingButton : copy.recoveryCard.button}
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </form>
+                      
+                      <p className="text-xs text-muted-foreground text-center">
+                        {copy.recoveryCard.helpText}
+                      </p>
+                    </div>
+                    
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="absolute -right-10 top-6 p-1 hover:bg-muted rounded-full transition-colors">
+                          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <div className="space-y-2">
+                          <p className="font-medium">Account Recovery Details</p>
+                          <p className="text-sm">Supported formats: {authConfigClient.providers?.recovery?.supportedFormats?.join(', ') || 'hex, nsec'}</p>
+                          <p className="text-xs text-muted-foreground">{authConfigClient.providers?.recovery?.description || copy.recoveryCard.helpText}</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </CardContent>
+                </Card>
+              </>
+            )}
+
+            {/* Footer Links */}
+            <div className="text-center space-y-4 pt-8">
+              <p className="text-sm text-muted-foreground">
+                Don&apos;t have an account?{' '}
+                <Link href="/" className="text-primary hover:underline font-medium">
+                  Get started for free
+                </Link>
+              </p>
+              
+              {authConfigClient.features.requireTermsAcceptance && (
+                <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                  {copy.termsText}
+                </p>
+              )}
+              
+              <div className="flex items-center justify-center space-x-4 text-xs text-muted-foreground">
+                <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy</Link>
+                <span>•</span>
+                <Link href="/terms" className="hover:text-foreground transition-colors">Terms</Link>
+                <span>•</span>
+                <Link href="/support" className="hover:text-foreground transition-colors">Help</Link>
+              </div>
             </div>
           </div>
-          )}
-
-          {/* NIP07 Nostr Authentication */}
-          {authConfigClient.features.showNostrProvider && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{copy.nostrCard.title}</CardTitle>
-              <CardDescription>
-                {copy.nostrCard.description}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                onClick={handleNostrSignIn}
-                className="w-full"
-                variant="outline"
-                disabled={isNostrLoading}
-              >
-                {isNostrLoading ? copy.nostrCard.loadingButton : copy.nostrCard.button}
-              </Button>
-                             <p className="mt-2 text-xs text-muted-foreground">
-                 {copy.nostrCard.helpText}
-               </p>
-            </CardContent>
-          </Card>
-          )}
-
-          {/* GitHub Authentication */}
-          {authConfigClient.features.showGithubProvider && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{copy.githubCard.title}</CardTitle>
-              <CardDescription>
-                {copy.githubCard.description}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                onClick={handleGithubSignIn}
-                className="w-full"
-                variant="outline"
-                disabled={isGithubLoading}
-              >
-                {isGithubLoading ? copy.githubCard.loadingButton : copy.githubCard.button}
-              </Button>
-            </CardContent>
-          </Card>
-          )}
-
-          {/* Anonymous Authentication */}
-          {authConfigClient.features.showAnonymousProvider && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">{copy.anonymousCard.title}</CardTitle>
-              <CardDescription>
-                {copy.anonymousCard.description}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button 
-                onClick={handleAnonymousSignIn}
-                className="w-full"
-                variant="outline"
-                disabled={isAnonymousLoading}
-              >
-                {isAnonymousLoading ? copy.anonymousCard.loadingButton : copy.anonymousCard.button}
-              </Button>
-              <p className="mt-2 text-xs text-muted-foreground">
-                {copy.anonymousCard.helpText}
-              </p>
-            </CardContent>
-          </Card>
-          )}
-              </div>
-
-      {authConfigClient.features.requireTermsAcceptance && (
-      <div className="text-center text-sm text-muted-foreground">
-        <p>
-          {copy.termsText}
-        </p>
-      </div>
-      )}
-    </AuthLayout>
+        </Section>
+      </Container>
+    </div>
+    </TooltipProvider>
   )
 } 

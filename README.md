@@ -42,15 +42,17 @@ A **production-ready** Next.js 15 application showcasing enterprise-grade archit
 - **Hierarchical Caching** - L1 memory cache with 5-minute stale time and automatic invalidation
 - **zapthreads Integration** - Lightning Network payments and Bitcoin interactions
 - **Production Database** - PostgreSQL with Prisma ORM for scalable data management
-- **NextAuth.js Authentication** - Email magic links + NIP07 Nostr browser extension support
+- **Universal Nostr Authentication** - Email, GitHub, Anonymous, and NIP07 with ephemeral keypair generation
+- **NextAuth.js Security** - Enterprise-grade session management with automatic Nostr key provisioning
 
 ### **Security & Validation**
 - **Zod** - Runtime schema validation
 - **Rate Limiting** - Per-user, per-action protection
 - **Input Sanitization** - XSS and injection prevention
 - **Role-based Access** - Complete authentication and authorization system
-- **NextAuth.js Security** - CSRF protection, secure session management
-- **NIP07 Authentication** - Secure Nostr browser extension integration
+- **Ephemeral Keypair System** - Automatic Nostr key generation for all authentication methods
+- **Universal Nostr Access** - Every user gets Nostr capabilities regardless of login method
+- **NextAuth.js Security** - CSRF protection, secure session management with JWT encryption
 
 ### **Styling & UI**
 - **Tailwind CSS v4** - Utility-first CSS framework
@@ -328,7 +330,8 @@ src/data/
 - **Validation**: Comprehensive Zod schemas for all endpoints
 - **Error Handling**: Structured error responses with proper codes
 - **Rate Limiting**: Built-in protection against abuse
-- **Security**: Input sanitization and authentication ready
+- **Universal Authentication**: Email, GitHub, Anonymous, and NIP07 Nostr support
+- **Ephemeral Keys**: Automatic Nostr keypair generation for seamless Web3 integration
 - **Performance**: Integrated caching for optimal response times
 - **String IDs**: Consistent ID handling throughout the system
 
@@ -472,9 +475,11 @@ try {
 ## 🌟 **Recent Achievements**
 
 ### **🆕 Latest Updates (January 2025)**
-- **✅ Production Authentication System**: NextAuth.js with email magic links + NIP07 Nostr browser extension
+- **✅ Universal Nostr Authentication System**: Revolutionary ephemeral keypair generation for ALL authentication methods
+- **✅ Multi-Provider Authentication**: Email magic links, GitHub OAuth, Anonymous login, and NIP07 Nostr browser extension
+- **✅ Automatic Nostr Integration**: Every user gets Nostr capabilities regardless of their chosen login method
 - **✅ PostgreSQL Database**: Complete Prisma schema with User, Course, Resource, and Purchase models
-- **✅ User Management**: Profile system with pubkeys, roles, Lightning addresses, and progress tracking
+- **✅ Enhanced Security Model**: User-controlled keys (NIP07) vs system-managed ephemeral keys (Email/GitHub/Anonymous)
 - **✅ Hybrid Development Setup**: Mock JSON database + Real Nostr events for optimal development experience
 - **✅ Database Adapter Pattern**: Clean abstraction layer with JSON mock + Nostr integration
 - **✅ Real Nostr Integration**: Live connection to production relays (relay.nostr.band, nos.lol, relay.damus.io)
@@ -558,42 +563,126 @@ export class DatabaseCourseAdapter {
 }
 ```
 
-### **Authentication Integration**
-```typescript
-// NextAuth.js with database backing - production ready
-export const createCourse = createAction(
-  CourseCreateSchema,
-  async (data, context) => {
-    // Create in Prisma database (production) or JSON mock (development)
-    const course = await CourseAdapter.create({
-      ...data,
-      userId: context.session.user.id // From NextAuth session
-    })
-    
-    // Publish to Nostr for decentralized content
-    if (context.session.user.nostrKey) {
-      await publishCourseEvent(course, context.session.user.nostrKey)
-    }
-  },
-  {
-    requireAuth: true,
-    allowedRoles: ['admin', 'instructor']
-  }
-)
+### **🔐 Universal Nostr Authentication System**
 
-// User authentication with email + Nostr support
+#### **Revolutionary Ephemeral Keypair Generation**
+```typescript
+/**
+ * EPHEMERAL KEYPAIR SYSTEM - Every user gets Nostr capabilities
+ * 
+ * 1. NIP07 Authentication (nostr provider):
+ *    - Users authenticate with their own Nostr keypair via browser extension
+ *    - We store only the public key (pubkey) in the database
+ *    - Private key (privkey) is NOT stored - users manage their own keys
+ *    - Session includes pubkey but NOT privkey (for security)
+ * 
+ * 2. Anonymous Authentication (anonymous provider):
+ *    - System generates fresh Nostr keypair for each anonymous session
+ *    - Both pubkey and privkey are stored in database (ephemeral account)
+ *    - Session includes both pubkey AND privkey (user can sign events)
+ * 
+ * 3. Email/GitHub Authentication (email/github providers):
+ *    - System automatically generates Nostr keypair on user creation or first sign-in
+ *    - Both pubkey and privkey are stored in database (ephemeral account)
+ *    - Session includes both pubkey AND privkey (user can sign events)
+ *    - This happens transparently - users don't know they have Nostr keys
+ */
+
+// Automatic keypair generation in NextAuth events
+events: {
+  async createUser({ user }) {
+    // Generate ephemeral Nostr keypair for non-Nostr users
+    if (!user.pubkey) {
+      const keys = await generateKeypair()
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          pubkey: keys.publicKey,
+          privkey: keys.privateKey, // Only for ephemeral accounts
+        }
+      })
+    }
+  }
+}
+
+// Smart session management
+async session({ session, token }) {
+  // Check if user has ephemeral keys by looking for stored privkey
+  if (session.user.pubkey) {
+    const dbUser = await prisma.user.findUnique({
+      where: { id: token.userId },
+      select: { privkey: true }
+    })
+    if (dbUser?.privkey) {
+      session.user.privkey = dbUser.privkey // Enable client-side signing
+    }
+    // NIP07 users won't have privkey stored (security)
+  }
+}
+```
+
+#### **Multi-Provider Support**
+```typescript
+// Four authentication methods, all get Nostr capabilities
 const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
+    // 1. Email Magic Links + Ephemeral Keys
     EmailProvider({
-      // Magic link authentication
+      server: process.env.EMAIL_SERVER,
+      from: process.env.EMAIL_FROM
     }),
+    
+    // 2. GitHub OAuth + Ephemeral Keys  
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET
+    }),
+    
+    // 3. Anonymous Login + Fresh Keys
     CredentialsProvider({
-      // NIP07 Nostr browser extension authentication
+      id: 'anonymous',
+      async authorize() {
+        const keys = await generateKeypair()
+        // Create anonymous user with fresh keypair
+        const user = await prisma.user.create({
+          data: {
+            pubkey: keys.publicKey,
+            privkey: keys.privateKey,
+            username: `anon_${keys.publicKey.substring(0, 8)}`
+          }
+        })
+        return user
+      }
+    }),
+    
+    // 4. NIP07 Browser Extension (User-Controlled Keys)
+    CredentialsProvider({
+      id: 'nostr',
+      async authorize(credentials) {
+        // User provides their own pubkey via browser extension
+        // We store ONLY the pubkey, never the private key
+        let user = await prisma.user.findUnique({
+          where: { pubkey: credentials.pubkey }
+        })
+        if (!user) {
+          user = await prisma.user.create({
+            data: { pubkey: credentials.pubkey }
+          })
+        }
+        return user
+      }
     })
   ]
 }
 ```
+
+#### **Security Model Benefits**
+- **Universal Access**: 100% of users can participate in Nostr functionality
+- **Security Boundaries**: Clear separation between user-controlled vs system-managed keys
+- **Transparent Integration**: Email/GitHub users get Web3 capabilities without knowing it
+- **Future-Proof**: Ready for NIP46 remote signing integration
+- **Client-Side Signing**: Ephemeral account users can sign Nostr events directly in browser
 
 ---
 

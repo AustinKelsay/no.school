@@ -55,7 +55,7 @@ import GitHubProvider from 'next-auth/providers/github'
 import { prisma } from './prisma'
 import type { Adapter } from 'next-auth/adapters'
 import type { NostrEvent } from 'snstr'
-import { generateKeypair } from 'snstr'
+import { generateKeypair, decodePrivateKey, getPublicKey } from 'snstr'
 import authConfig from '../../config/auth.json'
 
 /**
@@ -80,6 +80,41 @@ function generateAnonymousUserData(pubkey: string) {
     avatar,
     nip05,
     lud16: authConfig.providers.anonymous.defaultLightning
+  }
+}
+
+/**
+ * Normalize private key input (hex or nsec) to hex format
+ */
+function normalizePrivateKey(input: string): string {
+  const trimmed = input.trim()
+  
+  // If it starts with nsec1, it's a bech32-encoded private key
+  if (trimmed.startsWith('nsec1')) {
+    try {
+      // Cast to the expected type for snstr
+      return decodePrivateKey(trimmed as `nsec1${string}`)
+    } catch (error) {
+      throw new Error('Invalid nsec format')
+    }
+  }
+  
+  // Otherwise, assume it's hex format
+  if (!/^[a-f0-9]{64}$/i.test(trimmed)) {
+    throw new Error('Invalid private key format. Must be 64-character hex string or nsec format.')
+  }
+  
+  return trimmed.toLowerCase()
+}
+
+/**
+ * Derive public key from private key
+ */
+function derivePublicKey(privateKeyHex: string): string {
+  try {
+    return getPublicKey(privateKeyHex)
+  } catch (error) {
+    throw new Error('Failed to derive public key from private key')
   }
 }
 
@@ -245,6 +280,91 @@ if (authConfig.providers.anonymous.enabled) {
           throw new Error('Anonymous user creation disabled')
         } catch (error) {
           console.error('Anonymous authentication error:', error)
+          return null
+        }
+      }
+    })
+  )
+}
+
+// Add Recovery Provider if enabled
+if (authConfig.providers.recovery.enabled) {
+  providers.push(
+    CredentialsProvider({
+      id: 'recovery',
+      name: 'Account Recovery',
+      credentials: {
+        privateKey: {
+          label: 'Private Key',
+          type: 'password',
+          placeholder: 'Enter your private key (hex or nsec format)'
+        }
+      },
+      async authorize(credentials) {
+        if (!credentials?.privateKey) {
+          throw new Error('Missing private key')
+        }
+
+        try {
+          /**
+           * EPHEMERAL ACCOUNT RECOVERY:
+           * ==========================
+           * 
+           * This provider allows users to recover their ephemeral accounts
+           * (email, GitHub, anonymous) by providing their private key.
+           * 
+           * The process:
+           * 1. Normalize the private key (hex or nsec format)
+           * 2. Derive the public key from the private key
+           * 3. Find the user by public key in the database
+           * 4. Authenticate them if the account exists
+           * 
+           * This ensures users can recover their accounts even if they
+           * lose access to their original authentication method.
+           */
+          
+          // Normalize private key input (supports both hex and nsec formats)
+          const privateKeyHex = normalizePrivateKey(credentials.privateKey)
+          
+          // Derive public key from private key
+          const publicKey = derivePublicKey(privateKeyHex)
+          
+          // Verify the derived public key format
+          if (!verifyNostrPubkey(publicKey)) {
+            throw new Error('Derived invalid public key format')
+          }
+
+          // Find user by public key (they should have an ephemeral account)
+          const user = await prisma.user.findUnique({
+            where: { pubkey: publicKey }
+          })
+
+          if (!user) {
+            throw new Error('No account found for this private key')
+          }
+
+          // Verify this is an ephemeral account (should have privkey stored)
+          if (!user.privkey) {
+            throw new Error('This private key belongs to a NIP07 account. Please use the Nostr provider instead.')
+          }
+
+          // Additional security: verify the provided private key matches the stored one
+          if (user.privkey !== privateKeyHex) {
+            throw new Error('Private key does not match stored key for this account')
+          }
+
+          console.log('Recovery successful for user:', user.email || user.username || user.pubkey?.substring(0, 8))
+
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.username,
+            image: user.avatar,
+            username: user.username || undefined,
+            pubkey: user.pubkey || undefined,
+          }
+        } catch (error) {
+          console.error('Account recovery error:', error)
           return null
         }
       }

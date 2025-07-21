@@ -12,4 +12,10 @@ export const authConfigClient = {
   features: authConfig.features,
   copy: authConfig.copy,
   pages: authConfig.pages,
+  providers: {
+    recovery: {
+      supportedFormats: authConfig.providers.recovery.supportedFormats,
+      description: authConfig.providers.recovery.description,
+    }
+  },
 }
