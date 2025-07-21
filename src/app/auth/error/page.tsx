@@ -13,13 +13,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { AuthLayout } from '@/components/auth/auth-layout'
-import { authConfig } from '@/lib/auth'
+import { authConfigClient } from '@/lib/auth-config-client'
 
 
 export default function AuthErrorPage() {
   const searchParams = useSearchParams()
   const errorCode = searchParams.get('error') || 'Default'
-  const copy = authConfig.copy.error
+  const copy = authConfigClient.copy.error
   const errorInfo = copy.errorMessages[errorCode as keyof typeof copy.errorMessages] || copy.errorMessages.Default
 
   return (

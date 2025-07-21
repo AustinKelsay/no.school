@@ -13,12 +13,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/alert'
 import { AuthLayout } from '@/components/auth/auth-layout'
-import { authConfig } from '@/lib/auth'
+import { authConfigClient } from '@/lib/auth-config-client'
 
 export default function VerifyRequestPage() {
   const searchParams = useSearchParams()
   const email = searchParams.get('email')
-  const copy = authConfig.copy.verifyRequest
+  const copy = authConfigClient.copy.verifyRequest
 
   return (
     <AuthLayout 
