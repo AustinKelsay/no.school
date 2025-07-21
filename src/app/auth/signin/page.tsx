@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Alert } from '@/components/ui/alert'
 import { AuthLayout } from '@/components/auth/auth-layout'
 import { hasNip07Support } from 'snstr'
-import { authConfig } from '@/lib/auth'
+import { authConfigClient } from '@/lib/auth-config-client'
 
 interface NostrWindow extends Window {
   nostr?: {
@@ -44,12 +44,13 @@ export default function SignInPage() {
   const [email, setEmail] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [isNostrLoading, setIsNostrLoading] = useState(false)
+  const [isGithubLoading, setIsGithubLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
   const callbackUrl = searchParams.get('callbackUrl') || '/'
   const errorType = searchParams.get('error')
-  const copy = authConfig.copy.signin
+  const copy = authConfigClient.copy.signin
 
   // Handle email magic link sign in
   const handleEmailSignIn = useCallback(async (e: React.FormEvent) => {
@@ -114,6 +115,23 @@ export default function SignInPage() {
     }
   }, [callbackUrl, router, copy.messages.nostrError, copy.messages.nostrExtensionMissing])
 
+  // Handle GitHub sign in
+  const handleGithubSignIn = useCallback(async () => {
+    setIsGithubLoading(true)
+    setError('')
+
+    try {
+      await signIn('github', {
+        callbackUrl,
+      })
+    } catch (err) {
+      console.error('GitHub sign in error:', err)
+      setError(copy.messages.githubError || copy.messages.genericError)
+    } finally {
+      setIsGithubLoading(false)
+    }
+  }, [callbackUrl, copy.messages.githubError, copy.messages.genericError])
+
   return (
     <AuthLayout 
       title={copy.title}
@@ -135,7 +153,7 @@ export default function SignInPage() {
 
       <div className="space-y-6">
           {/* Email Magic Link Authentication */}
-          {authConfig.features.showEmailProvider && (
+          {authConfigClient.features.showEmailProvider && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">{copy.emailCard.title}</CardTitle>
@@ -168,7 +186,7 @@ export default function SignInPage() {
           )}
 
           {/* Divider */}
-          {authConfig.features.showEmailProvider && authConfig.features.showNostrProvider && (
+          {authConfigClient.features.showEmailProvider && (authConfigClient.features.showNostrProvider || authConfigClient.features.showGithubProvider) && (
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />
@@ -180,7 +198,7 @@ export default function SignInPage() {
           )}
 
           {/* NIP07 Nostr Authentication */}
-          {authConfig.features.showNostrProvider && (
+          {authConfigClient.features.showNostrProvider && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">{copy.nostrCard.title}</CardTitle>
@@ -203,9 +221,31 @@ export default function SignInPage() {
             </CardContent>
           </Card>
           )}
+
+          {/* GitHub Authentication */}
+          {authConfigClient.features.showGithubProvider && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{copy.githubCard.title}</CardTitle>
+              <CardDescription>
+                {copy.githubCard.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={handleGithubSignIn}
+                className="w-full"
+                variant="outline"
+                disabled={isGithubLoading}
+              >
+                {isGithubLoading ? copy.githubCard.loadingButton : copy.githubCard.button}
+              </Button>
+            </CardContent>
+          </Card>
+          )}
               </div>
 
-      {authConfig.features.requireTermsAcceptance && (
+      {authConfigClient.features.requireTermsAcceptance && (
       <div className="text-center text-sm text-muted-foreground">
         <p>
           {copy.termsText}

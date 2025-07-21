@@ -12,6 +12,7 @@ import { NextAuthOptions } from 'next-auth'
 import { PrismaAdapter } from '@auth/prisma-adapter'
 import EmailProvider from 'next-auth/providers/email'
 import CredentialsProvider from 'next-auth/providers/credentials'
+import GitHubProvider from 'next-auth/providers/github'
 import { prisma } from './prisma'
 import type { Adapter } from 'next-auth/adapters'
 import type { NostrEvent } from 'snstr'
@@ -107,6 +108,31 @@ if (authConfig.providers.nostr.enabled) {
   )
 }
 
+// Add GitHub Provider if enabled
+if (authConfig.providers.github.enabled) {
+  providers.push(
+    GitHubProvider({
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+      profile(profile) {
+        // Check if user is in allowed list (if configured)
+        const allowedUsers = authConfig.providers.github.allowedUsers as string[]
+        if (allowedUsers.length > 0 && !allowedUsers.includes(profile.login)) {
+          throw new Error(`Access denied for GitHub user: ${profile.login}`)
+        }
+
+        // Map GitHub profile to our database schema (username, avatar vs name, image)
+        return {
+          id: profile.id.toString(),
+          email: profile.email,
+          username: profile.login,
+          avatar: profile.avatar_url,
+        }
+      }
+    })
+  )
+}
+
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma) as Adapter,
   
@@ -118,15 +144,22 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.pubkey = user.pubkey
         token.userId = user.id
+        token.username = user.username
+        token.avatar = user.avatar
       }
       return token
     },
     
     async session({ session, token }) {
-      // Add user info to session
+      // Add user info to session and map database fields to expected session fields
       if (token) {
         session.user.id = token.userId as string
         session.user.pubkey = token.pubkey as string
+        session.user.username = token.username as string
+        // Map avatar to image for NextAuth compatibility
+        session.user.image = token.avatar as string
+        // Map username to name for NextAuth compatibility
+        session.user.name = token.username as string
       }
       return session
     },
@@ -153,10 +186,10 @@ export const authOptions: NextAuthOptions = {
 
   events: {
     async createUser({ user }) {
-      console.log('New user created:', user.email || user.pubkey)
+      console.log('New user created:', user.email || user.pubkey || user.username)
     },
-    async signIn({ user, account, isNewUser }) {
-      console.log('User signed in:', user.email || user.pubkey, 'via', account?.provider)
+    async signIn({ user, account }) {
+      console.log('User signed in:', user.email || user.pubkey || user.username, 'via', account?.provider)
     }
   },
 

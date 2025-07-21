@@ -13,10 +13,15 @@ declare module 'next-auth' {
     user: {
       id: string
       pubkey?: string
+      username?: string
     } & DefaultSession['user']
   }
 
-  interface User extends DefaultUser {
+  interface User {
+    id: string
+    email?: string | null
+    username?: string
+    avatar?: string
     pubkey?: string
   }
 }
@@ -25,5 +30,7 @@ declare module 'next-auth/jwt' {
   interface JWT extends DefaultJWT {
     userId?: string
     pubkey?: string
+    username?: string
+    avatar?: string
   }
 } 
