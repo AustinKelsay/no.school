@@ -21,7 +21,7 @@ import { Section } from '@/components/layout/section'
 import { hasNip07Support } from 'snstr'
 import { authConfigClient } from '@/lib/auth-config-client'
 import { validateCallbackUrlFromParams } from '@/lib/url-utils'
-import { Mail, Github, Zap, KeyRound, UserX, Sparkles, ArrowRight, HelpCircle } from 'lucide-react'
+import { Mail, Github, Zap, KeyRound, UserX, Sparkles, ArrowRight, HelpCircle, Shield, User } from 'lucide-react'
 import Link from 'next/link'
 
 interface NostrWindow extends Window {
@@ -227,157 +227,172 @@ export default function SignInPage() {
             </Alert>
           )}
 
-          <div className="max-w-md mx-auto space-y-4">
-            {/* Primary OAuth Buttons */}
-            <div className="space-y-3">
-              {/* GitHub Authentication */}
-              {authConfigClient.features.showGithubProvider && (
-                <div className="relative">
-                  <Button 
-                    onClick={handleGithubSignIn}
-                    className="w-full h-12 text-base"
-                    variant="outline"
-                    size="lg"
-                    disabled={isGithubLoading}
-                  >
-                    <Github className="h-5 w-5 mr-3" />
-                    {isGithubLoading ? copy.githubCard.loadingButton : copy.githubCard.button}
-                    {!isGithubLoading && <ArrowRight className="ml-auto h-4 w-4" />}
-                  </Button>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
-                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-xs">
-                      <div className="space-y-1">
-                        <p className="font-medium">{copy.githubCard.title}</p>
-                        <p className="text-sm">{copy.githubCard.description}</p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              )}
+          <div className="max-w-md mx-auto space-y-6">
+            {/* Nostr-First Authentication */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Zap className="h-4 w-4 text-orange-500" />
+                <span>Nostr-First (Your Nostr profile is source of truth)</span>
+              </div>
+              
+              <div className="space-y-3 pl-6 border-l-2 border-orange-500/20">
+                {/* Nostr Extension */}
+                {authConfigClient.features.showNostrProvider && (
+                  <div className="relative">
+                    <Button 
+                      onClick={handleNostrSignIn}
+                      className="w-full h-12 text-base"
+                      size="lg"
+                      disabled={isNostrLoading}
+                    >
+                      <Zap className="h-5 w-5 mr-3" />
+                      {isNostrLoading ? copy.nostrCard.loadingButton : copy.nostrCard.button}
+                      {!isNostrLoading && <ArrowRight className="ml-auto h-4 w-4" />}
+                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
+                          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <div className="space-y-2">
+                          <p className="font-medium">{copy.nostrCard.title}</p>
+                          <p className="text-sm">{copy.nostrCard.description}</p>
+                          <p className="text-xs text-muted-foreground">{copy.nostrCard.helpText}</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
 
-              {/* Nostr Extension */}
-              {authConfigClient.features.showNostrProvider && (
-                <div className="relative">
-                  <Button 
-                    onClick={handleNostrSignIn}
-                    className="w-full h-12 text-base"
-                    size="lg"
-                    disabled={isNostrLoading}
-                  >
-                    <Zap className="h-5 w-5 mr-3" />
-                    {isNostrLoading ? copy.nostrCard.loadingButton : copy.nostrCard.button}
-                    {!isNostrLoading && <ArrowRight className="ml-auto h-4 w-4" />}
-                  </Button>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
-                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-xs">
-                      <div className="space-y-2">
-                        <p className="font-medium">{copy.nostrCard.title}</p>
-                        <p className="text-sm">{copy.nostrCard.description}</p>
-                        <p className="text-xs text-muted-foreground">{copy.nostrCard.helpText}</p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              )}
-
-              {/* Anonymous Access */}
-              {authConfigClient.features.showAnonymousProvider && (
-                <div className="relative">
-                  <Button 
-                    onClick={handleAnonymousSignIn}
-                    className="w-full h-12 text-base"
-                    variant="outline"
-                    size="lg"
-                    disabled={isAnonymousLoading}
-                  >
-                    <UserX className="h-5 w-5 mr-3" />
-                    {isAnonymousLoading ? copy.anonymousCard.loadingButton : copy.anonymousCard.button}
-                    {!isAnonymousLoading && <ArrowRight className="ml-auto h-4 w-4" />}
-                  </Button>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
-                        <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right" className="max-w-xs">
-                      <div className="space-y-2">
-                        <p className="font-medium">{copy.anonymousCard.title}</p>
-                        <p className="text-sm">{copy.anonymousCard.description}</p>
-                        <p className="text-xs text-muted-foreground">{copy.anonymousCard.helpText}</p>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-              )}
+                {/* Anonymous Access */}
+                {authConfigClient.features.showAnonymousProvider && (
+                  <div className="relative">
+                    <Button 
+                      onClick={handleAnonymousSignIn}
+                      className="w-full h-12 text-base"
+                      variant="outline"
+                      size="lg"
+                      disabled={isAnonymousLoading}
+                    >
+                      <UserX className="h-5 w-5 mr-3" />
+                      {isAnonymousLoading ? copy.anonymousCard.loadingButton : copy.anonymousCard.button}
+                      {!isAnonymousLoading && <ArrowRight className="ml-auto h-4 w-4" />}
+                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
+                          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <div className="space-y-2">
+                          <p className="font-medium">{copy.anonymousCard.title}</p>
+                          <p className="text-sm">{copy.anonymousCard.description}</p>
+                          <p className="text-xs text-muted-foreground">{copy.anonymousCard.helpText}</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Divider */}
-            {authConfigClient.features.showEmailProvider && (
-              <div className="relative my-6">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or continue with email</span>
-                </div>
+            {/* OAuth-First Authentication */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Shield className="h-4 w-4 text-blue-500" />
+                <span>OAuth-First (Traditional login + background Nostr)</span>
               </div>
-            )}
+              
+              <div className="space-y-3 pl-6 border-l-2 border-blue-500/20">
+                {/* GitHub Authentication */}
+                {authConfigClient.features.showGithubProvider && (
+                  <div className="relative">
+                    <Button 
+                      onClick={handleGithubSignIn}
+                      className="w-full h-12 text-base"
+                      variant="outline"
+                      size="lg"
+                      disabled={isGithubLoading}
+                    >
+                      <Github className="h-5 w-5 mr-3" />
+                      {isGithubLoading ? copy.githubCard.loadingButton : copy.githubCard.button}
+                      {!isGithubLoading && <ArrowRight className="ml-auto h-4 w-4" />}
+                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
+                          <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" className="max-w-xs">
+                        <div className="space-y-1">
+                          <p className="font-medium">{copy.githubCard.title}</p>
+                          <p className="text-sm">{copy.githubCard.description}</p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
 
-            {/* Email Form */}
-            {authConfigClient.features.showEmailProvider && (
-              <div className="relative">
-                <form onSubmit={handleEmailSignIn} className="space-y-3">
-                  <Input
-                    type="email"
-                    placeholder={copy.emailCard.placeholder}
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    disabled={isLoading}
-                    className="h-12 text-base"
-                  />
-                  <Button 
-                    type="submit" 
-                    className="w-full h-12 text-base"
-                    size="lg"
-                    disabled={isLoading || !email}
-                  >
-                    <Mail className="h-5 w-5 mr-3" />
-                    {isLoading ? copy.emailCard.loadingButton : copy.emailCard.button}
-                    {!isLoading && <ArrowRight className="ml-auto h-4 w-4" />}
-                  </Button>
-                </form>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <button className="absolute -right-10 top-6 p-1 hover:bg-muted rounded-full transition-colors">
-                      <HelpCircle className="h-4 w-4 text-muted-foreground" />
-                    </button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-xs">
-                    <div className="space-y-1">
-                      <p className="font-medium">{copy.emailCard.title}</p>
-                      <p className="text-sm">{copy.emailCard.description}</p>
+                {/* Email Form */}
+                {authConfigClient.features.showEmailProvider && (
+                  <div className="relative space-y-3">
+                    <div className="relative">
+                      <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t border-dashed" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">Or with email</span>
+                      </div>
                     </div>
-                  </TooltipContent>
-                </Tooltip>
+                    
+                    <form onSubmit={handleEmailSignIn} className="space-y-3 relative">
+                      <Input
+                        type="email"
+                        placeholder={copy.emailCard.placeholder}
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        disabled={isLoading}
+                        className="h-12 text-base"
+                      />
+                      <Button 
+                        type="submit" 
+                        className="w-full h-12 text-base"
+                        variant="outline"
+                        size="lg"
+                        disabled={isLoading || !email}
+                      >
+                        <Mail className="h-5 w-5 mr-3" />
+                        {isLoading ? copy.emailCard.loadingButton : copy.emailCard.button}
+                        {!isLoading && <ArrowRight className="ml-auto h-4 w-4" />}
+                      </Button>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button className="absolute -right-10 top-6 p-1 hover:bg-muted rounded-full transition-colors">
+                            <HelpCircle className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="right" className="max-w-xs">
+                          <div className="space-y-1">
+                            <p className="font-medium">{copy.emailCard.title}</p>
+                            <p className="text-sm">{copy.emailCard.description}</p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </form>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
 
             {/* Recovery Section */}
             {authConfigClient.features.showRecoveryProvider && (
-              <>
-                <div className="relative my-6">
+              <div className="space-y-4">
+                <div className="relative">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t border-dashed" />
                   </div>
@@ -390,7 +405,10 @@ export default function SignInPage() {
                   <CardContent className="pt-6">
                     <div className="space-y-3">
                       <div className="text-center space-y-1">
-                        <KeyRound className="h-8 w-8 mx-auto text-muted-foreground" />
+                        <div className="flex items-center justify-center gap-1">
+                          <Zap className="h-6 w-6 text-orange-500" />
+                          <KeyRound className="h-6 w-6 text-muted-foreground" />
+                        </div>
                         <h3 className="font-medium">{copy.recoveryCard.title}</h3>
                         <p className="text-sm text-muted-foreground">{copy.recoveryCard.description}</p>
                       </div>
@@ -437,7 +455,7 @@ export default function SignInPage() {
                     </Tooltip>
                   </CardContent>
                 </Card>
-              </>
+              </div>
             )}
 
             {/* Footer Links */}
