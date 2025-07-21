@@ -16,6 +16,7 @@ import GitHubProvider from 'next-auth/providers/github'
 import { prisma } from './prisma'
 import type { Adapter } from 'next-auth/adapters'
 import type { NostrEvent } from 'snstr'
+import { generateKeypair } from 'snstr'
 import authConfig from '../../config/auth.json'
 
 /**
@@ -24,6 +25,23 @@ import authConfig from '../../config/auth.json'
 function verifyNostrPubkey(pubkey: string): boolean {
   // Check if it's a valid hex string of 64 characters (32 bytes)
   return /^[a-f0-9]{64}$/i.test(pubkey)
+}
+
+/**
+ * Generate anonymous user data with random defaults
+ */
+function generateAnonymousUserData(pubkey: string) {
+  const shortPubkey = pubkey.substring(0, authConfig.providers.anonymous.usernameLength)
+  const username = `${authConfig.providers.anonymous.usernamePrefix}${shortPubkey}`
+  const avatar = `${authConfig.providers.anonymous.defaultAvatar}${pubkey}`
+  const nip05 = `${username}@${authConfig.providers.anonymous.defaultNip05Domain}`
+  
+  return {
+    username,
+    avatar,
+    nip05,
+    lud16: authConfig.providers.anonymous.defaultLightning
+  }
 }
 
 
@@ -127,6 +145,68 @@ if (authConfig.providers.github.enabled) {
           email: profile.email,
           username: profile.login,
           avatar: profile.avatar_url,
+        }
+      }
+    })
+  )
+}
+
+// Add Anonymous Provider if enabled
+if (authConfig.providers.anonymous.enabled) {
+  providers.push(
+    CredentialsProvider({
+      id: 'anonymous',
+      name: 'Anonymous',
+      credentials: {
+        generateKeys: {
+          label: 'Generate Keys',
+          type: 'hidden',
+          value: 'true'
+        }
+      },
+      async authorize() {
+        try {
+          // Generate new Nostr keypair using snstr
+          const keys = await generateKeypair()
+          
+          if (!keys || !keys.publicKey || !keys.privateKey) {
+            throw new Error('Failed to generate Nostr keys')
+          }
+
+          // Verify the generated public key format
+          if (!verifyNostrPubkey(keys.publicKey)) {
+            throw new Error('Generated invalid public key format')
+          }
+
+          // Generate anonymous user data
+          const userData = generateAnonymousUserData(keys.publicKey)
+
+          // Create new anonymous user if auto-creation is enabled
+          if (authConfig.providers.anonymous.autoCreateUser) {
+            const user = await prisma.user.create({
+              data: {
+                pubkey: keys.publicKey,
+                privkey: keys.privateKey, // Store for anonymous accounts
+                username: userData.username,
+                avatar: userData.avatar,
+                nip05: userData.nip05,
+                lud16: userData.lud16,
+              }
+            })
+
+            return {
+              id: user.id,
+              email: user.email,
+              username: user.username || undefined,
+              avatar: user.avatar || undefined,
+              pubkey: user.pubkey || undefined,
+            }
+          }
+
+          throw new Error('Anonymous user creation disabled')
+        } catch (error) {
+          console.error('Anonymous authentication error:', error)
+          return null
         }
       }
     })

@@ -45,6 +45,7 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isNostrLoading, setIsNostrLoading] = useState(false)
   const [isGithubLoading, setIsGithubLoading] = useState(false)
+  const [isAnonymousLoading, setIsAnonymousLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
@@ -132,6 +133,31 @@ export default function SignInPage() {
     }
   }, [callbackUrl, copy.messages.githubError, copy.messages.genericError])
 
+  // Handle Anonymous sign in
+  const handleAnonymousSignIn = useCallback(async () => {
+    setIsAnonymousLoading(true)
+    setError('')
+
+    try {
+      const result = await signIn('anonymous', {
+        callbackUrl,
+        redirect: false,
+      })
+
+      if (result?.error) {
+        setError(copy.messages.anonymousError || copy.messages.genericError)
+      } else {
+        // Success - redirect will be handled by NextAuth
+        router.push(callbackUrl)
+      }
+    } catch (err) {
+      console.error('Anonymous sign in error:', err)
+      setError(copy.messages.anonymousError || copy.messages.genericError)
+    } finally {
+      setIsAnonymousLoading(false)
+    }
+  }, [callbackUrl, router, copy.messages.anonymousError, copy.messages.genericError])
+
   return (
     <AuthLayout 
       title={copy.title}
@@ -186,7 +212,7 @@ export default function SignInPage() {
           )}
 
           {/* Divider */}
-          {authConfigClient.features.showEmailProvider && (authConfigClient.features.showNostrProvider || authConfigClient.features.showGithubProvider) && (
+          {authConfigClient.features.showEmailProvider && (authConfigClient.features.showNostrProvider || authConfigClient.features.showGithubProvider || authConfigClient.features.showAnonymousProvider) && (
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border" />
@@ -240,6 +266,31 @@ export default function SignInPage() {
               >
                 {isGithubLoading ? copy.githubCard.loadingButton : copy.githubCard.button}
               </Button>
+            </CardContent>
+          </Card>
+          )}
+
+          {/* Anonymous Authentication */}
+          {authConfigClient.features.showAnonymousProvider && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">{copy.anonymousCard.title}</CardTitle>
+              <CardDescription>
+                {copy.anonymousCard.description}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                onClick={handleAnonymousSignIn}
+                className="w-full"
+                variant="outline"
+                disabled={isAnonymousLoading}
+              >
+                {isAnonymousLoading ? copy.anonymousCard.loadingButton : copy.anonymousCard.button}
+              </Button>
+              <p className="mt-2 text-xs text-muted-foreground">
+                {copy.anonymousCard.helpText}
+              </p>
             </CardContent>
           </Card>
           )}
