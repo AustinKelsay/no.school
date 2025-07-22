@@ -47,12 +47,18 @@ You can set `defaults.theme` to any of these theme values:
 
 ### Specialty Themes
 - `"amber-minimal"` - Minimal amber design
+- `"amethyst"` - Purple gem colors with modern styling
 - `"amethyst-haze"` - Purple amethyst colors
+- `"astral"` - Cosmic purple theme with ethereal styling
+- `"blaze"` - Warm orange/red theme with vibrant colors
 - `"bold-tech"` - Bold technology theme with Space Mono font
 - `"bubblegum"` - Playful bubblegum colors
 - `"caffeine"` - Coffee-inspired browns
+- `"calypso"` - Tropical teal theme with modern styling
 - `"candyland"` - Sweet candy colors
+- `"canvas"` - Canvas theme with modern styling
 - `"catppuccin"` - Popular pastel theme
+- `"citrus"` - Bright yellow/green theme with modern styling
 - `"claude"` - Claude AI inspired colors
 - `"claymorphism"` - Soft clay-like design
 - `"clean-slate"` - Ultra-minimal design with Inter font
@@ -60,7 +66,10 @@ You can set `defaults.theme` to any of these theme values:
 - `"cyberpunk"` - Neon cyberpunk aesthetic
 - `"doom64"` - Dark gaming theme
 - `"elegant-luxury"` - Sophisticated design with Playfair Display
+- `"emerald"` - Rich green theme with modern styling
+- `"forest"` - Deep green theme with modern styling
 - `"graphite"` - Industrial graphite grays
+- `"miami"` - Vibrant pink/magenta theme with modern styling
 - `"midnight-bloom"` - Dark elegance with Lora font
 - `"mocha-mousse"` - Warm coffee browns with Merriweather
 - `"modern-minimal"` - Ultra-clean design with Poppins
@@ -71,15 +80,25 @@ You can set `defaults.theme` to any of these theme values:
 - `"notebook"` - Paper-like notebook design
 - `"ocean-breeze"` - Ocean blues with Open Sans
 - `"perpetuity"` - Timeless classic design
+- `"quick-pink"` - Bright pink theme with modern styling
+- `"razzmatazz"` - Bold magenta theme with modern styling
 - `"retro-arcade"` - 80s neon colors with Press Start 2P
+- `"santa-fe"` - Southwest orange theme with modern styling
+- `"sky"` - Light blue theme with modern styling
 - `"soft-pop"` - Gentle pastels with Quicksand
+- `"solar"` - Bright yellow/orange theme with modern styling
 - `"solar-dusk"` - Sunset oranges with Raleway
+- `"spooky"` - Halloween orange/black theme with modern styling
+- `"spring-bouquet"` - Fresh green/pink dual-color theme with modern styling
 - `"starry-night"` - Deep navy with Crimson Text
 - `"sunset-horizon"` - Warm gradients with Source Sans Pro
 - `"supabase"` - Supabase brand colors
 - `"twitter"` - Twitter brand colors
+- `"typewriter"` - Classic black/white theme with modern styling
+- `"underground"` - Dark purple theme with modern styling
 - `"vercel"` - Vercel brand colors
 - `"violet-bloom"` - Rich violets with Libre Baskerville
+- `"xanadu"` - Earthy green theme with modern styling
 
 ## Available Fonts
 
