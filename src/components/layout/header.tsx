@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +12,9 @@ import {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
+  DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
-import { Menu, Search, Zap, Settings, Moon, Type, Check } from "lucide-react"
+import { Menu, Search, Zap, Settings, Moon, Type, Check, User, LogOut, UserCircle } from "lucide-react"
 import { Container } from "./container"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ThemeSelector } from "@/components/theme-selector"
@@ -26,6 +28,7 @@ import { useThemeColor } from "@/contexts/theme-context"
 import { availableFonts, ThemeName } from "@/lib/theme-config"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
+import { useSession, signOut } from "next-auth/react"
 
 /**
  * Header component for the main navigation
@@ -38,6 +41,7 @@ export function Header() {
   const { fontOverride, setFontOverride, themeConfig, currentTheme, setCurrentTheme, availableThemes } = useThemeColor()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
+  const { data: session, status } = useSession()
 
   function handleThemeSelect(themeName: ThemeName) {
     setCurrentTheme(themeName)
@@ -200,9 +204,49 @@ export function Header() {
           {shouldShowFontToggle() && <div className="hidden md:block"><FontToggle /></div>}
           {shouldShowThemeToggle() && <div className="hidden sm:block"><ThemeToggle /></div>}
           
-          <Link href="/auth/signin">
-            <Button size="sm" className="text-xs sm:text-sm">{navigation.buttons.login}</Button>
-          </Link>
+          {/* Authentication Section */}
+          {session?.user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={session.user.image || undefined} alt={session.user.name || 'User'} />
+                    <AvatarFallback>
+                      {(session.user.name || session.user.username || 'U').substring(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <DropdownMenuLabel className="font-normal">
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">
+                      {session.user.name || session.user.username || 'User'}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {session.user.email}
+                    </p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="flex items-center">
+                    <UserCircle className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => signOut()} className="flex items-center">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Sign out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link href="/auth/signin">
+              <Button size="sm" className="text-xs sm:text-sm">{navigation.buttons.login}</Button>
+            </Link>
+          )}
         </div>
       </Container>
     </header>
