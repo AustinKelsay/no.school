@@ -132,9 +132,10 @@ function derivePublicKey(privateKeyHex: string): string {
 }
 
 /**
- * Fetch Nostr profile metadata from relays
+ * Fetch ALL Nostr profile metadata from relays (NIP-01 kind 0 event)
+ * Returns the complete profile object as stored in Nostr
  */
-async function fetchNostrProfile(pubkey: string): Promise<{ name?: string; picture?: string; about?: string; nip05?: string; lud16?: string; banner?: string } | null> {
+async function fetchNostrProfile(pubkey: string): Promise<Record<string, unknown> | null> {
   try {
     // Initialize relay pool with default relays
     const relayPool = new RelayPool([
@@ -157,17 +158,11 @@ async function fetchNostrProfile(pubkey: string): Promise<{ name?: string; pictu
       return null
     }
 
-    // Parse the profile metadata
+    // Parse and return ALL profile metadata from Nostr (NIP-01 format)
     try {
       const profileData = JSON.parse(profileEvent.content)
-      return {
-        name: profileData.name || profileData.username || profileData.display_name,
-        picture: profileData.picture || profileData.avatar || profileData.image,
-        about: profileData.about || profileData.bio,
-        nip05: profileData.nip05,
-        lud16: profileData.lud16,
-        banner: profileData.banner
-      }
+      // Return the complete profile object - don't filter any fields
+      return profileData
     } catch (parseError) {
       console.error('Failed to parse profile metadata:', parseError)
       return null
@@ -196,7 +191,20 @@ async function fetchNostrProfile(pubkey: string): Promise<{ name?: string; pictu
  * 
  * This ensures Nostr-first accounts always reflect their latest Nostr profile.
  */
-async function syncUserProfileFromNostr(userId: string, pubkey: string): Promise<{ id: string; pubkey: string | null; email: string | null; username: string | null; avatar: string | null; nip05: string | null; lud16: string | null; privkey: string | null; emailVerified: Date | null; createdAt: Date; updatedAt: Date } | null> {
+async function syncUserProfileFromNostr(userId: string, pubkey: string): Promise<{
+  id: string;
+  pubkey: string | null;
+  email: string | null;
+  username: string | null;
+  avatar: string | null;
+  nip05: string | null;
+  lud16: string | null;
+  banner: string | null;
+  privkey: string | null;
+  emailVerified: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+} | null> {
   try {
     console.log(`Syncing profile from Nostr for user ${userId} (pubkey: ${pubkey.substring(0, 8)}...)`)
     
@@ -208,12 +216,7 @@ async function syncUserProfileFromNostr(userId: string, pubkey: string): Promise
       return await prisma.user.findUnique({ where: { id: userId } })
     }
     
-    console.log('Fetched Nostr profile:', {
-      name: nostrProfile.name,
-      picture: !!nostrProfile.picture,
-      nip05: nostrProfile.nip05,
-      lud16: nostrProfile.lud16
-    })
+    console.log('Fetched complete Nostr profile with', Object.keys(nostrProfile).length, 'fields:', Object.keys(nostrProfile).join(', '))
     
     // Step 2: Get current database values
     const currentUser = await prisma.user.findUnique({
@@ -222,7 +225,8 @@ async function syncUserProfileFromNostr(userId: string, pubkey: string): Promise
         username: true, 
         avatar: true, 
         nip05: true, 
-        lud16: true 
+        lud16: true,
+        banner: true
       }
     })
     
@@ -231,31 +235,43 @@ async function syncUserProfileFromNostr(userId: string, pubkey: string): Promise
     }
     
     // Step 3: Determine what needs to be updated (Nostr is source of truth)
-    const updates: { username?: string; avatar?: string; nip05?: string; lud16?: string } = {}
+    const updates: { username?: string; avatar?: string; nip05?: string; lud16?: string; banner?: string } = {}
+    
+    // Extract key fields from complete Nostr profile
+    const name = nostrProfile.name || nostrProfile.username || nostrProfile.display_name
+    const picture = nostrProfile.picture || nostrProfile.avatar || nostrProfile.image
     
     // Update username if Nostr has a name and it's different
-    if (nostrProfile.name && nostrProfile.name !== currentUser.username) {
-      updates.username = nostrProfile.name
-      console.log(`Updating username: ${currentUser.username} -> ${nostrProfile.name}`)
+    if (name && name !== currentUser.username) {
+      updates.username = String(name)
+      console.log(`Updating username: ${currentUser.username} -> ${name}`)
     }
     
     // Update avatar if Nostr has a picture and it's different
-    if (nostrProfile.picture && nostrProfile.picture !== currentUser.avatar) {
-      updates.avatar = nostrProfile.picture
-      console.log(`Updating avatar: ${!!currentUser.avatar} -> ${!!nostrProfile.picture}`)
+    if (picture && picture !== currentUser.avatar) {
+      updates.avatar = String(picture)
+      console.log(`Updating avatar: ${!!currentUser.avatar} -> ${!!picture}`)
     }
     
     // Update nip05 if Nostr has one and it's different
     if (nostrProfile.nip05 && nostrProfile.nip05 !== currentUser.nip05) {
-      updates.nip05 = nostrProfile.nip05
+      updates.nip05 = String(nostrProfile.nip05)
       console.log(`Updating nip05: ${currentUser.nip05} -> ${nostrProfile.nip05}`)
     }
     
     // Update lud16 if Nostr has one and it's different
     if (nostrProfile.lud16 && nostrProfile.lud16 !== currentUser.lud16) {
-      updates.lud16 = nostrProfile.lud16
+      updates.lud16 = String(nostrProfile.lud16)
       console.log(`Updating lud16: ${currentUser.lud16} -> ${nostrProfile.lud16}`)
     }
+    
+    // Update banner if Nostr has one and it's different
+    if (nostrProfile.banner && nostrProfile.banner !== currentUser.banner) {
+      updates.banner = String(nostrProfile.banner)
+      console.log(`Updating banner: ${!!currentUser.banner} -> ${!!nostrProfile.banner}`)
+    }
+    
+    console.log('Complete Nostr profile available in session via:', Object.keys(nostrProfile).join(', '))
     
     // Step 4: Apply updates if there are any changes
     if (Object.keys(updates).length > 0) {
@@ -389,12 +405,12 @@ if (authConfig.providers.github.enabled) {
           throw new Error(`Access denied for GitHub user: ${profile.login}`)
         }
 
-        // Map GitHub profile to our database schema (username, avatar vs name, image)
+        // Map GitHub profile to our database schema (basic fields only)
         return {
           id: profile.id.toString(),
           email: profile.email,
-          username: profile.login,
-          avatar: profile.avatar_url,
+          name: profile.name || profile.login,
+          image: profile.avatar_url,
         }
       }
     })
@@ -603,11 +619,12 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, account }) {
       // Add user info to JWT token
       if (user) {
-        token.pubkey = user.pubkey
+        token.pubkey = user.pubkey || undefined
         token.userId = user.id
-        token.username = user.username
-        token.avatar = user.avatar
+        token.username = user.username || user.name || undefined
+        token.avatar = user.avatar || user.image || undefined
         token.provider = account?.provider
+        token.email = user.email || undefined
         
         /**
          * EPHEMERAL KEYPAIR HANDLING IN JWT:
@@ -623,20 +640,30 @@ export const authOptions: NextAuthOptions = {
          * while maintaining security for user-controlled key authentication.
          */
         if (account?.provider && !['nostr'].includes(account.provider)) {
-          // Fetch the user's privkey from database for ephemeral accounts
+          // Fetch the user's privkey and additional profile data from database for ephemeral accounts
           const dbUser = await prisma.user.findUnique({
             where: { id: user.id },
-            select: { privkey: true }
+            select: { 
+              privkey: true,
+              username: true,
+              avatar: true,
+              nip05: true,
+              lud16: true,
+              banner: true
+            }
           })
           token.privkey = dbUser?.privkey || undefined
+          // Update token with latest database values
+          if (dbUser?.username) token.username = dbUser.username
+          if (dbUser?.avatar) token.avatar = dbUser.avatar
+          token.nip05 = dbUser?.nip05 || undefined
+          token.lud16 = dbUser?.lud16 || undefined
+          token.banner = dbUser?.banner || undefined
           
-          console.log('JWT Callback - Ephemeral keypair handling:')
-          console.log('- Provider:', account.provider)
-          console.log('- User ID:', user.id)
-          console.log('- User email/username:', user.email || user.username)
-          console.log('- Has pubkey in user object:', !!user.pubkey)
-          console.log('- Has privkey in database:', !!dbUser?.privkey)
-          console.log('- Setting privkey in token:', !!token.privkey)
+          // Debug info for ephemeral keypair handling (development only)
+          if (process.env.NODE_ENV === 'development') {
+            console.log('JWT Callback - Ephemeral keypair handling for provider:', account.provider)
+          }
         }
       }
       return token
@@ -648,10 +675,29 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.userId as string
         session.user.pubkey = token.pubkey as string
         session.user.username = token.username as string
+        session.user.email = token.email as string
         // Map avatar to image for NextAuth compatibility
         session.user.image = token.avatar as string
         // Map username to name for NextAuth compatibility
         session.user.name = token.username as string
+        // Add additional Nostr profile fields to session
+        Object.assign(session.user, {
+          nip05: token.nip05,
+          lud16: token.lud16,
+          banner: token.banner
+        })
+        
+        // For Nostr-first accounts, fetch and include complete Nostr profile
+        if (session.user.pubkey) {
+          try {
+            const completeNostrProfile = await fetchNostrProfile(session.user.pubkey)
+            if (completeNostrProfile) {
+              session.user.nostrProfile = completeNostrProfile
+            }
+          } catch (error) {
+            console.error('Failed to fetch complete Nostr profile for session:', error)
+          }
+        }
         
         /**
          * EPHEMERAL KEYPAIR HANDLING IN SESSION:
@@ -671,16 +717,9 @@ export const authOptions: NextAuthOptions = {
         // Check if user has ephemeral keys by looking for stored privkey
         // NIP07 users won't have privkey stored in database
         if (session.user.pubkey) {
-          console.log('Session Callback - Ephemeral keypair handling:')
-          console.log('- User ID:', token.userId)
-          console.log('- Provider in token:', token.provider)
-          console.log('- Has pubkey:', !!session.user.pubkey)
-          console.log('- Has privkey in token:', !!token.privkey)
-          
           // If privkey is already in token, use it (for new logins)
           if (token.privkey) {
             session.user.privkey = token.privkey as string
-            console.log('- Using privkey from token:', !!session.user.privkey)
           } else {
             // For existing sessions, fetch privkey from database if it exists
             try {
@@ -690,17 +729,12 @@ export const authOptions: NextAuthOptions = {
               })
               if (dbUser?.privkey) {
                 session.user.privkey = dbUser.privkey
-                console.log('- Fetched privkey from database:', !!session.user.privkey)
-              } else {
-                console.log('- No privkey in database (likely NIP07 user)')
               }
               // If no privkey in database, this is likely a NIP07 user (expected)
             } catch (error) {
               console.error('Failed to fetch privkey for session:', error)
             }
           }
-          
-          console.log('- Final session has privkey:', !!session.user.privkey)
         }
       }
       return session

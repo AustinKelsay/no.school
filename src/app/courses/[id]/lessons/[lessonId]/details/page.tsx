@@ -483,7 +483,7 @@ function LessonContent({
                 {lessonDisplays.map((l, index) => (
                   <div
                     key={l.id}
-                    className={`flex items-center space-x-3 p-2 rounded-lg transition-colors ${
+                    className={`flex items-center space-x-3 p-2 rounded-lg transition-colors cursor-pointer ${
                       l.id === resolvedLessonId 
                         ? 'bg-primary/10 border border-primary/20' 
                         : 'hover:bg-muted/50'
@@ -597,11 +597,11 @@ export default function LessonDetailsPage({ params }: LessonDetailsPageProps) {
         <div className="space-y-6">
           {/* Breadcrumb Navigation */}
           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-            <Link href="/content" className="hover:text-foreground">
+            <Link href="/content" className="hover:text-foreground cursor-pointer">
               Content
             </Link>
             <span>•</span>
-            <Link href={`/courses/${courseId}`} className="hover:text-foreground">
+            <Link href={`/courses/${courseId}`} className="hover:text-foreground cursor-pointer">
               Course
             </Link>
             <span>•</span>

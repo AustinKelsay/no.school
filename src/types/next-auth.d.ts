@@ -15,6 +15,10 @@ declare module 'next-auth' {
       pubkey?: string
       username?: string
       privkey?: string  // Private key for ephemeral accounts (anonymous, email, github)
+      nostrProfile?: Record<string, unknown>  // Complete Nostr profile from NIP-01 kind 0 event
+      nip05?: string
+      lud16?: string
+      banner?: string
     } & DefaultSession['user']
   }
 
@@ -35,5 +39,9 @@ declare module 'next-auth/jwt' {
     avatar?: string
     privkey?: string  // Private key for ephemeral accounts
     provider?: string // Track which provider was used for authentication
+    email?: string
+    nip05?: string
+    lud16?: string
+    banner?: string
   }
 } 

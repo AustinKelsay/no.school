@@ -1,0 +1,133 @@
+{
+  "relays": {
+    "default": [
+      "wss://relay.nostr.band",
+      "wss://nos.lol",
+      "wss://relay.damus.io",
+      "wss://relay.primal.net",
+      "wss://nostr.land",
+      "wss://nostrue.com",
+      "wss://purplerelay.com",
+      "wss://nostr.wine"
+    ],
+    "custom": []
+  },
+  "eventTypes": {
+    "courseList": {
+      "kind": 30004,
+      "nip": "51",
+      "description": "Course curation list events"
+    },
+    "freeContent": {
+      "kind": 30023,
+      "nip": "23",
+      "description": "Long-form content for free resources"
+    },
+    "paidContent": {
+      "kind": 30402,
+      "nip": "99",
+      "description": "Paid content events for premium resources"
+    },
+    "userProfile": {
+      "kind": 0,
+      "nip": "01",
+      "description": "User metadata and profile information"
+    },
+    "contactList": {
+      "kind": 3,
+      "nip": "02",
+      "description": "Contact list and relay configuration"
+    }
+  },
+  "publishingDefaults": {
+    "tags": {
+      "includeClientTag": true,
+      "clientName": "no.school",
+      "clientVersion": "1.0.0"
+    },
+    "timeout": 10000,
+    "retryAttempts": 3
+  },
+  "features": {
+    "enableRealtimeSync": true,
+    "cacheProfiles": true,
+    "cacheEventsDuration": 300,
+    "autoReconnect": true,
+    "reconnectInterval": 5000,
+    "maxReconnectAttempts": 10,
+    "enableEventValidation": true,
+    "requireSignatureVerification": true
+  },
+  "contentDefaults": {
+    "courseTopics": [
+      "bitcoin",
+      "lightning",
+      "nostr",
+      "development",
+      "education"
+    ],
+    "contentTags": {
+      "language": "en",
+      "license": "CC-BY-4.0",
+      "platform": "no.school"
+    }
+  },
+  "_comments": {
+    "_overview": "Nostr protocol configuration - controls relay usage, event types, and publishing defaults",
+    "relays": "Relay configuration for different use cases",
+    "relays.default": "Default relays used for general event publishing and fetching. These should be reliable, well-connected relays.",
+    "relays.content": "Relays specifically for content events (courses, resources). Often a subset of default relays for better performance.",
+    "relays.profile": "Relays optimized for user profile data. May include specialized profile aggregators like purplepag.es.",
+    "relays.zapThreads": "Relays used by the zapthreads widget for Lightning comments and zaps. Should match zapthreads configuration.",
+    "relays.custom": "User-defined custom relays that can be added dynamically. Empty by default.",
+    "eventTypes": "Nostr event type definitions and their NIPs",
+    "eventTypes.courseList": "NIP-51 list events for course curation (kind 30004)",
+    "eventTypes.freeContent": "NIP-23 long-form content for free educational resources",
+    "eventTypes.paidContent": "NIP-99 paid content events for premium resources",
+    "eventTypes.userProfile": "NIP-01 user metadata events (kind 0)",
+    "eventTypes.contactList": "NIP-02 contact list and relay configuration (kind 3)",
+    "publishingDefaults": "Default settings for publishing Nostr events",
+    "publishingDefaults.tags": "Default tags added to all published events",
+    "publishingDefaults.tags.includeClientTag": "Add client identification tag to events",
+    "publishingDefaults.timeout": "Event publishing timeout in milliseconds",
+    "publishingDefaults.retryAttempts": "Number of retry attempts for failed publishes",
+    "features": "Nostr integration feature toggles",
+    "features.enableRealtimeSync": "Enable real-time synchronization of events from relays",
+    "features.cacheProfiles": "Cache user profiles locally to reduce relay queries",
+    "features.cacheEventsDuration": "How long to cache events in seconds (5 minutes default)",
+    "features.autoReconnect": "Automatically reconnect to relays on disconnect",
+    "features.reconnectInterval": "Time between reconnection attempts in milliseconds",
+    "features.maxReconnectAttempts": "Maximum number of reconnection attempts before giving up",
+    "features.enableEventValidation": "Validate event structure before publishing",
+    "features.requireSignatureVerification": "Verify event signatures on receipt",
+    "contentDefaults": "Default values for content creation",
+    "contentDefaults.courseTopics": "Default topic tags for courses",
+    "contentDefaults.contentTags": "Default tags added to content events (language, license, platform)"
+  },
+  "_examples": {
+    "minimalRelays": {
+      "relays": {
+        "default": ["wss://relay.damus.io", "wss://nos.lol"]
+      }
+    },
+    "customRelaySet": {
+      "relays": {
+        "default": ["wss://my-private-relay.com", "wss://community-relay.org"],
+        "custom": ["wss://special-purpose-relay.net"]
+      }
+    },
+    "aggressiveCaching": {
+      "features": {
+        "cacheProfiles": true,
+        "cacheEventsDuration": 3600,
+        "enableRealtimeSync": false
+      }
+    },
+    "strictValidation": {
+      "features": {
+        "enableEventValidation": true,
+        "requireSignatureVerification": true
+      }
+    }
+  }
+}

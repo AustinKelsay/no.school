@@ -482,7 +482,13 @@ try {
 - **✅ Identity Flow Control**: Clear data flow - Nostr→Database vs OAuth→Database based on account type
 - **✅ Enhanced Security Boundaries**: User custody (NIP07), platform custody (Anonymous), transparent background (Email/GitHub)
 - **✅ Multi-Provider Support**: Email magic links, GitHub OAuth, Anonymous experimentation, and NIP07 browser extension
-- **✅ PostgreSQL Database**: Complete Prisma schema with User, Course, Resource, and Purchase models
+- **🆕 Complete NIP-01 Profile Collection**: Comprehensive Nostr profile metadata fetching and storage
+- **🆕 Enhanced Session Data**: All user profile fields available in session including banner, nip05, lud16, and complete Nostr profile
+- **🆕 Simplified OAuth Collection**: GitHub OAuth streamlined to essential fields (name, email, image) while preserving full Nostr capabilities
+- **✅ PostgreSQL Database**: Complete Prisma schema with User, Course, Resource, and Purchase models including banner field support
+- **✅ Comprehensive Profile Sync**: Real-time synchronization of all NIP-01 profile fields (name, picture, about, nip05, lud16, banner, website, location, etc.)
+- **✅ Smart Profile Data Flow**: Nostr-first accounts get complete profile from relays, OAuth-first maintain basic provider data with background Nostr capabilities
+- **✅ Enhanced User Sessions**: Full profile data accessible in session.user including nostrProfile object with all Nostr metadata
 - **✅ Hybrid Development Setup**: Mock JSON database + Real Nostr events for optimal development experience
 - **✅ Database Adapter Pattern**: Clean abstraction layer with JSON mock + Nostr integration
 - **✅ Real Nostr Integration**: Live connection to production relays (relay.nostr.band, nos.lol, relay.damus.io)
@@ -527,6 +533,8 @@ try {
 - `src/data/types.ts` - Complete type system for Database + Nostr + Display interfaces
 - `src/data/mockDb/` - JSON mock database files (Course.json, Resource.json, Lesson.json)
 - `src/data/nostr-events.ts` - Real Nostr event data and examples
+- `src/types/next-auth.d.ts` - Enhanced NextAuth types with complete profile support
+- `src/lib/auth.ts` - Comprehensive authentication with complete profile collection
 
 ### **🆕 Enhanced Features**
 - **Hybrid Development Architecture**: Perfect blend of JSON mock database + Real Nostr events for rapid development
@@ -567,6 +575,33 @@ export class DatabaseCourseAdapter {
 ```
 
 ### **🔐 Dual Authentication Architecture: Nostr-First vs OAuth-First**
+
+#### **Revolutionary Identity-Source System with Complete Profile Collection**
+
+**Latest Enhancement: Complete NIP-01 Profile Support**
+```typescript
+// Session now includes comprehensive user data
+const { data: session } = useSession()
+
+// Basic fields (all users)
+session?.user?.name          // Display name
+session?.user?.email         // Email address  
+session?.user?.image         // Avatar/profile picture
+session?.user?.pubkey        // Nostr public key
+
+// Enhanced Nostr profile fields (all users)
+session?.user?.nip05         // Nostr address verification
+session?.user?.lud16         // Lightning address
+session?.user?.banner        // Profile banner image
+
+// Complete Nostr profile (Nostr-first accounts)
+session?.user?.nostrProfile?.about      // Bio/description
+session?.user?.nostrProfile?.website    // Personal website
+session?.user?.nostrProfile?.location   // Geographic location
+session?.user?.nostrProfile?.github     // GitHub username
+session?.user?.nostrProfile?.twitter    // Twitter handle
+// ... plus any other fields from user's NIP-01 profile
+```
 
 #### **Revolutionary Identity-Source System**
 ```typescript
@@ -654,9 +689,18 @@ const authOptions = {
     // 🟠 OAUTH-FIRST: GitHub OAuth (User may not know about Nostr)  
     GitHubProvider({
       clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET
-      // → Gets ephemeral keypair for background Nostr functionality  
-      // → GitHub profile is source of truth, no Nostr profile sync
+      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      profile(profile) {
+        // Simplified GitHub profile mapping (essential fields only)
+        return {
+          id: profile.id.toString(),
+          email: profile.email,
+          name: profile.name || profile.login,
+          image: profile.avatar_url,
+          // → Gets ephemeral keypair for background Nostr functionality  
+          // → GitHub profile is source of truth, no Nostr profile sync
+        }
+      }
     }),
     
     // 🔵 NOSTR-FIRST: Anonymous (User trying things out)
@@ -722,6 +766,129 @@ const authOptions = {
 - **Appropriate Custody**: User-controlled keys for Nostr users, platform-managed for others
 - **Future-Ready**: Seamless upgrade path to NIP46 remote signing
 - **Client-Side Signing**: Ephemeral account users can sign Nostr events in browser
+- **Complete Profile Data**: All users get comprehensive profile information appropriate to their authentication method
+
+### **🆕 Enhanced Profile Collection System**
+
+#### **Complete NIP-01 Profile Support**
+```typescript
+/**
+ * COMPREHENSIVE PROFILE COLLECTION
+ * ===============================
+ * 
+ * 🔵 NOSTR-FIRST ACCOUNTS: Complete profile from Nostr relays
+ * - Fetches ALL fields from NIP-01 kind 0 events (not just basic fields)
+ * - Includes: name, picture, about, nip05, lud16, banner, website, location, 
+ *   github, twitter, telegram, mastodon, youtube, linkedin, pronouns, 
+ *   occupation, company, skills, interests, and any other custom fields
+ * - Real-time sync on every login ensures profile stays current
+ * - Stored both in database (key fields) and session (complete profile)
+ * 
+ * 🟠 OAUTH-FIRST ACCOUNTS: Essential provider data + background Nostr
+ * - GitHub: name, email, image (streamlined, no extended fields)
+ * - Email: email, name (from provider)
+ * - Gets ephemeral Nostr keypair for protocol participation
+ * - Can access complete Nostr profile via session.user.nostrProfile if desired
+ */
+
+// Enhanced fetchNostrProfile - returns complete profile object
+async function fetchNostrProfile(pubkey: string): Promise<Record<string, unknown> | null> {
+  const profileEvent = await relayPool.get(
+    relays, 
+    { kinds: [0], authors: [pubkey] }
+  )
+  
+  if (profileEvent?.kind === 0) {
+    // Return ALL fields from Nostr profile (not filtered)
+    return JSON.parse(profileEvent.content)
+  }
+  return null
+}
+
+// Enhanced session callback - includes complete profile data
+async session({ session, token }) {
+  session.user.id = token.userId
+  session.user.pubkey = token.pubkey
+  session.user.username = token.username
+  session.user.email = token.email
+  session.user.image = token.avatar
+  session.user.name = token.username
+  
+  // Enhanced profile fields
+  Object.assign(session.user, {
+    nip05: token.nip05,
+    lud16: token.lud16,
+    banner: token.banner
+  })
+  
+  // For Nostr-first accounts, fetch complete profile
+  if (session.user.pubkey) {
+    const completeNostrProfile = await fetchNostrProfile(session.user.pubkey)
+    if (completeNostrProfile) {
+      session.user.nostrProfile = completeNostrProfile
+    }
+  }
+}
+```
+
+#### **Profile Data Access Patterns**
+```typescript
+// In your React components
+const { data: session } = useSession()
+
+// ✅ Always available (all authentication methods)
+session?.user?.name           // Display name
+session?.user?.email          // Email address
+session?.user?.image          // Avatar/profile picture
+session?.user?.pubkey         // Nostr public key (all users get one)
+
+// ✅ Enhanced fields (synced from appropriate source)
+session?.user?.nip05          // Nostr address (from Nostr or empty)
+session?.user?.lud16          // Lightning address (from Nostr or empty)
+session?.user?.banner         // Banner image (from Nostr or empty)
+
+// ✅ Complete Nostr profile (available for all users)
+session?.user?.nostrProfile?.about       // Biography/description
+session?.user?.nostrProfile?.website     // Personal website URL
+session?.user?.nostrProfile?.location    // Geographic location
+session?.user?.nostrProfile?.github      // GitHub username
+session?.user?.nostrProfile?.twitter     // Twitter handle
+session?.user?.nostrProfile?.telegram    // Telegram username
+session?.user?.nostrProfile?.mastodon    // Mastodon address
+session?.user?.nostrProfile?.youtube     // YouTube channel
+session?.user?.nostrProfile?.linkedin    // LinkedIn profile
+session?.user?.nostrProfile?.pronouns    // Preferred pronouns
+session?.user?.nostrProfile?.occupation  // Job title/occupation
+session?.user?.nostrProfile?.company     // Company/organization
+session?.user?.nostrProfile?.skills      // Technical skills
+session?.user?.nostrProfile?.interests   // Personal interests
+// Plus any other custom fields from the user's Nostr profile
+
+// ✅ Authentication context
+session?.user?.privkey        // Private key (ephemeral accounts only)
+const isNostrFirst = !session?.user?.privkey // True for NIP07 users
+const canSignEvents = !!session?.user?.privkey // True for ephemeral accounts
+```
+
+#### **Profile Collection Benefits**
+
+**🔵 For Nostr-First Users (NIP07 & Anonymous):**
+- **Complete Profile Access**: Every field from their Nostr profile is available
+- **Real-time Sync**: Profile updates on Nostr immediately reflect in the platform
+- **No Data Loss**: Platform preserves all custom fields and metadata
+- **Source of Truth**: Nostr profile always takes precedence over database values
+
+**🟠 For OAuth-First Users (Email & GitHub):**
+- **Clean Integration**: Simple, familiar OAuth flow without Nostr complexity
+- **Essential Data**: Name, email, image from provider - no unnecessary fields
+- **Background Nostr**: Transparent access to Nostr protocol features when needed
+- **Stable Profiles**: OAuth provider data remains consistent and authoritative
+
+**Universal Features:**
+- **Type Safety**: Full TypeScript support for all profile fields
+- **Flexible Access**: Use basic fields or dive deep into complete Nostr profiles
+- **Performance**: Intelligent caching of profile data with 5-minute refresh
+- **Future-Proof**: Ready for any new NIP-01 profile fields that emerge
 
 ---
 

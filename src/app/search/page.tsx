@@ -139,13 +139,13 @@ function SearchContent() {
             <div className="max-w-2xl mx-auto">
               <Tabs value={searchType} onValueChange={(value) => setSearchType(value as 'all' | 'courses' | 'resources')}>
                 <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="all">
+                  <TabsTrigger value="all" className="cursor-pointer">
                     All {summary && `(${summary.total})`}
                   </TabsTrigger>
-                  <TabsTrigger value="courses">
+                  <TabsTrigger value="courses" className="cursor-pointer">
                     Courses {summary && `(${summary.courses})`}
                   </TabsTrigger>
-                  <TabsTrigger value="resources">
+                  <TabsTrigger value="resources" className="cursor-pointer">
                     Resources {summary && `(${summary.resources})`}
                   </TabsTrigger>
                 </TabsList>

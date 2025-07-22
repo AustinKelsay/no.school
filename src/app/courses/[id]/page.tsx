@@ -99,7 +99,7 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
               const isPremium = lesson.isPremium || false
 
               return (
-                <div key={lesson.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                <div key={lesson.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 border rounded-lg hover:bg-accent/50 transition-colors cursor-pointer">
                   <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
                     <div className="flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full bg-primary/20 text-xs sm:text-sm font-medium flex-shrink-0">
                       {index + 1}

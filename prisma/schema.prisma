@@ -35,6 +35,7 @@ model User {
     userCourses      UserCourse[]
     nip05            String?
     lud16            String?
+    banner           String?
     platformNip05    PlatformNip05?
     platformLightningAddress PlatformLightningAddress?
     userBadges       UserBadge[]

@@ -1,0 +1,119 @@
+{
+  "admins": {
+    "pubkeys": [
+      "npub17v7g49shev2lwp0uwrx5v88ad6hj970zfse74wkes9jguhkx7aqsgjwsvj",
+      "npub1vfs098a8tjg64g5j7zpwt6rmgwxj4d8al9408xzk0vqcqthzln2qdge2se"
+    ],
+    "permissions": {
+      "createCourse": true,
+      "editAnyCourse": true,
+      "deleteCourse": true,
+      "createResource": true,
+      "editAnyResource": true,
+      "deleteResource": true,
+      "manageUsers": true,
+      "viewAnalytics": true,
+      "moderateContent": true,
+      "manageNostrEvents": true
+    }
+  },
+  "moderators": {
+    "pubkeys": [
+      "npub3example..."
+    ],
+    "permissions": {
+      "createCourse": true,
+      "editOwnCourse": true,
+      "deleteCourse": false,
+      "createResource": true,
+      "editOwnResource": true,
+      "deleteResource": false,
+      "manageUsers": false,
+      "viewAnalytics": false,
+      "moderateContent": true,
+      "manageNostrEvents": false
+    }
+  },
+  "features": {
+    "requireAdminApproval": false,
+    "enableAdminDashboard": true,
+    "showAdminBadge": true,
+    "adminContactEmail": "admin@example.com"
+  },
+  "_comments": {
+    "_overview": "Admin configuration - controls admin users and their permissions",
+    "admins": "Admin users configuration",
+    "admins.pubkeys": "Array of Nostr public keys (npub or hex format) with full admin privileges. These users have complete control over the platform.",
+    "admins.permissions": "Permission flags for admin users. All permissions are typically true for admins.",
+    "moderators": "Moderator users configuration with limited admin privileges",
+    "moderators.pubkeys": "Array of Nostr public keys for moderators. These users have content moderation capabilities.",
+    "moderators.permissions": "Permission flags for moderators. Typically limited to content creation and moderation.",
+    "permissions.createCourse": "Allow creating new courses",
+    "permissions.editAnyCourse": "Allow editing any course (not just own courses)",
+    "permissions.editOwnCourse": "Allow editing only courses created by the user",
+    "permissions.deleteCourse": "Allow deleting courses",
+    "permissions.createResource": "Allow creating new resources (documents/videos)",
+    "permissions.editAnyResource": "Allow editing any resource",
+    "permissions.editOwnResource": "Allow editing only resources created by the user",
+    "permissions.deleteResource": "Allow deleting resources",
+    "permissions.manageUsers": "Allow managing user accounts and roles",
+    "permissions.viewAnalytics": "Allow viewing platform analytics and statistics",
+    "permissions.moderateContent": "Allow moderating user-generated content",
+    "permissions.manageNostrEvents": "Allow managing Nostr event publishing and relay configuration",
+    "features": "Admin system feature toggles",
+    "features.requireAdminApproval": "Require admin approval for new content before it's published",
+    "features.enableAdminDashboard": "Enable the admin dashboard UI at /admin",
+    "features.showAdminBadge": "Show admin/moderator badges next to usernames in the UI",
+    "features.adminContactEmail": "Contact email for admin-related inquiries"
+  },
+  "_examples": {
+    "minimalAdmin": {
+      "admins": {
+        "pubkeys": ["npub1adminkey..."],
+        "permissions": {
+          "createCourse": true,
+          "editAnyCourse": true,
+          "deleteCourse": true,
+          "createResource": true,
+          "editAnyResource": true,
+          "deleteResource": true,
+          "manageUsers": true,
+          "viewAnalytics": true,
+          "moderateContent": true,
+          "manageNostrEvents": true
+        }
+      }
+    },
+    "multiTierPermissions": {
+      "admins": {
+        "pubkeys": ["npub1superadmin..."]
+      },
+      "moderators": {
+        "pubkeys": ["npub1mod1...", "npub1mod2..."]
+      },
+      "contentCreators": {
+        "pubkeys": ["npub1creator1...", "npub1creator2..."],
+        "permissions": {
+          "createCourse": true,
+          "editOwnCourse": true,
+          "deleteCourse": false,
+          "createResource": true,
+          "editOwnResource": true,
+          "deleteResource": false,
+          "manageUsers": false,
+          "viewAnalytics": false,
+          "moderateContent": false,
+          "manageNostrEvents": false
+        }
+      }
+    },
+    "strictModeration": {
+      "features": {
+        "requireAdminApproval": true,
+        "enableAdminDashboard": true,
+        "showAdminBadge": true,
+        "adminContactEmail": "admin@noschool.com"
+      }
+    }
+  }
+}

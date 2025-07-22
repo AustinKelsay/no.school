@@ -251,11 +251,11 @@ export default function SignInPage() {
                     </Button>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
+                        <button className="absolute -right-8 lg:-right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors cursor-pointer">
                           <HelpCircle className="h-4 w-4 text-muted-foreground" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-xs">
+                      <TooltipContent side="top" sideOffset={5} className="max-w-xs lg:max-w-sm" align="end">
                         <div className="space-y-2">
                           <p className="font-medium">{copy.nostrCard.title}</p>
                           <p className="text-sm">{copy.nostrCard.description}</p>
@@ -282,11 +282,11 @@ export default function SignInPage() {
                     </Button>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
+                        <button className="absolute -right-8 lg:-right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors cursor-pointer">
                           <HelpCircle className="h-4 w-4 text-muted-foreground" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-xs">
+                      <TooltipContent side="top" sideOffset={5} className="max-w-xs lg:max-w-sm" align="end">
                         <div className="space-y-2">
                           <p className="font-medium">{copy.anonymousCard.title}</p>
                           <p className="text-sm">{copy.anonymousCard.description}</p>
@@ -323,11 +323,11 @@ export default function SignInPage() {
                     </Button>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button className="absolute -right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors">
+                        <button className="absolute -right-8 lg:-right-10 top-1/2 -translate-y-1/2 p-1 hover:bg-muted rounded-full transition-colors cursor-pointer">
                           <HelpCircle className="h-4 w-4 text-muted-foreground" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-xs">
+                      <TooltipContent side="top" sideOffset={5} className="max-w-xs lg:max-w-sm" align="end">
                         <div className="space-y-1">
                           <p className="font-medium">{copy.githubCard.title}</p>
                           <p className="text-sm">{copy.githubCard.description}</p>
@@ -372,11 +372,11 @@ export default function SignInPage() {
                       </Button>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <button className="absolute -right-10 top-6 p-1 hover:bg-muted rounded-full transition-colors">
+                          <button className="absolute -right-8 lg:-right-10 top-6 p-1 hover:bg-muted rounded-full transition-colors cursor-pointer">
                             <HelpCircle className="h-4 w-4 text-muted-foreground" />
                           </button>
                         </TooltipTrigger>
-                        <TooltipContent side="right" className="max-w-xs">
+                        <TooltipContent side="top" sideOffset={5} className="max-w-xs lg:max-w-sm" align="end">
                           <div className="space-y-1">
                             <p className="font-medium">{copy.emailCard.title}</p>
                             <p className="text-sm">{copy.emailCard.description}</p>
@@ -441,11 +441,11 @@ export default function SignInPage() {
                     
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button className="absolute -right-10 top-6 p-1 hover:bg-muted rounded-full transition-colors">
+                        <button className="absolute -right-8 lg:-right-10 top-6 p-1 hover:bg-muted rounded-full transition-colors cursor-pointer">
                           <HelpCircle className="h-4 w-4 text-muted-foreground" />
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="right" className="max-w-xs">
+                      <TooltipContent side="top" sideOffset={5} className="max-w-xs lg:max-w-sm" align="end">
                         <div className="space-y-2">
                           <p className="font-medium">Account Recovery Details</p>
                           <p className="text-sm">Supported formats: {authConfigClient.providers?.recovery?.supportedFormats?.join(', ') || 'hex, nsec'}</p>

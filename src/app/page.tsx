@@ -19,7 +19,6 @@ import Link from "next/link"
 import { CoursesSection } from "@/components/homepage/courses-section"
 import { VideosSection } from "@/components/homepage/videos-section"
 import { DocumentsSection } from "@/components/homepage/documents-section"
-import { SessionLogger } from "@/components/session-logger"
 import { useCopy } from "@/lib/copy"
 import { getEnabledHomepageSections } from "@/lib/content-config"
 
@@ -47,9 +46,6 @@ export default function Home() {
 
   return (
     <MainLayout>
-      {/* Session Logger - logs session info to console */}
-      <SessionLogger />
-      
       {/* Hero Section */}
       <Section 
         spacing="xl" 
@@ -114,7 +110,7 @@ export default function Home() {
             
             {/* Floating content type cards */}
             <div className="absolute -top-1 sm:-top-2 lg:-top-4 -right-1 sm:-right-2 lg:-right-4 z-10">
-              <Card className="w-24 sm:w-28 lg:w-32 p-1.5 sm:p-2 lg:p-3">
+              <Card className="w-24 sm:w-28 lg:w-32 p-1.5 sm:p-2 lg:p-3 cursor-pointer hover:shadow-md transition-shadow">
                 <div className="flex items-center space-x-1 sm:space-x-1 lg:space-x-2">
                   <div className="h-1 sm:h-1.5 lg:h-2 w-1 sm:w-1.5 lg:w-2 bg-primary rounded-full"></div>
                   <span className="text-xs sm:text-xs font-medium">{homepage.visual.liveCourse}</span>
@@ -123,7 +119,7 @@ export default function Home() {
             </div>
             
             <div className="absolute -bottom-1 sm:-bottom-2 lg:-bottom-4 -left-1 sm:-left-2 lg:-left-4 z-10">
-              <Card className="w-28 sm:w-32 lg:w-36 p-1.5 sm:p-2 lg:p-3">
+              <Card className="w-28 sm:w-32 lg:w-36 p-1.5 sm:p-2 lg:p-3 cursor-pointer hover:shadow-md transition-shadow">
                 <div className="flex items-center space-x-1 sm:space-x-1 lg:space-x-2">
                   <CheckCircle className="h-2.5 sm:h-3 lg:h-4 w-2.5 sm:w-3 lg:w-4 text-primary" />
                   <span className="text-xs sm:text-xs font-medium">{homepage.visual.completed}</span>

@@ -2,19 +2,22 @@
 
 import { createContext, useContext, useRef, ReactNode } from 'react';
 import { RelayPool, Filter, NostrEvent } from 'snstr';
+import nostrConfig from '../../config/nostr.json';
 
-// Default relay URLs
-export const DEFAULT_RELAYS = [
-  'wss://relay.nostr.band',
-  'wss://nos.lol',
-  'wss://relay.damus.io',
-  'wss://relay.primal.net',
-  'wss://nostr.land',
-  'wss://nostrue.com',
-  'wss://purplerelay.com',
-  'wss://nostr.wine',
-  'wss://nostr.bitcoiner.social'
-];
+// TODO: create global config types for all configs
+// Type the config here for now
+type NostrConfig = {
+  relays: {
+    default: string[];
+    [key: string]: string[];
+  };
+};
+
+// Default relay URLs from config
+export const DEFAULT_RELAYS = (nostrConfig as NostrConfig).relays.default;
+
+// Export the full config for use elsewhere
+export { nostrConfig };
 
 // Types for the context
 interface SnstrContextType {
@@ -31,13 +34,22 @@ interface SnstrContextType {
 // Create the context
 const SnstrContext = createContext<SnstrContextType | null>(null);
 
+// Provider props interface
+interface SnstrProviderProps {
+  children: ReactNode;
+  relays?: string[];
+  relaySet?: 'default' | 'content' | 'profile' | 'zapThreads';
+}
+
 // Provider component
-export function SnstrProvider({ children, relays = DEFAULT_RELAYS }: { children: ReactNode; relays?: string[] }) {
+export function SnstrProvider({ children, relays, relaySet = 'default' }: SnstrProviderProps) {
+  // Use provided relays, or fall back to config-based relay set
+  const activeRelays = relays || (nostrConfig as NostrConfig).relays[relaySet] || DEFAULT_RELAYS;
   // Use ref to ensure single instance across re-renders
   const poolRef = useRef<RelayPool | null>(null);
 
   if (!poolRef.current) {
-    poolRef.current = new RelayPool(relays);
+    poolRef.current = new RelayPool(activeRelays);
   }
 
   // Simple subscribe method that uses the shared pool
@@ -47,7 +59,7 @@ export function SnstrProvider({ children, relays = DEFAULT_RELAYS }: { children:
     onEose?: () => void
   ) => {
     return poolRef.current!.subscribe(
-      relays,
+      activeRelays,
       filters,
       onEvent,
       onEose || (() => {})
@@ -56,13 +68,13 @@ export function SnstrProvider({ children, relays = DEFAULT_RELAYS }: { children:
 
   // Simple publish method that uses the shared pool
   const publish = async (event: NostrEvent) => {
-    const publishPromises = poolRef.current!.publish(relays, event);
+    const publishPromises = poolRef.current!.publish(activeRelays, event);
     return Promise.all(publishPromises);
   };
 
   const contextValue: SnstrContextType = {
     relayPool: poolRef.current,
-    relays,
+    relays: activeRelays,
     subscribe,
     publish
   };
