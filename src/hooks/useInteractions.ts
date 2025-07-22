@@ -149,8 +149,6 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
         const subscription = await subscribe(
           [{ kinds: [9735, 7, 1], '#e': [eventId] }],
           (event: NostrEvent) => {
-            console.log(`interaction event (kind ${event.kind})`, event);
-            
             // Route events to appropriate arrays based on kind
             switch (event.kind) {
               case 9735: // Zaps

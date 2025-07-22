@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useSnstrContext } from "@/contexts/snstr-context";
+import { DEFAULT_RELAYS, useSnstrContext } from "@/contexts/snstr-context";
 import { Filter, NostrEvent, decodePublicKey, decodeProfile, decode } from "snstr";
 
 /**
@@ -94,7 +94,7 @@ export function useNostr() {
   ): Promise<NostrEvent | null> => {
     try {
       const event = await relayPool.get(
-        ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'],
+        DEFAULT_RELAYS,
         filter,
         { timeout: options.timeout || 5000 }
       );
@@ -129,7 +129,7 @@ export function useNostr() {
       };
 
       const profileEvent = await relayPool.get(
-        ['wss://relay.primal.net', 'wss://relay.damus.io', 'wss://nos.lol'],
+        DEFAULT_RELAYS,
         filter,
         { timeout: options.timeout || 5000 }
       );

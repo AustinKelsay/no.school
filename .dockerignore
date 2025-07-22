@@ -100,4 +100,8 @@ README.md
 
 # Docker
 Dockerfile
-.dockerignore 
+.dockerignore
+docker-compose*
+
+# Prisma
+prisma/migrations 

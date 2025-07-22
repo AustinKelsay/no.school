@@ -200,7 +200,7 @@ export function Header() {
           {shouldShowFontToggle() && <div className="hidden md:block"><FontToggle /></div>}
           {shouldShowThemeToggle() && <div className="hidden sm:block"><ThemeToggle /></div>}
           
-          <Link href="/login">
+          <Link href="/auth/signin">
             <Button size="sm" className="text-xs sm:text-sm">{navigation.buttons.login}</Button>
           </Link>
         </div>

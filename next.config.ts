@@ -100,6 +100,16 @@ const nextConfig: NextConfig = {
       },
     };
     
+    // Handle Node.js modules for server-side packages like nodemailer
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      net: false,
+      dns: false,
+      tls: false,
+      child_process: false,
+    };
+    
     return config;
   },
 };

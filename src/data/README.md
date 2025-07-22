@@ -14,6 +14,9 @@ This hybrid architecture represents the **ideal development environment** that c
 
 **Build Status**: ✅ **100% Success** - All compilation errors resolved  
 **Type Safety**: ✅ **Complete** - All TypeScript errors fixed  
+**Authentication**: ✅ **Production** - NextAuth.js with email + NIP07 Nostr browser extension  
+**Database**: ✅ **Production** - PostgreSQL with Prisma ORM and complete schema  
+**User Management**: ✅ **Complete** - User profiles, roles, progress tracking, Lightning addresses  
 **Nostr Integration**: ✅ **Live** - Real connection to production relays (relay.primal.net, relay.damus.io, nos.lol)  
 **Query Hooks**: ✅ **Advanced** - TanStack Query with intelligent caching and batch operations  
 **Data Models**: ✅ **Production** - Real Nostr events with NIP-23/NIP-99 compliance  
@@ -22,7 +25,7 @@ This hybrid architecture represents the **ideal development environment** that c
 
 ## Hybrid Architecture Overview
 
-The platform uses a revolutionary **hybrid approach** that separates concerns between database storage and content management:
+The platform uses a revolutionary **hybrid approach** that separates concerns between database storage, user management, and content management:
 
 ### 🗂️ **Mock JSON Database Layer** (`src/data/mockDb/`)
 **Lightweight JSON files** simulating a traditional database for **rapid development**:
@@ -35,6 +38,20 @@ The platform uses a revolutionary **hybrid approach** that separates concerns be
 - ✅ **Easy debugging** - Inspect and modify JSON files directly
 - ✅ **Fast iteration** - Change data without migrations or restarts
 - ✅ **Version control friendly** - Track data changes in git commits
+
+### 🗄️ **Production Database Layer** (PostgreSQL + Prisma)
+**Complete production database** for user management and scalable operations:
+- **User Management** - Complete user profiles with authentication, roles, and progress tracking
+- **Purchase Tracking** - Course and resource purchases with Lightning Network payments
+- **Progress Monitoring** - User lesson completion and course progress
+- **Badge System** - Achievement tracking with Nostr-based badges
+- **Lightning Integration** - User Lightning addresses and payment processing
+
+**Production Benefits:**
+- ✅ **Scalable Architecture** - PostgreSQL handles enterprise-level traffic
+- ✅ **User Authentication** - NextAuth.js with email magic links + NIP07 Nostr support
+- ✅ **Data Integrity** - ACID compliance and relational data consistency
+- ✅ **Performance** - Optimized queries with Prisma ORM
 
 ### 🌐 **Real Nostr Layer** (Live Production Events)
 **Actual content** stored on **real production Nostr relays** using established NIPs:
@@ -49,21 +66,89 @@ The platform uses a revolutionary **hybrid approach** that separates concerns be
 - ✅ **Content ownership** - Authors control their content via Nostr keys
 
 ### 🔗 **Integration Layer** (Database Adapter Pattern)
-**Smart parser functions** in `types.ts` that seamlessly combine both data sources:
+**Smart parser functions** in `types.ts` that seamlessly combine all three data sources:
 - `parseCourseEvent()` - Converts Nostr course list events to UI data
 - `parseEvent()` - Converts Nostr content events to resource data
-- `createCourseDisplay()` / `createResourceDisplay()` - Merge JSON database + Nostr data
+- `createCourseDisplay()` / `createResourceDisplay()` - Merge JSON/Prisma database + Nostr data + user context
 - **Database Adapter** (`src/lib/db-adapter.ts`) - Clean abstraction for data access
+- **Auth Integration** - User sessions and permissions integrated throughout data layer
 
 **Integration Benefits:**
-- ✅ **Unified API** - Components access data through single interface
-- ✅ **Performance optimized** - Intelligent caching of combined data
-- ✅ **Type safety** - Complete TypeScript coverage for all operations
-- ✅ **Migration ready** - Easy to swap JSON files for real database
+- ✅ **Unified API** - Components access data through single interface with user context
+- ✅ **Performance optimized** - Intelligent caching of combined data with user-specific content
+- ✅ **Type safety** - Complete TypeScript coverage for all operations including auth
+- ✅ **Migration ready** - Easy to swap JSON files for real database while keeping user system
+- ✅ **User-Aware** - All data operations respect user permissions and purchase status
 
-## 📊 **Mock Database Structure**
+## 📊 **Database Architecture**
 
-### JSON Files in `src/data/mockDb/`
+### Production Database Schema (Prisma + PostgreSQL)
+
+The complete production database includes comprehensive user management and content tracking:
+
+```prisma
+model User {
+  id           String   @id @default(uuid())
+  pubkey       String?  @unique           // Nostr pubkey
+  email        String?  @unique           // Email for authentication
+  username     String?  @unique
+  avatar       String?
+  role         Role?                      // User permissions
+  courses      Course[]                   // Created courses
+  resources    Resource[]                 // Created resources
+  purchases    Purchase[]                 // Purchased content
+  userLessons  UserLesson[]              // Lesson progress
+  userCourses  UserCourse[]              // Course progress
+  userBadges   UserBadge[]               // Earned badges
+  nip05        String?                   // Nostr verification
+  lud16        String?                   // Lightning address
+  // ... additional fields for complete user management
+}
+
+model Course {
+  id            String   @id               // Client-generated UUID
+  userId        String                     // Creator
+  price         Int      @default(0)       // Price in sats
+  noteId        String?  @unique           // Nostr event reference
+  submissionRequired Boolean @default(false)
+  lessons       Lesson[]                  // Course lessons
+  purchases     Purchase[]                // Purchase tracking
+  userCourses   UserCourse[]             // User progress
+  badge         Badge?                    // Completion badge
+  // ... timestamps and relations
+}
+
+model Resource {
+  id       String   @id                   // Client-generated UUID  
+  userId   String                         // Creator
+  price    Int      @default(0)           // Price in sats
+  noteId   String?  @unique               // Nostr event reference
+  videoId  String?                        // Video ID for video resources
+  lessons  Lesson[]                       // Resource usage in courses
+  purchases Purchase[]                    // Purchase tracking
+  // ... timestamps and relations
+}
+
+model Purchase {
+  id         String  @id @default(uuid())
+  userId     String                       // Purchaser
+  courseId   String?                      // Purchased course
+  resourceId String?                      // Purchased resource
+  amountPaid Int                          // Amount in sats
+  // ... payment tracking and timestamps
+}
+
+model UserLesson {
+  id          String   @id @default(uuid())
+  userId      String                      // User
+  lessonId    String                      // Lesson
+  completed   Boolean  @default(false)    // Completion status
+  completedAt DateTime?                   // Completion timestamp
+  // ... progress tracking
+}
+```
+
+### Development JSON Files in `src/data/mockDb/`
 
 #### `Course.json` (6 records)
 ```typescript
@@ -147,25 +232,27 @@ interface Lesson {
 ## 🔄 **Data Flow Architecture**
 
 ```
-Mock JSON Database (Metadata)  ←→  Live Nostr Events (Content)
-        ↓                                    ↓
-   ID, Price, Relations               Title, Description, Topics
-   Timestamps, User Links             Full Markdown Content  
-   Basic Metadata                     Rich Media, Links
-        ↓                                    ↓
-              Combined via Parser Functions
-                        ↓
-              Complete Display Interfaces
-           (CourseDisplay, ResourceDisplay)
+Production Database (Users & Purchases)  ←→  Mock JSON (Metadata)  ←→  Live Nostr Events (Content)
+        ↓                                          ↓                           ↓
+   User Sessions, Roles                      ID, Price, Relations         Title, Description, Topics
+   Purchase History, Progress                Timestamps, Basic Info       Full Markdown Content  
+   Authentication, Permissions               Course-Lesson Links          Rich Media, Links
+        ↓                                          ↓                           ↓
+                            Combined via Parser Functions + Auth Context
+                                            ↓
+                               Complete User-Aware Display Interfaces
+                              (CourseDisplay, ResourceDisplay with User Context)
 ```
 
 ### **Why This Approach?**
 
-1. **🚀 Development Speed** - JSON files allow rapid prototyping without database setup
-2. **🌍 Production Ready** - Real Nostr events demonstrate decentralized content management  
-3. **🔄 Easy Migration** - Repository pattern allows seamless transition to real database
-4. **⚡ Performance** - Cached combination of database + Nostr data for optimal speed
-5. **🛡️ Decentralization** - Content stored on censorship-resistant Nostr network
+1. **🚀 Development Speed** - JSON files allow rapid prototyping without complex database setup
+2. **👤 Complete User System** - Production authentication and user management from day one
+3. **🌍 Production Ready** - Real Nostr events demonstrate decentralized content management  
+4. **🔄 Easy Migration** - Repository pattern allows seamless transition to full database
+5. **⚡ Performance** - Cached combination of database + Nostr data + user context for optimal speed
+6. **🛡️ Decentralization** - Content stored on censorship-resistant Nostr network
+7. **🔐 Security** - Full authentication, authorization, and user data protection built-in
 
 ## Content Types
 
@@ -202,13 +289,15 @@ Visual learning content including tutorials, explanations, and demonstrations:
 
 ## Usage Examples
 
-### Working with Hybrid Data (Mock DB + Real Nostr)
+### Working with Hybrid Data (Production DB + Mock DB + Real Nostr)
 
 ```typescript
 import { useCoursesQuery, useLessonsQuery, useDocumentsQuery } from '@/hooks'
+import { useSession } from 'next-auth/react'
 
-// Perfect hybrid: JSON mock database + Real Nostr events
+// Perfect hybrid: Production auth + JSON mock database + Real Nostr events
 function CoursesPage() {
+  const { data: session } = useSession()
   const { courses, isLoading, error } = useCoursesQuery({
     staleTime: 5 * 60 * 1000, // 5 minutes intelligent caching
     retry: 3
@@ -225,6 +314,19 @@ function CoursesPage() {
           <p>Created: {course.createdAt}</p>
           {/* Description from live Nostr relay */}
           <p>{course.note?.tags.find(t => t[0] === 'about')?.[1]}</p>
+          
+          {/* User-aware content based on authentication */}
+          {session?.user ? (
+            <div>
+              {/* Show user-specific content like progress, purchase status */}
+              <p>Your Progress: {course.userProgress?.completed ? 'Completed' : 'In Progress'}</p>
+              {course.price > 0 && !course.userHasPurchased && (
+                <button>Purchase for {course.price} sats</button>
+              )}
+            </div>
+          ) : (
+            <p>Sign in to track your progress</p>
+          )}
         </div>
       ))}
     </div>
@@ -254,22 +356,46 @@ function DocumentsPage() {
 ### Database Adapter Layer (`src/lib/db-adapter.ts`)
 
 ```typescript
-// Perfect development setup: JSON mock + Real Nostr integration
+// Perfect development setup: Production auth + JSON mock + Real Nostr integration
 import { coursesDatabase, resourcesDatabase, lessonsDatabase } from '@/data/mockDb'
+import { prisma } from '@/lib/prisma'
+import { getServerSession } from 'next-auth'
 
-// Fetch course from JSON file + associated real Nostr event
-export async function getCourseWithNote(courseId: string) {
+// Fetch course with user context from production DB + JSON file + Nostr event
+export async function getCourseWithNote(courseId: string, userId?: string) {
   // 1. Get basic course data from JSON file (instant, no DB setup)
   const course = coursesDatabase.find(c => c.id === courseId)
   if (!course) return null
   
   // 2. Fetch associated Nostr event from real production relays
+  let nostrEvent = null
   if (course.noteId) {
-    const nostrEvent = await fetchNostrEvent(course.noteId)
-    return { ...course, note: nostrEvent }
+    nostrEvent = await fetchNostrEvent(course.noteId)
   }
   
-  return course
+  // 3. Get user-specific data from production database
+  let userProgress = null
+  let userHasPurchased = false
+  
+  if (userId) {
+    // Check user progress from production database
+    userProgress = await prisma.userCourse.findUnique({
+      where: { userId_courseId: { userId, courseId } }
+    })
+    
+    // Check if user has purchased this course
+    const purchase = await prisma.purchase.findUnique({
+      where: { userId_courseId_resourceId: { userId, courseId, resourceId: null } }
+    })
+    userHasPurchased = !!purchase
+  }
+  
+  return { 
+    ...course, 
+    note: nostrEvent,
+    userProgress,
+    userHasPurchased
+  }
 }
 
 // Batch fetch resources with their real Nostr content
