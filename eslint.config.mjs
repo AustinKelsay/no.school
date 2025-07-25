@@ -19,6 +19,8 @@ const eslintConfig = [
       // Disable unused parameter warnings
       "@typescript-eslint/no-unused-params": "off",
       "no-unused-params": "off",
+      // Disable explicit any warnings
+      "@typescript-eslint/no-explicit-any": "off",
     },
   },
 ];

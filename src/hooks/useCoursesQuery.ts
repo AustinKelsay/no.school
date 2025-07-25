@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { CourseAdapter, LessonAdapter, ResourceAdapter, PaginationOptions } from '@/lib/db-adapter'
+import { PaginationOptions } from '@/lib/db-adapter'
 import { useSnstrContext } from '@/contexts/snstr-context'
 import { Course, Lesson, Resource } from '@/data/types'
 import { NostrEvent, RelayPool } from 'snstr'
@@ -122,22 +122,21 @@ export async function fetchLessonWithDetails(
   relayPool: RelayPool,
   relays: string[]
 ): Promise<LessonWithDetails | null> {
-  // First, fetch the lesson
-  const lesson = await LessonAdapter.findById(lessonId)
-  if (!lesson) {
-    return null
-  }
+  try {
+    // Fetch lesson details from API
+    const response = await fetch(`/api/courses/${courseId}/lessons/${lessonId}`)
+    if (!response.ok) {
+      return null
+    }
+    
+    const { data } = await response.json()
+    if (!data) {
+      return null
+    }
 
-  // Verify the lesson belongs to the course
-  if (lesson.courseId !== courseId) {
-    return null
-  }
-
-  // Fetch course and resource in parallel
-  const [course, resource] = await Promise.all([
-    CourseAdapter.findByIdWithNote(courseId),
-    lesson.resourceId ? ResourceAdapter.findByIdWithNote(lesson.resourceId) : null
-  ])
+    const lesson = data.lesson
+    const course = data.course
+    const resource = data.resource
 
   // Collect IDs that need Nostr notes fetched using 'd' tag queries
   const idsToFetch = []
@@ -188,10 +187,14 @@ export async function fetchLessonWithDetails(
     }
   }
 
-  return {
-    ...lesson,
-    resource: resource || undefined,
-    course: course || undefined
+    return {
+      ...lesson,
+      resource: resource || undefined,
+      course: course || undefined
+    }
+  } catch (error) {
+    console.error('Failed to fetch lesson details:', error)
+    return null
   }
 }
 
@@ -255,10 +258,19 @@ export async function fetchCoursesWithNotes(
     hasPrev: boolean
   }
 }> {
-  // If pagination options provided, use paginated method
-  if (options?.page !== undefined || options?.pageSize !== undefined) {
-    const result = await CourseAdapter.findAllPaginated(options)
-    const courses = result.data
+  // Fetch courses from API
+  const queryParams = new URLSearchParams()
+  if (options?.page) queryParams.append('page', options.page.toString())
+  if (options?.pageSize) queryParams.append('pageSize', options.pageSize.toString())
+  
+  const response = await fetch(`/api/courses/list${queryParams.toString() ? `?${queryParams}` : ''}`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch courses')
+  }
+
+  const data = await response.json()
+  const courses = data.data || data.courses || []
+  const pagination = data.pagination
     
     console.log("courses", courses);
     
@@ -268,7 +280,7 @@ export async function fetchCoursesWithNotes(
     if (courseIds.length === 0) {
       return {
         courses: courses.map(course => ({ ...course })),
-        pagination: result.pagination
+        pagination
       }
     }
 
@@ -312,87 +324,39 @@ export async function fetchCoursesWithNotes(
 
     return {
       courses: coursesWithNotes,
-      pagination: result.pagination
+      pagination
     }
-  }
-  
-  // Legacy: fetch all courses
-  const courses = await CourseAdapter.findAll()
-
-  console.log("courses", courses);
-  
-  // Extract all course IDs for 'd' tag queries
-  const courseIds = courses.map(course => course.id)
-  
-  // If no courses to fetch, return courses as-is
-  if (courseIds.length === 0) {
-    return { courses: courses.map(course => ({ ...course })) }
-  }
-
-  console.log(`Fetching ${courseIds.length} course notes from real Nostr relays using 'd' tags:`, courseIds);
-  
-  // Fetch all notes at once using RelayPool's querySync method with 'd' tag queries
-  let notes: NostrEvent[] = []
-  let noteError: string | undefined
-
-  try {
-    notes = await relayPool.querySync(
-      relays,
-      { "#d": courseIds, kinds: [30004, 30023, 30402] }, // Query by 'd' tag for course list and content events
-      { timeout: 10000 }
-    )
-    console.log(`Successfully fetched ${notes.length} course notes from real Nostr`);
-  } catch (error) {
-    console.error('Failed to fetch course notes from real Nostr:', error)
-    noteError = error instanceof Error ? error.message : 'Failed to fetch notes'
-  }
-
-  // Create a Map for O(1) lookup of notes by 'd' tag value
-  const notesMap = new Map<string, NostrEvent>()
-  notes.forEach(note => {
-    const dTag = note.tags.find(tag => tag[0] === 'd')
-    if (dTag && dTag[1]) {
-      notesMap.set(dTag[1], note)
-    }
-  })
-
-  // Combine courses with their notes
-  const coursesWithNotes = courses.map(course => {
-    const note = notesMap.get(course.id)
-    
-    return {
-      ...course,
-      note,
-      noteError: !note ? noteError : undefined,
-    }
-  })
-
-  return { courses: coursesWithNotes }
 }
 
 /**
  * Fetch a single course with its lessons and Nostr note
  */
 export async function fetchCourseWithLessons(courseId: string, relayPool: RelayPool, relays: string[]): Promise<CourseWithLessons | null> {
-  // Fetch course with note and lessons in parallel
-  const [courseWithNote, lessons] = await Promise.all([
-    CourseAdapter.findByIdWithNote(courseId),
-    LessonAdapter.findByCourseId(courseId)
-  ])
-
-  if (!courseWithNote) {
+  // Fetch course with lessons from API
+  const response = await fetch(`/api/courses/${courseId}`)
+  if (!response.ok) {
     return null
   }
 
-  // Fetch resources for all lessons that have resourceId
-  const resourceIds = lessons.filter(lesson => lesson.resourceId).map(lesson => lesson.resourceId!)
-  const resourcePromises = resourceIds.map(id => ResourceAdapter.findByIdWithNote(id))
-  const resourceResults = await Promise.all(resourcePromises)
-  const resources = resourceResults.filter((resource): resource is ResourceWithNote => resource !== null)
+  const { data } = await response.json()
+  if (!data) {
+    return null
+  }
+
+  const courseWithNote = data
+  const lessons = data.lessons || []
+
+  // Extract resources from lessons
+  const resources = lessons
+    .filter((lesson: any) => lesson.resource)
+    .map((lesson: any) => lesson.resource)
 
   // Create a map of resources by ID for quick lookup
   const resourcesMap = new Map<string, ResourceWithNote>()
   resources.forEach((resource: ResourceWithNote) => resourcesMap.set(resource.id, resource))
+
+  // Extract resource IDs
+  const resourceIds = resources.map(r => r.id)
 
   // Collect all IDs that need Nostr notes fetched (course ID + resource IDs)
   const idsToFetch = [courseId, ...resourceIds]

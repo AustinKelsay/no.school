@@ -5,7 +5,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { ResourceAdapter, PaginationOptions } from '@/lib/db-adapter'
+import { PaginationOptions } from '@/lib/db-adapter'
 import { Resource } from '@/data/types'
 import { useResourceNotes, filterNotesByContentType } from './useResourceNotes'
 import { NostrEvent } from 'snstr'
@@ -71,35 +71,23 @@ export async function fetchDocumentResources(options?: PaginationOptions): Promi
     hasPrev: boolean
   }
 }> {
-  // If pagination options provided, use paginated method
-  if (options?.page !== undefined || options?.pageSize !== undefined) {
-    const result = await ResourceAdapter.findAllPaginated(options)
-    
-    // Filter out lessons at the resource level
-    const resourcesWithoutLessons = await Promise.all(
-      result.data.map(async (resource: Resource) => {
-        const isLesson = await ResourceAdapter.isLesson(resource.id)
-        return isLesson ? null : resource
-      })
-    )
-    
-    return {
-      resources: resourcesWithoutLessons.filter((resource: Resource | null): resource is Resource => resource !== null),
-      pagination: result.pagination
-    }
-  }
+  // Fetch resources from API
+  const queryParams = new URLSearchParams()
+  if (options?.page) queryParams.append('page', options.page.toString())
+  if (options?.pageSize) queryParams.append('pageSize', options.pageSize.toString())
   
-  // Legacy: fetch all resources
-  const resources = await ResourceAdapter.findAll()
-  const resourcesWithoutLessons = await Promise.all(
-    resources.map(async (resource) => {
-      const isLesson = await ResourceAdapter.isLesson(resource.id)
-      return isLesson ? null : resource
-    })
-  )
+  const response = await fetch(`/api/resources/list${queryParams.toString() ? `?${queryParams}` : ''}`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch resources')
+  }
+
+  const data = await response.json()
+  const resources = data.data || data.resources || []
+  const pagination = data.pagination
 
   return {
-    resources: resourcesWithoutLessons.filter(resource => resource !== null) as Resource[]
+    resources,
+    pagination
   }
 }
 

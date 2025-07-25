@@ -475,6 +475,12 @@ try {
 ## 🌟 **Recent Achievements**
 
 ### **🆕 Latest Updates (January 2025)**
+- **🆕 Nostr Publishing System**: Complete implementation for publishing draft courses and resources to Nostr
+- **🆕 NIP-07 Browser Extension Support**: Full client-side signing flow for users with Nostr browser extensions
+- **🆕 Resource API Endpoints**: Complete CRUD operations for resources with access control and validation
+- **🆕 Draft Publishing Flow**: Publish drafts to Nostr relays first, then save to database with proper event references
+- **🆕 Course Publishing with Lessons**: Support for courses with mixed draft/published and paid/free lesson types
+- **🆕 Atomic Publishing Operations**: Ensure all draft lessons are published before creating the course
 - **✅ Dual Authentication Architecture**: Revolutionary Nostr-first vs OAuth-first identity system
 - **✅ Profile Source Authority**: Nostr-first accounts sync from relays, OAuth-first maintain OAuth profile authority
 - **✅ Universal Nostr Capabilities**: 100% of users get Nostr functionality with appropriate key custody models
@@ -482,9 +488,9 @@ try {
 - **✅ Identity Flow Control**: Clear data flow - Nostr→Database vs OAuth→Database based on account type
 - **✅ Enhanced Security Boundaries**: User custody (NIP07), platform custody (Anonymous), transparent background (Email/GitHub)
 - **✅ Multi-Provider Support**: Email magic links, GitHub OAuth, Anonymous experimentation, and NIP07 browser extension
-- **🆕 Complete NIP-01 Profile Collection**: Comprehensive Nostr profile metadata fetching and storage
-- **🆕 Enhanced Session Data**: All user profile fields available in session including banner, nip05, lud16, and complete Nostr profile
-- **🆕 Simplified OAuth Collection**: GitHub OAuth streamlined to essential fields (name, email, image) while preserving full Nostr capabilities
+- **✅ Complete NIP-01 Profile Collection**: Comprehensive Nostr profile metadata fetching and storage
+- **✅ Enhanced Session Data**: All user profile fields available in session including banner, nip05, lud16, and complete Nostr profile
+- **✅ Simplified OAuth Collection**: GitHub OAuth streamlined to essential fields (name, email, image) while preserving full Nostr capabilities
 - **✅ PostgreSQL Database**: Complete Prisma schema with User, Course, Resource, and Purchase models including banner field support
 - **✅ Comprehensive Profile Sync**: Real-time synchronization of all NIP-01 profile fields (name, picture, about, nip05, lud16, banner, website, location, etc.)
 - **✅ Smart Profile Data Flow**: Nostr-first accounts get complete profile from relays, OAuth-first maintain basic provider data with background Nostr capabilities
@@ -521,6 +527,12 @@ try {
 - **Error Handling**: Structured error classes with proper codes
 
 ### **🆕 Key Architecture Files**
+- `src/lib/nostr-events.ts` - Nostr event builder utilities for resources and courses (NIP-23/NIP-99/NIP-51)
+- `src/lib/publish-service.ts` - Publishing service with atomic operations and database transactions
+- `src/hooks/usePublishDraft.ts` - React hooks for publishing drafts with NIP-07 support
+- `src/app/api/resources/` - Complete resource CRUD API endpoints with access control
+- `src/app/api/drafts/resources/[id]/publish/` - Resource draft publishing endpoint
+- `src/app/api/drafts/courses/[id]/publish/` - Course draft publishing with lesson handling
 - `src/hooks/useCoursesQuery.ts` - Advanced TanStack Query hooks with real Nostr integration
 - `src/hooks/useDocumentsQuery.ts` - Document query hooks with batch Nostr operations
 - `src/hooks/useVideosQuery.ts` - Video query hooks with metadata parsing
@@ -537,6 +549,12 @@ try {
 - `src/lib/auth.ts` - Comprehensive authentication with complete profile collection
 
 ### **🆕 Enhanced Features**
+- **Nostr Publishing System**: Complete implementation for publishing drafts to Nostr with NIP-23/NIP-99/NIP-51 support
+- **NIP-07 Browser Extension**: Full client-side signing flow for users with Nostr browser extensions (Alby, nos2x, etc.)
+- **Atomic Publishing Operations**: Database transactions ensure all draft lessons are published before creating courses
+- **Resource Management API**: Complete CRUD operations for resources with access control and validation
+- **Draft-to-Resource Flow**: Seamless conversion of drafts to published resources with Nostr event creation
+- **Mixed Lesson Support**: Courses can contain both draft and published resources, paid and free content
 - **Hybrid Development Architecture**: Perfect blend of JSON mock database + Real Nostr events for rapid development
 - **Live Nostr Integration**: Real-time connection to production Nostr relays with automatic fallback handling
 - **Advanced Query Hooks**: Professional-grade TanStack Query implementation with intelligent caching and error boundaries

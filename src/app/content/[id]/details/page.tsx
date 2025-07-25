@@ -316,8 +316,13 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
         {type === 'video' ? (
           <Card>
             <CardContent className="pt-6">
-              <div className="prose prose-lg max-w-none">
-                <div dangerouslySetInnerHTML={{ __html: event.content }} />
+              <VideoPlayer 
+                url={event.content} 
+                title={title}
+                duration="15 min"
+              />
+              <div className="prose prose-lg max-w-none mt-6">
+                <p className="text-muted-foreground">Video URL: {event.content}</p>
               </div>
             </CardContent>
           </Card>

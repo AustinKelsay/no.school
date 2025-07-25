@@ -1,8 +1,9 @@
 /**
- * User Profile Page
+ * User Profile Page with Tabs
  * 
  * Uses standard shadcn/ui components and patterns.
  * Features:
+ * - Tabbed interface with Profile, Settings, and admin-only tabs
  * - Standard page layout using Container component
  * - Theme-aware header typography
  * - Minimal hardcoded styles, relying on shadcn defaults
@@ -13,10 +14,16 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { ProfileDisplay } from './components/profile-display'
+import { ProfileEditForms } from './components/profile-edit-forms'
 import { MainLayout } from '@/components/layout'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { User, Settings, FileText, BarChart3 } from 'lucide-react'
+import { getAdminInfo } from '@/lib/admin-utils'
+import DraftsClient from '@/app/drafts/drafts-client'
 
 /**
- * Server component that fetches session and renders profile
+ * Server component that fetches session and renders tabbed profile
  * Redirects to signin if user is not authenticated
  */
 export default async function ProfilePage() {
@@ -25,6 +32,12 @@ export default async function ProfilePage() {
   if (!session?.user) {
     redirect('/auth/signin')
   }
+
+  // Get comprehensive admin information using the new admin utilities
+  const adminInfo = await getAdminInfo(session)
+  const isAdmin = adminInfo.isAdmin
+  const isModerator = adminInfo.isModerator
+  const hasAdminOrModerator = isAdmin || isModerator
 
   return (
     <MainLayout>
@@ -38,8 +51,90 @@ export default async function ProfilePage() {
             </p>
           </div>
           
-          {/* Profile Content */}
-          <ProfileDisplay session={session} />
+          {/* Tabbed Profile Content */}
+          <Tabs defaultValue="profile" className="space-y-6">
+            <TabsList className={`grid w-full ${hasAdminOrModerator ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2'}`}>
+              <TabsTrigger value="profile" className="flex items-center gap-2">
+                <User className="h-4 w-4" />
+                Profile
+              </TabsTrigger>
+              <TabsTrigger value="settings" className="flex items-center gap-2">
+                <Settings className="h-4 w-4" />
+                Settings
+              </TabsTrigger>
+              {hasAdminOrModerator && (
+                <>
+                  <TabsTrigger value="content" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Content
+                  </TabsTrigger>
+                  {adminInfo.permissions.viewAnalytics && (
+                    <TabsTrigger value="analytics" className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" />
+                      Analytics
+                    </TabsTrigger>
+                  )}
+                </>
+              )}
+            </TabsList>
+
+            <TabsContent value="profile" className="space-y-6">
+              <ProfileDisplay session={session} />
+            </TabsContent>
+
+            <TabsContent value="settings" className="space-y-6">
+              <ProfileEditForms session={session} />
+            </TabsContent>
+
+            {hasAdminOrModerator && (
+              <>
+                <TabsContent value="content" className="space-y-6">
+                  <DraftsClient />
+                </TabsContent>
+
+                {adminInfo.permissions.viewAnalytics && (
+                  <TabsContent value="analytics" className="space-y-6">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                          <BarChart3 className="h-5 w-5" />
+                          Analytics Dashboard
+                          {adminInfo.source === 'config' && (
+                            <span className="text-sm font-normal text-muted-foreground ml-2">
+                              (Config-based)
+                            </span>
+                          )}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <p className="text-muted-foreground">
+                          Analytics and insights about platform usage, course engagement, and user metrics will be displayed here.
+                        </p>
+                        
+                        <div className="grid gap-4">
+                          <div className="space-y-2">
+                            <h4 className="font-medium">Analytics Features:</h4>
+                            <ul className="text-sm text-muted-foreground space-y-1">
+                              <li>• Platform usage metrics</li>
+                              <li>• Course engagement statistics</li>
+                              <li>• User registration trends</li>
+                              <li>• Content performance insights</li>
+                              <li>• Revenue and payment analytics</li>
+                            </ul>
+                          </div>
+                          
+                          <div className="text-xs text-muted-foreground">
+                            Admin level: <strong>{adminInfo.level}</strong> | 
+                            Source: <strong>{adminInfo.source}</strong>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                )}
+              </>
+            )}
+          </Tabs>
         </div>
       </div>
     </MainLayout>

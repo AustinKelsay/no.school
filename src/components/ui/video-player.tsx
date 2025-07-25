@@ -1,6 +1,6 @@
 /**
  * Video player component that handles different video formats
- * Supports embedded HTML content, YouTube videos, and direct video files
+ * Supports YouTube, Vimeo, direct video files, and custom CDN URLs
  */
 
 'use client'
@@ -14,7 +14,8 @@ import { sanitizeContent } from '@/lib/content-utils'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 
 interface VideoPlayerProps {
-  content: string
+  content?: string
+  url?: string
   title?: string
   videoUrl?: string
   duration?: string
@@ -41,16 +42,59 @@ function extractYouTubeId(url: string): string | null {
 }
 
 /**
+ * Extract Vimeo video ID from URL
+ */
+function extractVimeoId(url: string): string | null {
+  const patterns = [
+    /vimeo\.com\/(\d+)/,
+    /player\.vimeo\.com\/video\/(\d+)/,
+  ]
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern)
+    if (match) return match[1]
+  }
+  
+  return null
+}
+
+/**
+ * Determine video type from URL
+ */
+function getVideoType(url: string): 'youtube' | 'vimeo' | 'direct' | 'unknown' {
+  if (!url) return 'unknown'
+  
+  if (url.includes('youtube.com') || url.includes('youtu.be')) {
+    return 'youtube'
+  }
+  
+  if (url.includes('vimeo.com')) {
+    return 'vimeo'
+  }
+  
+  // Check for common video file extensions
+  const videoExtensions = ['.mp4', '.webm', '.ogg', '.mov', '.avi', '.mkv', '.m3u8']
+  if (videoExtensions.some(ext => url.toLowerCase().includes(ext))) {
+    return 'direct'
+  }
+  
+  return 'unknown'
+}
+
+/**
  * Check if content contains embedded video
  */
-function isEmbeddedVideo(content: string): boolean {
+function isEmbeddedVideo(content: string | undefined): boolean {
+  if (!content) return false
   return content.includes('<video') || content.includes('<iframe')
 }
 
 /**
  * Extract video source from content
  */
-function extractVideoSource(content: string): string | null {
+function extractVideoSource(content: string | undefined): string | null {
+  if (!content) return null
+  
   // Check for direct video source
   const sourceMatch = content.match(/src="([^"]+\.(mp4|webm|mov|avi))"/i)
   if (sourceMatch) return sourceMatch[1]
@@ -162,10 +206,89 @@ function VideoThumbnail({
 }
 
 /**
+ * Render embedded video based on type
+ */
+function VideoEmbed({ url }: { url: string }) {
+  const videoType = getVideoType(url)
+  
+  if (videoType === 'youtube') {
+    const videoId = extractYouTubeId(url)
+    if (!videoId) return null
+    
+    return (
+      <div className="aspect-video">
+        <iframe
+          width="100%"
+          height="100%"
+          src={`https://www.youtube.com/embed/${videoId}`}
+          title="YouTube video player"
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          allowFullScreen
+        />
+      </div>
+    )
+  }
+  
+  if (videoType === 'vimeo') {
+    const videoId = extractVimeoId(url)
+    if (!videoId) return null
+    
+    return (
+      <div className="aspect-video">
+        <iframe
+          src={`https://player.vimeo.com/video/${videoId}`}
+          width="100%"
+          height="100%"
+          frameBorder="0"
+          allow="autoplay; fullscreen; picture-in-picture"
+          allowFullScreen
+        />
+      </div>
+    )
+  }
+  
+  if (videoType === 'direct') {
+    return (
+      <div className="aspect-video">
+        <video
+          controls
+          className="w-full h-full object-contain bg-black"
+          src={url}
+        >
+          Your browser does not support the video tag.
+        </video>
+      </div>
+    )
+  }
+  
+  return (
+    <div className="aspect-video bg-muted rounded-lg flex items-center justify-center">
+      <div className="text-center">
+        <ExternalLink className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+        <p className="text-lg font-medium">External Video</p>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          asChild
+        >
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            <ExternalLink className="h-4 w-4 mr-2" />
+            Open in New Tab
+          </a>
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+/**
  * Main video player component
  */
 export function VideoPlayer({ 
   content, 
+  url,
   title, 
   videoUrl, 
   duration, 
@@ -180,8 +303,10 @@ export function VideoPlayer({
     setShowThumbnail(false)
   }
   
+  // Use url prop if provided, otherwise fall back to content or videoUrl
+  const effectiveUrl = url || videoUrl || extractVideoSource(content) || ''
   const isEmbedded = isEmbeddedVideo(content)
-  const extractedVideoUrl = videoUrl || extractVideoSource(content) || undefined
+  const hasValidUrl = effectiveUrl && effectiveUrl.length > 0
   
   return (
     <Card className={className}>
@@ -201,7 +326,9 @@ export function VideoPlayer({
             title={title}
             onPlay={handlePlay}
           />
-        ) : isEmbedded ? (
+        ) : hasValidUrl ? (
+          <VideoEmbed url={effectiveUrl} />
+        ) : isEmbedded && content ? (
           <EmbeddedVideoRenderer content={content} />
         ) : (
           <div className="aspect-video bg-black rounded-lg flex items-center justify-center">
@@ -209,22 +336,22 @@ export function VideoPlayer({
               <div className="mb-4">
                 <Play className="h-12 w-12 mx-auto opacity-60" />
               </div>
-              <p className="text-lg font-medium">Video Player</p>
-              <p className="text-sm opacity-60">Video content will appear here</p>
+              <p className="text-lg font-medium">No Video Available</p>
+              <p className="text-sm opacity-60">Please provide a valid video URL</p>
             </div>
           </div>
         )}
         
-        <VideoControls videoUrl={extractedVideoUrl} duration={duration} />
+        <VideoControls videoUrl={effectiveUrl} duration={duration} />
       </CardContent>
     </Card>
   )
 }
 
 /**
- * Simple video embed component for inline usage
+ * Simple inline video embed component for HTML content
  */
-export function VideoEmbed({ content, className = '' }: { content: string; className?: string }) {
+export function InlineVideoEmbed({ content, className = '' }: { content: string; className?: string }) {
   const sanitizedContent = sanitizeContent(content)
   
   return (

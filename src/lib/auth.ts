@@ -680,6 +680,8 @@ export const authOptions: NextAuthOptions = {
         session.user.image = token.avatar as string
         // Map username to name for NextAuth compatibility
         session.user.name = token.username as string
+        // Add provider to session for client-side signing detection
+        (session as any).provider = token.provider
         // Add additional Nostr profile fields to session
         Object.assign(session.user, {
           nip05: token.nip05,

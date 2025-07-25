@@ -33,7 +33,7 @@ import { updateBasicProfile, updateEnhancedProfile, type BasicProfileData, type 
 
 interface ProfileEditFormsProps {
   session: Session
-  onClose: () => void
+  onClose?: () => void // Make optional since it's no longer always needed
 }
 
 export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
@@ -102,17 +102,21 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+      <div className="space-y-4">
         <div>
-          <h2 className="text-2xl font-bold">Edit Profile</h2>
+          <h2 className="text-2xl font-bold">Settings</h2>
           <p className="text-muted-foreground">
             Update your profile information and preferences
           </p>
         </div>
-        <Button variant="outline" onClick={onClose}>
-          <X className="mr-2 h-4 w-4" />
-          Close
-        </Button>
+        {onClose && (
+          <div className="flex justify-end">
+            <Button variant="outline" onClick={onClose}>
+              <X className="mr-2 h-4 w-4" />
+              Close
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Status Message */}
