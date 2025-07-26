@@ -9,6 +9,37 @@ import { NostrEvent } from 'snstr'
 import { parseCourseEvent, parseEvent } from '@/data/types'
 import { NostrFetchService } from '@/lib/nostr-fetch-service'
 
+// Helper functions to transform Prisma data to match TypeScript interfaces
+function transformResource(resource: any): Resource {
+  return {
+    ...resource,
+    noteId: resource.noteId ?? undefined,
+    videoId: resource.videoId ?? undefined,
+    createdAt: resource.createdAt.toISOString(),
+    updatedAt: resource.updatedAt.toISOString()
+  }
+}
+
+function transformCourse(course: any): Course {
+  return {
+    ...course,
+    noteId: course.noteId ?? undefined,
+    createdAt: course.createdAt.toISOString(),
+    updatedAt: course.updatedAt.toISOString()
+  }
+}
+
+function transformLesson(lesson: any): Lesson {
+  return {
+    ...lesson,
+    courseId: lesson.courseId ?? undefined,
+    resourceId: lesson.resourceId ?? undefined,
+    draftId: lesson.draftId ?? undefined,
+    createdAt: lesson.createdAt.toISOString(),
+    updatedAt: lesson.updatedAt.toISOString()
+  }
+}
+
 // Pagination options for query functions
 export interface PaginationOptions {
   page?: number
@@ -53,12 +84,7 @@ export class CourseAdapter {
     const courses = await prisma.course.findMany({
       orderBy: { createdAt: 'desc' }
     })
-    return courses.map(course => ({
-      ...course,
-      noteId: course.noteId || undefined,
-      createdAt: course.createdAt.toISOString(),
-      updatedAt: course.updatedAt.toISOString()
-    }))
+    return courses.map(transformCourse)
   }
 
   static async findAllPaginated(options?: PaginationOptions): Promise<{
@@ -186,12 +212,7 @@ export class CourseAdapter {
       where: { userId },
       orderBy: { createdAt: 'desc' }
     })
-    return courses.map(course => ({
-      ...course,
-      noteId: course.noteId || undefined,
-      createdAt: course.createdAt.toISOString(),
-      updatedAt: course.updatedAt.toISOString()
-    }))
+    return courses.map(transformCourse)
   }
 
   static async findByNoteId(noteId: string): Promise<Course | null> {
@@ -217,7 +238,13 @@ export class ResourceAdapter {
     const resources = await prisma.resource.findMany({
       orderBy: { createdAt: 'desc' }
     })
-    return resources
+    return resources.map(resource => ({
+      ...resource,
+      noteId: resource.noteId ?? undefined,
+      videoId: resource.videoId ?? undefined,
+      createdAt: resource.createdAt.toISOString(),
+      updatedAt: resource.updatedAt.toISOString()
+    }))
   }
 
   static async findAllPaginated(options?: PaginationOptions): Promise<{
@@ -247,7 +274,7 @@ export class ResourceAdapter {
     const totalPages = Math.ceil(totalItems / pageSize)
 
     return {
-      data: resources,
+      data: resources.map(transformResource),
       pagination: {
         page,
         pageSize,
@@ -263,7 +290,7 @@ export class ResourceAdapter {
     const resource = await prisma.resource.findUnique({
       where: { id }
     })
-    return resource
+    return resource ? transformResource(resource) : null
   }
 
   static async findByIdWithNote(id: string): Promise<ResourceWithNote | null> {
@@ -277,7 +304,7 @@ export class ResourceAdapter {
     const note = await fetchNostrEvent(resource.noteId)
     
     return {
-      ...resource,
+      ...transformResource(resource),
       note
     }
   }
@@ -286,19 +313,24 @@ export class ResourceAdapter {
     const resource = await prisma.resource.create({
       data: {
         ...resourceData,
-        id: resourceData.id || `resource-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+        id: (resourceData as any).id || `resource-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
+        createdAt: new Date((resourceData as any).createdAt || new Date()),
+        updatedAt: new Date((resourceData as any).updatedAt || new Date())
       }
     })
-    return resource
+    return transformResource(resource)
   }
 
   static async update(id: string, updates: Partial<Resource>): Promise<Resource | null> {
     try {
       const resource = await prisma.resource.update({
         where: { id },
-        data: updates
+        data: {
+          ...updates,
+          updatedAt: new Date()
+        }
       })
-      return resource
+      return transformResource(resource)
     } catch (error) {
       return null
     }
@@ -320,21 +352,21 @@ export class ResourceAdapter {
       where: { userId },
       orderBy: { createdAt: 'desc' }
     })
-    return resources
+    return resources.map(transformResource)
   }
 
   static async findByNoteId(noteId: string): Promise<Resource | null> {
     const resource = await prisma.resource.findUnique({
       where: { noteId }
     })
-    return resource
+    return resource ? transformResource(resource) : null
   }
 
   static async findByVideoId(videoId: string): Promise<Resource | null> {
     const resource = await prisma.resource.findFirst({
       where: { videoId }
     })
-    return resource
+    return resource ? transformResource(resource) : null
   }
 
   static async findFree(): Promise<Resource[]> {
@@ -342,7 +374,7 @@ export class ResourceAdapter {
       where: { price: 0 },
       orderBy: { createdAt: 'desc' }
     })
-    return resources
+    return resources.map(transformResource)
   }
 
   static async findPaid(): Promise<Resource[]> {
@@ -350,7 +382,7 @@ export class ResourceAdapter {
       where: { price: { gt: 0 } },
       orderBy: { createdAt: 'desc' }
     })
-    return resources
+    return resources.map(transformResource)
   }
 
   static async isLesson(resourceId: string): Promise<boolean> {
@@ -376,14 +408,14 @@ export class LessonAdapter {
         { index: 'asc' }
       ]
     })
-    return lessons
+    return lessons.map(transformLesson)
   }
 
   static async findById(id: string): Promise<Lesson | null> {
     const lesson = await prisma.lesson.findUnique({
       where: { id }
     })
-    return lesson
+    return lesson ? transformLesson(lesson) : null
   }
 
   static async findByCourseId(courseId: string): Promise<Lesson[]> {
@@ -391,7 +423,7 @@ export class LessonAdapter {
       where: { courseId },
       orderBy: { index: 'asc' }
     })
-    return lessons
+    return lessons.map(transformLesson)
   }
 
   static async findByResourceId(resourceId: string): Promise<Lesson[]> {
@@ -402,23 +434,30 @@ export class LessonAdapter {
         { index: 'asc' }
       ]
     })
-    return lessons
+    return lessons.map(transformLesson)
   }
 
   static async create(lessonData: Omit<Lesson, 'id'>): Promise<Lesson> {
     const lesson = await prisma.lesson.create({
-      data: lessonData
+      data: {
+        ...lessonData,
+        createdAt: new Date((lessonData as any).createdAt || new Date()),
+        updatedAt: new Date((lessonData as any).updatedAt || new Date())
+      }
     })
-    return lesson
+    return transformLesson(lesson)
   }
 
   static async update(id: string, updates: Partial<Lesson>): Promise<Lesson | null> {
     try {
       const lesson = await prisma.lesson.update({
         where: { id },
-        data: updates
+        data: {
+          ...updates,
+          updatedAt: new Date()
+        }
       })
-      return lesson
+      return transformLesson(lesson)
     } catch (error) {
       return null
     }
@@ -504,7 +543,7 @@ export class SearchAdapter {
     // Fetch Nostr events for courses
     const coursesWithNotes: CourseWithNote[] = await Promise.all(
       courses.map(async (course) => ({
-        ...course,
+        ...transformCourse(course),
         note: await fetchNostrEvent(course.noteId)
       }))
     )
@@ -578,7 +617,7 @@ export class SearchAdapter {
     // Fetch Nostr events for resources
     const resourcesWithNotes: ResourceWithNote[] = await Promise.all(
       resources.map(async (resource) => ({
-        ...resource,
+        ...transformResource(resource),
         note: await fetchNostrEvent(resource.noteId)
       }))
     )

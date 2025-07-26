@@ -106,25 +106,30 @@ export class NostrFetchService {
             filter.authors = [pubkey]
           }
           
-          const sub = tempPool.subscribe([filter])
-          
           await new Promise<void>((resolve) => {
-            const timeout = setTimeout(() => {
-              sub.close()
+            let sub: { close: () => void }
+            
+            const timeout = setTimeout(async () => {
+              if (sub) sub.close()
               resolve()
             }, 5000) // 5 second timeout
             
-            sub.on('event', (event: NostrEvent) => {
-              const dTag = event.tags.find(tag => tag[0] === 'd')?.[1]
-              if (dTag) {
-                events.set(dTag, event)
+            tempPool.subscribe(
+              relays,
+              [filter],
+              (event: NostrEvent) => {
+                const dTag = event.tags.find(tag => tag[0] === 'd')?.[1]
+                if (dTag) {
+                  events.set(dTag, event)
+                }
+              },
+              () => {
+                clearTimeout(timeout)
+                if (sub) sub.close()
+                resolve()
               }
-            })
-            
-            sub.on('eose', () => {
-              clearTimeout(timeout)
-              sub.close()
-              resolve()
+            ).then(subscription => {
+              sub = subscription
             })
           })
           
@@ -145,25 +150,30 @@ export class NostrFetchService {
         filter.authors = [pubkey]
       }
       
-      const sub = relayPool.subscribe([filter])
-      
       await new Promise<void>((resolve) => {
-        const timeout = setTimeout(() => {
-          sub.close()
+        let sub: { close: () => void }
+        
+        const timeout = setTimeout(async () => {
+          if (sub) sub.close()
           resolve()
         }, 5000)
         
-        sub.on('event', (event: NostrEvent) => {
-          const dTag = event.tags.find(tag => tag[0] === 'd')?.[1]
-          if (dTag) {
-            events.set(dTag, event)
+        relayPool.subscribe(
+          relays,
+          [filter],
+          (event: NostrEvent) => {
+            const dTag = event.tags.find(tag => tag[0] === 'd')?.[1]
+            if (dTag) {
+              events.set(dTag, event)
+            }
+          },
+          () => {
+            clearTimeout(timeout)
+            if (sub) sub.close()
+            resolve()
           }
-        })
-        
-        sub.on('eose', () => {
-          clearTimeout(timeout)
-          sub.close()
-          resolve()
+        ).then(subscription => {
+          sub = subscription
         })
       })
       
@@ -177,22 +187,30 @@ export class NostrFetchService {
   // Private helper methods
   private static async fetchWithPool(pool: RelayPool, eventId: string): Promise<NostrEvent | null> {
     return new Promise((resolve) => {
-      const sub = pool.subscribe([{ ids: [eventId] }])
       let foundEvent: NostrEvent | null = null
+      let sub: { close: () => void }
       
       const timeout = setTimeout(() => {
-        sub.close()
+        if (sub) sub.close()
         resolve(foundEvent)
       }, 5000) // 5 second timeout
       
-      sub.on('event', (event: NostrEvent) => {
-        foundEvent = event
-      })
-      
-      sub.on('eose', () => {
-        clearTimeout(timeout)
-        sub.close()
-        resolve(foundEvent)
+      pool.subscribe(
+        DEFAULT_RELAYS,
+        [{ ids: [eventId] }],
+        (event: NostrEvent) => {
+          foundEvent = event
+          clearTimeout(timeout)
+          if (sub) sub.close()
+          resolve(event)
+        },
+        () => {
+          clearTimeout(timeout)
+          if (sub) sub.close()
+          resolve(foundEvent)
+        }
+      ).then(subscription => {
+        sub = subscription
       })
     })
   }
@@ -204,21 +222,26 @@ export class NostrFetchService {
     const events = new Map<string, NostrEvent>()
     
     return new Promise((resolve) => {
-      const sub = pool.subscribe([{ ids: eventIds }])
+      let sub: { close: () => void }
       
       const timeout = setTimeout(() => {
-        sub.close()
+        if (sub) sub.close()
         resolve(events)
       }, 5000) // 5 second timeout
       
-      sub.on('event', (event: NostrEvent) => {
-        events.set(event.id, event)
-      })
-      
-      sub.on('eose', () => {
-        clearTimeout(timeout)
-        sub.close()
-        resolve(events)
+      pool.subscribe(
+        DEFAULT_RELAYS,
+        [{ ids: eventIds }],
+        (event: NostrEvent) => {
+          events.set(event.id, event)
+        },
+        () => {
+          clearTimeout(timeout)
+          if (sub) sub.close()
+          resolve(events)
+        }
+      ).then(subscription => {
+        sub = subscription
       })
     })
   }
