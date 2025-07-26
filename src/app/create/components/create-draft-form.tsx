@@ -481,7 +481,8 @@ export default function CreateDraftForm() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="image">
-              <Image className="h-4 w-4 inline-block mr-1" />
+              {/* eslint-disable-next-line jsx-a11y/alt-text */}
+              <Image className="h-4 w-4 inline-block mr-1" role="img" aria-hidden="true" />
               Preview Image <span className="text-muted-foreground">(Optional)</span>
             </Label>
             <Input

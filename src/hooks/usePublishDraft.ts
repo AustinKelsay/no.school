@@ -183,7 +183,6 @@ export function usePublishResource(draftId: string) {
         }
         
         // Get public key from the browser extension
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const pubkey = await (window as any).nostr.getPublicKey()
         const unsignedEvent = createUnsignedResourceEvent(draft, pubkey)
         publishStatus.updateStep('nostr-event', 'completed', `${draft.price > 0 ? 'NIP-99' : 'NIP-23'} event created`)
@@ -193,7 +192,6 @@ export function usePublishResource(draftId: string) {
         let signedEvent: NostrEvent
         try {
           // Use the browser extension's signEvent function directly
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           signedEvent = await (window as any).nostr.signEvent(unsignedEvent)
           publishStatus.updateStep('sign', 'completed', 'Event signed with browser extension')
         } catch (error) {
@@ -352,7 +350,6 @@ export function usePublishCourse(courseDraftId: string) {
 
         // Get public key from the browser extension
         console.log('Getting public key from extension...')
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const pubkey = await (window as any).nostr.getPublicKey()
         console.log('Got pubkey:', pubkey)
 
@@ -367,7 +364,6 @@ export function usePublishCourse(courseDraftId: string) {
             const unsignedEvent = createUnsignedResourceEvent(draftLesson.draft, pubkey)
             
             try {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const signedEvent = await (window as any).nostr.signEvent(unsignedEvent)
               
               // Publish to relays
@@ -424,7 +420,6 @@ export function usePublishCourse(courseDraftId: string) {
         publishStatus.updateStep('sign', 'processing')
         let signedCourseEvent: NostrEvent
         try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           signedCourseEvent = await (window as any).nostr.signEvent(unsignedCourseEvent)
           publishStatus.updateStep('sign', 'completed', 'Course event signed with browser extension')
         } catch (error) {

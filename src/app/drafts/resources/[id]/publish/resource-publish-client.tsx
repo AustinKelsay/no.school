@@ -332,12 +332,12 @@ export function ResourcePublishPageClient({ resourceId }: ResourcePublishPageCli
 
   // Redirect to the published content after successful publishing
   useEffect(() => {
-    if (isSuccess && publishResult?.data?.resource?.id) {
+    if (isSuccess && publishResult?.resource?.id) {
       // Invalidate resource queries to ensure fresh data
       queryClient.invalidateQueries({ queryKey: ['documents'] })
       queryClient.invalidateQueries({ queryKey: ['videos'] })
       queryClient.invalidateQueries({ queryKey: ['resources'] })
-      queryClient.invalidateQueries({ queryKey: ['resource', publishResult.data.resource.id] })
+      queryClient.invalidateQueries({ queryKey: ['resource', publishResult.resource.id] })
       
       // The resource ID is the same as the draft ID (the 'd' tag)
       // Redirect to the content page after a longer delay to allow for:
@@ -346,7 +346,7 @@ export function ResourcePublishPageClient({ resourceId }: ResourcePublishPageCli
       // 3. Nostr events to propagate to relays
       setTimeout(() => {
         // Use replace instead of push to prevent back button issues
-        router.replace(`/content/${publishResult.data.resource.id}`)
+        router.replace(`/content/${publishResult.resource.id}`)
       }, 3500) // 3.5 second delay to ensure data is available
     }
   }, [isSuccess, publishResult, router, queryClient])
@@ -377,7 +377,7 @@ export function ResourcePublishPageClient({ resourceId }: ResourcePublishPageCli
 
   const isComplete = isSuccess
   const hasErrors = publishStatus.error !== null
-  const publishedEventId = publishResult?.data?.resource?.id
+  const publishedEventId = publishResult?.resource?.id
 
   return (
     <MainLayout>

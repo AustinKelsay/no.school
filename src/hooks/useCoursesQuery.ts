@@ -275,11 +275,11 @@ export async function fetchCoursesWithNotes(
     console.log("courses", courses);
     
     // Extract all course IDs for 'd' tag queries
-    const courseIds = courses.map(course => course.id)
+    const courseIds = courses.map((course: any) => course.id)
     
     if (courseIds.length === 0) {
       return {
-        courses: courses.map(course => ({ ...course })),
+        courses: courses.map((course: any) => ({ ...course })),
         pagination
       }
     }
@@ -312,7 +312,7 @@ export async function fetchCoursesWithNotes(
     })
 
     // Combine courses with their notes
-    const coursesWithNotes = courses.map(course => {
+    const coursesWithNotes = courses.map((course: any) => {
       const note = notesMap.get(course.id)
       
       return {
@@ -356,7 +356,7 @@ export async function fetchCourseWithLessons(courseId: string, relayPool: RelayP
   resources.forEach((resource: ResourceWithNote) => resourcesMap.set(resource.id, resource))
 
   // Extract resource IDs
-  const resourceIds = resources.map(r => r.id)
+  const resourceIds = resources.map((r: any) => r.id)
 
   // Collect all IDs that need Nostr notes fetched (course ID + resource IDs)
   const idsToFetch = [courseId, ...resourceIds]
@@ -409,7 +409,7 @@ export async function fetchCourseWithLessons(courseId: string, relayPool: RelayP
   }
 
   // Create lessons with their associated resources
-  const lessonsWithResources: LessonWithResource[] = lessons.map(lesson => ({
+  const lessonsWithResources: LessonWithResource[] = lessons.map((lesson: any) => ({
     ...lesson,
     resource: lesson.resourceId ? resourcesMap.get(lesson.resourceId) : undefined
   }))

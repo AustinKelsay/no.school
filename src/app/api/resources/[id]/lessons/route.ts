@@ -118,7 +118,12 @@ export async function GET(
       
       return acc
     }, {} as Record<string, {
-      course: typeof lesson.course,
+      course: {
+        id: string
+        userId: string
+        price: number
+        noteId: string | null
+      },
       lessons: Array<{
         id: string
         index: number

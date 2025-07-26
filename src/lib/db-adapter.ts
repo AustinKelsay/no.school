@@ -53,7 +53,12 @@ export class CourseAdapter {
     const courses = await prisma.course.findMany({
       orderBy: { createdAt: 'desc' }
     })
-    return courses
+    return courses.map(course => ({
+      ...course,
+      noteId: course.noteId || undefined,
+      createdAt: course.createdAt.toISOString(),
+      updatedAt: course.updatedAt.toISOString()
+    }))
   }
 
   static async findAllPaginated(options?: PaginationOptions): Promise<{
@@ -83,7 +88,12 @@ export class CourseAdapter {
     const totalPages = Math.ceil(totalItems / pageSize)
 
     return {
-      data: courses,
+      data: courses.map(course => ({
+        ...course,
+        noteId: course.noteId || undefined,
+        createdAt: course.createdAt.toISOString(),
+        updatedAt: course.updatedAt.toISOString()
+      })),
       pagination: {
         page,
         pageSize,
@@ -99,7 +109,13 @@ export class CourseAdapter {
     const course = await prisma.course.findUnique({
       where: { id }
     })
-    return course
+    if (!course) return null
+    return {
+      ...course,
+      noteId: course.noteId || undefined,
+      createdAt: course.createdAt.toISOString(),
+      updatedAt: course.updatedAt.toISOString()
+    }
   }
 
   static async findByIdWithNote(id: string): Promise<CourseWithNote | null> {
@@ -114,18 +130,27 @@ export class CourseAdapter {
     
     return {
       ...course,
+      noteId: course.noteId || undefined,
+      createdAt: course.createdAt.toISOString(),
+      updatedAt: course.updatedAt.toISOString(),
       note
     }
   }
 
-  static async create(courseData: Omit<Course, 'id'>): Promise<Course> {
+  static async create(courseData: Omit<Course, 'id' | 'createdAt' | 'updatedAt'>): Promise<Course> {
     const course = await prisma.course.create({
       data: {
         ...courseData,
-        id: courseData.id || `course-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
+        noteId: courseData.noteId || null,
+        id: `course-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`
       }
     })
-    return course
+    return {
+      ...course,
+      noteId: course.noteId || undefined,
+      createdAt: course.createdAt.toISOString(),
+      updatedAt: course.updatedAt.toISOString()
+    }
   }
 
   static async update(id: string, updates: Partial<Course>): Promise<Course | null> {
@@ -134,7 +159,12 @@ export class CourseAdapter {
         where: { id },
         data: updates
       })
-      return course
+      return {
+        ...course,
+        noteId: course.noteId || undefined,
+        createdAt: course.createdAt.toISOString(),
+        updatedAt: course.updatedAt.toISOString()
+      }
     } catch (error) {
       return null
     }
@@ -156,14 +186,25 @@ export class CourseAdapter {
       where: { userId },
       orderBy: { createdAt: 'desc' }
     })
-    return courses
+    return courses.map(course => ({
+      ...course,
+      noteId: course.noteId || undefined,
+      createdAt: course.createdAt.toISOString(),
+      updatedAt: course.updatedAt.toISOString()
+    }))
   }
 
   static async findByNoteId(noteId: string): Promise<Course | null> {
     const course = await prisma.course.findUnique({
       where: { noteId }
     })
-    return course
+    if (!course) return null
+    return {
+      ...course,
+      noteId: course.noteId || undefined,
+      createdAt: course.createdAt.toISOString(),
+      updatedAt: course.updatedAt.toISOString()
+    }
   }
 }
 

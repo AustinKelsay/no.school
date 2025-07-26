@@ -138,7 +138,6 @@ export function ZapThreads({
 
   const zapThreadsElement = (
     <div ref={containerRef} style={zapThreadsStyle}>
-      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       {React.createElement('zap-threads' as any, {
         anchor: finalAnchor,
         author: finalAuthor,
