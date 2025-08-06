@@ -152,3 +152,81 @@ export function ContentPageSkeleton() {
     </div>
   )
 }
+
+// ContentCard skeleton that matches the shape of ContentCard component
+export function ContentCardSkeleton() {
+  return (
+    <div className="overflow-hidden rounded-lg border bg-card animate-pulse">
+      {/* Aspect video area */}
+      <div className="relative aspect-video bg-muted">
+        {/* Content type icon overlay */}
+        <div className="absolute top-3 left-3 p-2 rounded-lg bg-muted-foreground/20 w-8 h-8" />
+        
+        {/* Engagement metrics skeleton */}
+        <div className="absolute bottom-3 right-3 flex items-center gap-2">
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted-foreground/20">
+            <div className="w-3 h-3 rounded bg-muted-foreground/30" />
+            <div className="w-4 h-3 rounded bg-muted-foreground/30" />
+          </div>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted-foreground/20">
+            <div className="w-3 h-3 rounded bg-muted-foreground/30" />
+            <div className="w-4 h-3 rounded bg-muted-foreground/30" />
+          </div>
+          <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted-foreground/20">
+            <div className="w-3 h-3 rounded bg-muted-foreground/30" />
+            <div className="w-4 h-3 rounded bg-muted-foreground/30" />
+          </div>
+        </div>
+      </div>
+      
+      {/* Card content - reduced padding and spacing */}
+      <div className="p-4 space-y-3">
+        {/* Title - reduced height */}
+        <div className="space-y-1">
+          <div className="bg-muted h-4 rounded w-3/4" />
+          <div className="bg-muted h-4 rounded w-1/2" />
+        </div>
+        
+        {/* Tags and payment badge - reduced height */}
+        <div className="flex items-center justify-between gap-2 mt-2">
+          <div className="flex gap-2">
+            <div className="bg-muted h-5 rounded-full w-14" />
+            <div className="bg-muted h-5 rounded-full w-16" />
+            <div className="bg-muted h-5 rounded-full w-14" />
+          </div>
+          <div className="bg-muted h-5 rounded-md w-16" />
+        </div>
+        
+        {/* Description - reduced line height and spacing */}
+        <div className="space-y-1">
+          <div className="bg-muted h-2.5 rounded w-full" />
+          <div className="bg-muted h-2.5 rounded w-5/6" />
+          <div className="bg-muted h-2.5 rounded w-4/6" />
+        </div>
+        
+        {/* Stats row - reduced size */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
+            <div className="bg-muted h-2.5 w-2.5 rounded" />
+            <div className="bg-muted h-2.5 w-14 rounded" />
+          </div>
+        </div>
+        
+        {/* Time ago and instructor - reduced size */}
+        <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center gap-1">
+            <div className="bg-muted h-2.5 w-2.5 rounded" />
+            <div className="bg-muted h-2.5 w-16 rounded" />
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="bg-muted h-2.5 w-2.5 rounded" />
+            <div className="bg-muted h-2.5 w-20 rounded" />
+          </div>
+        </div>
+        
+        {/* Action button - reduced height */}
+        <div className="bg-muted h-7 rounded w-full" />
+      </div>
+    </div>
+  )
+}
