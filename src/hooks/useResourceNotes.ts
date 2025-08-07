@@ -62,7 +62,7 @@ export async function fetchResourceNotesBatch(
     const notes = await relayPool.querySync(
       relays,
       { "#d": validResourceIds, kinds: [30023, 30402, 30403] }, // All content types
-      { timeout: 10000 }
+      { timeout: 5000 } // Reduced timeout for faster failures
     )
 
     console.log(`[ResourceNotes] Successfully fetched ${notes.length} resource notes`)
@@ -113,8 +113,8 @@ export function useResourceNotes(
   
   const {
     enabled = true,
-    staleTime = 5 * 60 * 1000, // 5 minutes
-    gcTime = 10 * 60 * 1000, // 10 minutes
+    staleTime = 10 * 60 * 1000, // 10 minutes - increased for less frequent refetches
+    gcTime = 30 * 60 * 1000, // 30 minutes - keep data in cache longer
     refetchOnWindowFocus = false,
     refetchOnMount = true,
     retry = 3,

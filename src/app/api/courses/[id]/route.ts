@@ -28,10 +28,32 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ course });
-  } catch {
+    // Get lessons for this course
+    const { LessonAdapter } = await import('@/lib/db-adapter');
+    const lessons = await LessonAdapter.findByCourseId(courseId);
+
+    // Get resources for each lesson
+    const { ResourceAdapter } = await import('@/lib/db-adapter');
+    const lessonsWithResources = await Promise.all(
+      lessons.map(async (lesson) => {
+        if (lesson.resourceId) {
+          const resource = await ResourceAdapter.findById(lesson.resourceId);
+          return { ...lesson, resource };
+        }
+        return lesson;
+      })
+    );
+
+    return NextResponse.json({ 
+      course: {
+        ...course,
+        lessons: lessonsWithResources
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching course with lessons:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch course' },
+      { error: 'Failed to fetch course', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -62,8 +84,9 @@ export async function PUT(
       { course: updatedCourse, message: 'Course updated successfully' }
     );
   } catch (error) {
+    console.error('Error updating course:', error);
     return NextResponse.json(
-      { error: 'Failed to update course' },
+      { error: 'Failed to update course', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }
@@ -99,9 +122,10 @@ export async function DELETE(
     return NextResponse.json(
       { message: 'Course deleted successfully' }
     );
-  } catch {
+  } catch (error) {
+    console.error('Error deleting course:', error);
     return NextResponse.json(
-      { error: 'Failed to delete course' },
+      { error: 'Failed to delete course', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

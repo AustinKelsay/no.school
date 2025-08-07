@@ -154,7 +154,7 @@ export async function fetchLessonWithDetails(
       const notes = await relayPool.querySync(
         relays,
         { "#d": idsToFetch, kinds: [30004, 30023, 30402] },
-        { timeout: 10000 }
+        { timeout: 5000 } // Reduced timeout for faster failures
       )
       
       console.log(`Successfully fetched ${notes.length} notes for lesson from real Nostr`)
@@ -210,8 +210,8 @@ export function useLessonQuery(
   
   const {
     enabled = true,
-    staleTime = 5 * 60 * 1000, // 5 minutes
-    gcTime = 10 * 60 * 1000, // 10 minutes
+    staleTime = 10 * 60 * 1000, // 10 minutes - increased for less frequent refetches
+    gcTime = 30 * 60 * 1000, // 30 minutes - keep data in cache longer
     refetchOnWindowFocus = false,
     refetchOnMount = true,
     retry = 3,
@@ -268,9 +268,10 @@ export async function fetchCoursesWithNotes(
     throw new Error('Failed to fetch courses')
   }
 
-  const data = await response.json()
-  const courses = data.data || data.courses || []
-  const pagination = data.pagination
+  const responseData = await response.json()
+  // Handle both paginated ({ data, pagination }) and non-paginated ({ courses }) responses
+  const courses = responseData.data || responseData.courses || []
+  const pagination = responseData.pagination
     
     console.log("courses", courses);
     
@@ -294,7 +295,7 @@ export async function fetchCoursesWithNotes(
       notes = await relayPool.querySync(
         relays,
         { "#d": courseIds, kinds: [30004, 30023, 30402] }, // Query by 'd' tag for course list and content events
-        { timeout: 10000 }
+        { timeout: 5000 } // Reduced timeout for faster failures
       )
       console.log(`Successfully fetched ${notes.length} course notes from real Nostr`);
     } catch (error) {
@@ -338,7 +339,8 @@ export async function fetchCourseWithLessons(courseId: string, relayPool: RelayP
     return null
   }
 
-  const { data } = await response.json()
+  const responseData = await response.json()
+  const data = responseData.data || responseData.course // Handle both { data } and { course } formats
   if (!data) {
     return null
   }
@@ -369,7 +371,7 @@ export async function fetchCourseWithLessons(courseId: string, relayPool: RelayP
       const notes = await relayPool.querySync(
         relays,
         { "#d": idsToFetch, kinds: [30004, 30023, 30402] }, // Course lists and content events
-        { timeout: 10000 }
+        { timeout: 5000 } // Reduced timeout for faster failures
       )
       
       console.log(`Successfully fetched ${notes.length} notes from real Nostr for course`)
@@ -428,8 +430,8 @@ export function useCourseQuery(courseId: string, options: UseCourseQueryOptions 
   
   const {
     enabled = true,
-    staleTime = 5 * 60 * 1000, // 5 minutes
-    gcTime = 10 * 60 * 1000, // 10 minutes
+    staleTime = 10 * 60 * 1000, // 10 minutes - increased for less frequent refetches
+    gcTime = 30 * 60 * 1000, // 30 minutes - keep data in cache longer
     refetchOnWindowFocus = false,
     refetchOnMount = true,
     retry = 3,
@@ -465,8 +467,8 @@ export function useCoursesQuery(options: UseCoursesQueryOptions = {}): CoursesQu
   
   const {
     enabled = true,
-    staleTime = 5 * 60 * 1000, // 5 minutes
-    gcTime = 10 * 60 * 1000, // 10 minutes
+    staleTime = 10 * 60 * 1000, // 10 minutes - increased for less frequent refetches
+    gcTime = 30 * 60 * 1000, // 30 minutes - keep data in cache longer
     refetchOnWindowFocus = false,
     refetchOnMount = true,
     retry = 3,

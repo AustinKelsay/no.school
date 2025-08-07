@@ -98,8 +98,8 @@ export async function fetchDocumentResources(options?: PaginationOptions): Promi
 export function useDocumentsQuery(options: UseDocumentsQueryOptions = {}): DocumentsQueryResult {
   const {
     enabled = true,
-    staleTime = 5 * 60 * 1000, // 5 minutes
-    gcTime = 10 * 60 * 1000, // 10 minutes
+    staleTime = 10 * 60 * 1000, // 10 minutes - increased for less frequent refetches
+    gcTime = 30 * 60 * 1000, // 30 minutes - keep data in cache longer
     refetchOnWindowFocus = false,
     refetchOnMount = true,
     retry = 3,

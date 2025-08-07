@@ -102,8 +102,8 @@ export async function fetchVideoResources(options?: PaginationOptions): Promise<
 export function useVideosQuery(options: UseVideosQueryOptions = {}): VideosQueryResult {
   const {
     enabled = true,
-    staleTime = 5 * 60 * 1000, // 5 minutes
-    gcTime = 10 * 60 * 1000, // 10 minutes
+    staleTime = 10 * 60 * 1000, // 10 minutes - increased for less frequent refetches
+    gcTime = 30 * 60 * 1000, // 30 minutes - keep data in cache longer
     refetchOnWindowFocus = false,
     refetchOnMount = true,
     retry = 3,

@@ -5,7 +5,6 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
-import { LessonAdapter, ResourceAdapter } from '@/lib/db-adapter'
 import { useSnstrContext } from '@/contexts/snstr-context'
 import { Lesson, Resource } from '@/data/types'
 import { useResourceNotes } from './useResourceNotes'
@@ -94,8 +93,13 @@ async function fetchLessonsForCourse(courseId: string, relayPool: RelayPool, rel
     return []
   }
 
-  // First, fetch all lessons for the course
-  const lessons = await LessonAdapter.findByCourseId(courseId)
+  // First, fetch all lessons for the course from API
+  const response = await fetch(`/api/courses/${courseId}/lessons`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch lessons')
+  }
+  const data = await response.json()
+  const lessons = data.lessons || []
   
   if (lessons.length === 0) {
     return []
@@ -108,8 +112,13 @@ async function fetchLessonsForCourse(courseId: string, relayPool: RelayPool, rel
     .filter(lesson => lesson.resourceId)
     .map(lesson => lesson.resourceId!)
   
-  // Fetch all resources in parallel
-  const resourcePromises = resourceIds.map(id => ResourceAdapter.findByIdWithNote(id))
+  // Fetch all resources in parallel from API
+  const resourcePromises = resourceIds.map(async (id) => {
+    const response = await fetch(`/api/resources/${id}`)
+    if (!response.ok) return null
+    const data = await response.json()
+    return data.resource || data.data || null
+  })
   const resourceResults = await Promise.all(resourcePromises)
   const resources = resourceResults.filter((resource): resource is ResourceWithNote => resource !== null)
 
@@ -207,7 +216,13 @@ export function useLessonsQuery(courseId: string, options: UseLessonsQueryOption
     queryKey: lessonsQueryKeys.course(courseId),
     queryFn: async () => {
       if (!courseId) return []
-      const lessons = await LessonAdapter.findByCourseId(courseId)
+      // Fetch lessons from API endpoint
+      const response = await fetch(`/api/courses/${courseId}/lessons`)
+      if (!response.ok) {
+        throw new Error('Failed to fetch lessons')
+      }
+      const data = await response.json()
+      const lessons = data.lessons || []
       console.log(`Fetching ${lessons.length} lessons for course ${courseId}`)
       return lessons
     },
@@ -230,7 +245,13 @@ export function useLessonsQuery(courseId: string, options: UseLessonsQueryOption
     queryKey: [...lessonsQueryKeys.course(courseId), 'resources'],
     queryFn: async () => {
       if (resourceIds.length === 0) return []
-      const resourcePromises = resourceIds.map(id => ResourceAdapter.findById(id))
+      // Fetch resources from API endpoints
+      const resourcePromises = resourceIds.map(async (id) => {
+        const response = await fetch(`/api/resources/${id}`)
+        if (!response.ok) return null
+        const data = await response.json()
+        return data.resource || data.data || null
+      })
       const resourceResults = await Promise.all(resourcePromises)
       return resourceResults.filter((resource): resource is Resource => resource !== null)
     },
@@ -333,7 +354,14 @@ export function useAllLessonsQuery(options: UseLessonsQueryOptions = {}): {
 
   const query = useQuery({
     queryKey: lessonsQueryKeys.all,
-    queryFn: () => LessonAdapter.findAll(),
+    queryFn: async () => {
+      const response = await fetch('/api/lessons')
+      if (!response.ok) {
+        throw new Error('Failed to fetch all lessons')
+      }
+      const data = await response.json()
+      return data.lessons || []
+    },
     enabled,
     staleTime,
     gcTime,
@@ -378,7 +406,11 @@ export function useLessonQuery(lessonId: string, options: UseLessonsQueryOptions
   const query = useQuery({
     queryKey: lessonsQueryKeys.detail(lessonId),
     queryFn: async () => {
-      const lesson = await LessonAdapter.findById(lessonId)
+      // Fetch the lesson from API
+      const lessonResponse = await fetch(`/api/lessons/${lessonId}`)
+      if (!lessonResponse.ok) return null
+      const lessonData = await lessonResponse.json()
+      const lesson = lessonData.lesson || lessonData.data
       if (!lesson) return null
       
       // Fetch the course to get all lessons for proper context
@@ -390,8 +422,11 @@ export function useLessonQuery(lessonId: string, options: UseLessonsQueryOptions
       // If no course, just return the lesson with basic resource data
       let resource: ResourceWithNote | undefined
       if (lesson.resourceId) {
-        const resourceResult = await ResourceAdapter.findByIdWithNote(lesson.resourceId)
-        resource = resourceResult || undefined
+        const resourceResponse = await fetch(`/api/resources/${lesson.resourceId}`)
+        if (resourceResponse.ok) {
+          const resourceData = await resourceResponse.json()
+          resource = resourceData.resource || resourceData.data || undefined
+        }
       }
       
       const parsedData = parseLessonFromNote(resource?.note)

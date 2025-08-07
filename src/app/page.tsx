@@ -19,6 +19,7 @@ import Link from "next/link"
 import { CoursesSection } from "@/components/homepage/courses-section"
 import { VideosSection } from "@/components/homepage/videos-section"
 import { DocumentsSection } from "@/components/homepage/documents-section"
+import { HomepageWithPrefetch } from "@/components/homepage/homepage-with-prefetch"
 import { useCopy } from "@/lib/copy"
 import { getEnabledHomepageSections } from "@/lib/content-config"
 
@@ -45,7 +46,8 @@ export default function Home() {
 
 
   return (
-    <MainLayout>
+    <HomepageWithPrefetch>
+      <MainLayout>
       {/* Hero Section */}
       <Section 
         spacing="xl" 
@@ -160,6 +162,7 @@ export default function Home() {
         </div>
       </Section>
     </MainLayout>
+    </HomepageWithPrefetch>
   )
 }
 
