@@ -6,6 +6,7 @@ import { ThemeColorProvider } from "@/contexts/theme-context";
 import { SnstrProvider } from "@/contexts/snstr-context";
 import { QueryProvider } from "@/contexts/query-provider";
 import { SessionProvider } from "@/contexts/session-provider";
+import { ToastProvider } from "@/hooks/use-toast";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,9 +37,11 @@ export default function RootLayout({
           <ThemeColorProvider>
             <QueryProvider>
               <SessionProvider>
-                <SnstrProvider>
-                  {children}
-                </SnstrProvider>
+                <ToastProvider>
+                  <SnstrProvider>
+                    {children}
+                  </SnstrProvider>
+                </ToastProvider>
               </SessionProvider>
             </QueryProvider>
           </ThemeColorProvider>

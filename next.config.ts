@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Ensure problematic node_modules packages are transpiled and resolved correctly
+  transpilePackages: ["snstr"],
   // Enable experimental features for better performance
   experimental: {
     // Enable optimized package imports
@@ -109,7 +111,12 @@ const nextConfig: NextConfig = {
       tls: false,
       child_process: false,
     };
-    
+    // Work around snstr dist entry requiring a nested path Turbopack sometimes misses
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      snstr: require.resolve("snstr/dist/snstr/src/index.js"),
+    };
+
     return config;
   },
 };

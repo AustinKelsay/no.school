@@ -36,6 +36,9 @@ model User {
     nip05            String?
     lud16            String?
     banner           String?
+    // Account linking fields
+    primaryProvider  String?           // Track which provider is primary (nostr, email, github, anonymous)
+    profileSource    String?           @default("oauth") // "nostr" or "oauth" - determines profile field priority
     platformNip05    PlatformNip05?
     platformLightningAddress PlatformLightningAddress?
     userBadges       UserBadge[]

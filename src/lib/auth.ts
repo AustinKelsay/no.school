@@ -70,6 +70,12 @@ import { prisma } from './prisma'
 import type { Adapter } from 'next-auth/adapters'
 import { generateKeypair, decodePrivateKey, getPublicKey, RelayPool } from 'snstr'
 import authConfig from '../../config/auth.json'
+import { 
+  isNostrFirstProvider, 
+  isOAuthFirstProvider, 
+  getProfileSourceForProvider,
+  shouldSyncFromNostr 
+} from './account-linking'
 
 /**
  * Verify NIP07 public key format
@@ -204,6 +210,8 @@ async function syncUserProfileFromNostr(userId: string, pubkey: string): Promise
   emailVerified: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  primaryProvider: string | null;
+  profileSource: string | null;
 } | null> {
   try {
     console.log(`Syncing profile from Nostr for user ${userId} (pubkey: ${pubkey.substring(0, 8)}...)`)
@@ -806,6 +814,32 @@ export const authOptions: NextAuthOptions = {
       console.log('User signed in:', user.email || user.pubkey || user.username, 'via', account?.provider)
       
       /**
+       * ACCOUNT LINKING: SET PRIMARY PROVIDER ON FIRST SIGN-IN
+       * ======================================================
+       * 
+       * When a user signs in for the first time with a provider,
+       * set it as their primary provider if they don't have one yet.
+       * This determines which profile source is authoritative.
+       */
+      if (account?.provider && user.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { primaryProvider: true, profileSource: true }
+        })
+        
+        if (dbUser && !dbUser.primaryProvider) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              primaryProvider: account.provider,
+              profileSource: getProfileSourceForProvider(account.provider)
+            }
+          })
+          console.log(`Set primary provider to ${account.provider} for user ${user.id}`)
+        }
+      }
+      
+      /**
        * OAUTH-FIRST: EPHEMERAL KEYPAIR GENERATION ON SIGN IN
        * ====================================================
        * 
@@ -820,7 +854,7 @@ export const authOptions: NextAuthOptions = {
        * - 'anonymous': Nostr-first users get keys in the authorize function  
        * - 'recovery': Users recovering with existing keys
        */
-      if (!user.pubkey && account?.provider && !['nostr', 'anonymous', 'recovery'].includes(account.provider)) {
+      if (!user.pubkey && account?.provider && !isNostrFirstProvider(account.provider)) {
         try {
           const keys = await generateKeypair()
           
@@ -841,30 +875,32 @@ export const authOptions: NextAuthOptions = {
       }
       
       /**
-       * NOSTR-FIRST: PROFILE SYNC ON SIGN IN
+       * PROFILE SYNC BASED ON PROFILE SOURCE
        * ====================================
        * 
-       * ONLY for Nostr-first accounts (NIP07, anonymous, recovery), sync their 
-       * profile from Nostr as the source of truth on each sign-in.
+       * Sync profile from Nostr ONLY if the user's profileSource is set to 'nostr'
+       * or if they don't have a profileSource but their primary provider is Nostr-first.
        * 
-       * OAuth-first accounts (email, GitHub) do NOT sync from Nostr - their
-       * OAuth profile data remains authoritative. They get ephemeral Nostr
-       * keys for protocol participation but maintain OAuth-based identity.
-       * 
-       * This ensures Nostr-first users' profiles stay current with their
-       * latest Nostr profile updates.
+       * This respects the user's account linking preferences and ensures
+       * the correct profile source is used based on their settings.
        */
-      const isNostrFirstProvider = ['nostr', 'anonymous', 'recovery'].includes(account?.provider || '')
-      if (user.pubkey && isNostrFirstProvider) {
-        try {
-          console.log(`NOSTR-FIRST: Syncing profile from Nostr for ${account?.provider} user:`, user.email || user.username || user.pubkey?.substring(0, 8))
-          await syncUserProfileFromNostr(user.id, user.pubkey)
-        } catch (error) {
-          console.error('Failed to sync Nostr profile for Nostr-first account:', error)
-          // Don't fail the sign-in if profile sync fails
+      if (user.pubkey && user.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { profileSource: true, primaryProvider: true }
+        })
+        
+        if (dbUser && shouldSyncFromNostr(dbUser)) {
+          try {
+            console.log(`Syncing profile from Nostr (profileSource: ${dbUser.profileSource}, primaryProvider: ${dbUser.primaryProvider})`)
+            await syncUserProfileFromNostr(user.id, user.pubkey)
+          } catch (error) {
+            console.error('Failed to sync Nostr profile:', error)
+            // Don't fail the sign-in if profile sync fails
+          }
+        } else {
+          console.log(`Skipping Nostr profile sync (profileSource: ${dbUser?.profileSource}, primaryProvider: ${dbUser?.primaryProvider})`)
         }
-      } else if (user.pubkey && !isNostrFirstProvider) {
-        console.log(`OAUTH-FIRST: Skipping Nostr profile sync for ${account?.provider} user - OAuth profile is authoritative`)
       }
     }
   },

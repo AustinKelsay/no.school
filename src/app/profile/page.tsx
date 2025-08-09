@@ -18,9 +18,10 @@ import { ProfileEditForms } from './components/profile-edit-forms'
 import { MainLayout } from '@/components/layout'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { User, Settings, FileText, BarChart3 } from 'lucide-react'
+import { User, Settings, FileText, BarChart3, Link2 } from 'lucide-react'
 import { getAdminInfo } from '@/lib/admin-utils'
 import DraftsClient from '@/app/drafts/drafts-client'
+import { LinkedAccountsManager } from '@/components/account/linked-accounts'
 
 /**
  * Server component that fetches session and renders tabbed profile
@@ -53,7 +54,7 @@ export default async function ProfilePage() {
           
           {/* Tabbed Profile Content */}
           <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className={`grid w-full ${hasAdminOrModerator ? 'grid-cols-2 lg:grid-cols-4' : 'grid-cols-2'}`}>
+            <TabsList className={`grid w-full ${hasAdminOrModerator ? 'grid-cols-3 lg:grid-cols-5' : 'grid-cols-3'}`}>
               <TabsTrigger value="profile" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
                 Profile
@@ -61,6 +62,10 @@ export default async function ProfilePage() {
               <TabsTrigger value="settings" className="flex items-center gap-2">
                 <Settings className="h-4 w-4" />
                 Settings
+              </TabsTrigger>
+              <TabsTrigger value="accounts" className="flex items-center gap-2">
+                <Link2 className="h-4 w-4" />
+                Accounts
               </TabsTrigger>
               {hasAdminOrModerator && (
                 <>
@@ -84,6 +89,10 @@ export default async function ProfilePage() {
 
             <TabsContent value="settings" className="space-y-6">
               <ProfileEditForms session={session} />
+            </TabsContent>
+
+            <TabsContent value="accounts" className="space-y-6">
+              <LinkedAccountsManager />
             </TabsContent>
 
             {hasAdminOrModerator && (

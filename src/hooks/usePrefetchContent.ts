@@ -57,16 +57,6 @@ export function usePrefetchContent(options: UsePrefetchContentOptions = {}) {
             queryKey: videosQueryKeys.lists(),
             queryFn: () => fetchVideoResources(),
             staleTime: 10 * 60 * 1000, // 10 minutes
-          }).then(async (data) => {
-            // Also prefetch the notes for videos
-            const resourceIds = data.resources.map(r => r.id)
-            if (resourceIds.length > 0) {
-              await queryClient.prefetchQuery({
-                queryKey: resourceNotesQueryKeys.batch(resourceIds.sort()),
-                queryFn: () => fetchResourceNotesBatch(resourceIds, relayPool, relays),
-                staleTime: 10 * 60 * 1000, // 10 minutes
-              })
-            }
           })
         )
       }
@@ -78,16 +68,6 @@ export function usePrefetchContent(options: UsePrefetchContentOptions = {}) {
             queryKey: documentsQueryKeys.lists(),
             queryFn: () => fetchDocumentResources(),
             staleTime: 10 * 60 * 1000, // 10 minutes
-          }).then(async (data) => {
-            // Also prefetch the notes for documents
-            const resourceIds = data.resources.map(r => r.id)
-            if (resourceIds.length > 0) {
-              await queryClient.prefetchQuery({
-                queryKey: resourceNotesQueryKeys.batch(resourceIds.sort()),
-                queryFn: () => fetchResourceNotesBatch(resourceIds, relayPool, relays),
-                staleTime: 10 * 60 * 1000, // 10 minutes
-              })
-            }
           })
         )
       }

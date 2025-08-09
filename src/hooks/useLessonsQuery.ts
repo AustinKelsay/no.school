@@ -109,11 +109,11 @@ async function fetchLessonsForCourse(courseId: string, relayPool: RelayPool, rel
   
   // Get all resource IDs from lessons that have them
   const resourceIds = lessons
-    .filter(lesson => lesson.resourceId)
-    .map(lesson => lesson.resourceId!)
+    .filter((lesson: any) => lesson.resourceId)
+    .map((lesson: any) => lesson.resourceId!)
   
   // Fetch all resources in parallel from API
-  const resourcePromises = resourceIds.map(async (id) => {
+  const resourcePromises = resourceIds.map(async (id: string) => {
     const response = await fetch(`/api/resources/${id}`)
     if (!response.ok) return null
     const data = await response.json()
@@ -171,7 +171,7 @@ async function fetchLessonsForCourse(courseId: string, relayPool: RelayPool, rel
   }
 
   // Combine lessons with their resources and parse metadata
-  const lessonsWithResources: LessonWithResource[] = lessons.map(lesson => {
+  const lessonsWithResources: LessonWithResource[] = lessons.map((lesson: any) => {
     const resource = lesson.resourceId ? resourcesMap.get(lesson.resourceId) : undefined
     const parsedData = parseLessonFromNote(resource?.note)
     
@@ -237,8 +237,8 @@ export function useLessonsQuery(courseId: string, options: UseLessonsQueryOption
 
   // Extract resource IDs from lessons
   const resourceIds = (lessonsQuery.data || [])
-    .filter(lesson => lesson.resourceId)
-    .map(lesson => lesson.resourceId!)
+    .filter((lesson: any) => lesson.resourceId)
+    .map((lesson: any) => lesson.resourceId!)
 
   // Fetch resources separately
   const resourcesQuery = useQuery({
@@ -246,7 +246,7 @@ export function useLessonsQuery(courseId: string, options: UseLessonsQueryOption
     queryFn: async () => {
       if (resourceIds.length === 0) return []
       // Fetch resources from API endpoints
-      const resourcePromises = resourceIds.map(async (id) => {
+      const resourcePromises = resourceIds.map(async (id: string) => {
         const response = await fetch(`/api/resources/${id}`)
         if (!response.ok) return null
         const data = await response.json()
@@ -287,7 +287,7 @@ export function useLessonsQuery(courseId: string, options: UseLessonsQueryOption
   })
 
   // Combine lessons with their resources and parse metadata
-  const lessonsWithResources: LessonWithResource[] = (lessonsQuery.data || []).map(lesson => {
+  const lessonsWithResources: LessonWithResource[] = (lessonsQuery.data || []).map((lesson: any) => {
     const resource = lesson.resourceId ? resourcesMap.get(lesson.resourceId) : undefined
     const parsedData = parseLessonFromNote(resource?.note)
     
