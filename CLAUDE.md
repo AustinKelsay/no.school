@@ -2,6 +2,14 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Documentation
+
+Comprehensive technical documentation is available in the `/docs` directory:
+- [Profile System Architecture](./docs/profile-system-architecture.md) - Multi-account profile management
+- [Profile API Reference](./docs/profile-api-reference.md) - Complete API documentation
+- [Profile Implementation Guide](./docs/profile-implementation-guide.md) - Implementation details
+- [Documentation Index](./docs/README.md) - All available documentation
+
 ## Development Commands
 
 ```bash

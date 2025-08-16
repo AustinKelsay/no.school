@@ -14,7 +14,9 @@ import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { ProfileDisplay } from './components/profile-display'
+import { EnhancedProfileDisplay } from './components/enhanced-profile-display'
 import { ProfileEditForms } from './components/profile-edit-forms'
+import { SimpleSettings } from './components/simple-settings'
 import { MainLayout } from '@/components/layout'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -22,6 +24,7 @@ import { User, Settings, FileText, BarChart3, Link2 } from 'lucide-react'
 import { getAdminInfo } from '@/lib/admin-utils'
 import DraftsClient from '@/app/drafts/drafts-client'
 import { LinkedAccountsManager } from '@/components/account/linked-accounts'
+import { ProfileTabs } from './components/profile-tabs'
 
 /**
  * Server component that fetches session and renders tabbed profile
@@ -53,7 +56,7 @@ export default async function ProfilePage() {
           </div>
           
           {/* Tabbed Profile Content */}
-          <Tabs defaultValue="profile" className="space-y-6">
+          <ProfileTabs defaultTab="profile" hasAdminOrModerator={hasAdminOrModerator}>
             <TabsList className={`grid w-full ${hasAdminOrModerator ? 'grid-cols-3 lg:grid-cols-5' : 'grid-cols-3'}`}>
               <TabsTrigger value="profile" className="flex items-center gap-2">
                 <User className="h-4 w-4" />
@@ -84,11 +87,11 @@ export default async function ProfilePage() {
             </TabsList>
 
             <TabsContent value="profile" className="space-y-6">
-              <ProfileDisplay session={session} />
+              <EnhancedProfileDisplay session={session} />
             </TabsContent>
 
             <TabsContent value="settings" className="space-y-6">
-              <ProfileEditForms session={session} />
+              <SimpleSettings session={session} />
             </TabsContent>
 
             <TabsContent value="accounts" className="space-y-6">
@@ -143,7 +146,7 @@ export default async function ProfilePage() {
                 )}
               </>
             )}
-          </Tabs>
+          </ProfileTabs>
         </div>
       </div>
     </MainLayout>

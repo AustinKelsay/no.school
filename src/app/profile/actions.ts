@@ -31,6 +31,14 @@ const EnhancedProfileSchema = z.object({
 export type BasicProfileData = z.infer<typeof BasicProfileSchema>
 export type EnhancedProfileData = z.infer<typeof EnhancedProfileSchema>
 
+// Account preferences schema
+const AccountPreferencesSchema = z.object({
+  profileSource: z.enum(['nostr', 'oauth']),
+  primaryProvider: z.string().min(1, 'Primary provider is required')
+})
+
+export type AccountPreferencesData = z.infer<typeof AccountPreferencesSchema>
+
 /**
  * Update basic profile information (name, email)
  * Only allowed for OAuth-first accounts (email, GitHub)
@@ -182,6 +190,89 @@ export async function updateEnhancedProfile(data: EnhancedProfileData) {
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to update enhanced profile' 
+    }
+  }
+}
+
+/**
+ * Update account preferences (profileSource, primaryProvider)
+ * Allows users to configure how their profile data is managed
+ */
+export async function updateAccountPreferences(data: AccountPreferencesData) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      throw new Error('Not authenticated')
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { 
+        profileSource: true,
+        primaryProvider: true,
+        accounts: {
+          select: {
+            provider: true
+          }
+        }
+      }
+    })
+
+    if (!user) {
+      throw new Error('User not found')
+    }
+
+    const validatedData = AccountPreferencesSchema.parse(data)
+    
+    // Verify the primary provider exists in linked accounts
+    const hasProvider = user.accounts.some(acc => acc.provider === validatedData.primaryProvider) || 
+                       validatedData.primaryProvider === 'current'
+    
+    if (!hasProvider) {
+      throw new Error('Selected primary provider is not linked to your account')
+    }
+
+    const updates: { profileSource?: string; primaryProvider?: string } = {}
+
+    if (validatedData.profileSource !== user.profileSource) {
+      updates.profileSource = validatedData.profileSource
+    }
+
+    if (validatedData.primaryProvider !== user.primaryProvider) {
+      updates.primaryProvider = validatedData.primaryProvider
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return { success: true, message: 'No changes to apply' }
+    }
+
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: updates
+    })
+
+    revalidatePath('/profile')
+    
+    return { 
+      success: true, 
+      message: 'Account preferences updated successfully. Your profile will reflect the new settings on next sign-in.',
+      updates: Object.keys(updates)
+    }
+  } catch (error) {
+    console.error('Error updating account preferences:', error)
+    
+    if (error instanceof z.ZodError) {
+      return { 
+        success: false, 
+        message: 'Invalid data provided',
+        errors: error.issues
+      }
+    }
+    
+    return { 
+      success: false, 
+      message: error instanceof Error ? error.message : 'Failed to update account preferences' 
     }
   }
 }

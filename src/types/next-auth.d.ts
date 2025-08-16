@@ -20,6 +20,7 @@ declare module 'next-auth' {
       lud16?: string
       banner?: string
     } & DefaultSession['user']
+    provider?: string  // Track which provider was used for current session
   }
 
   interface User {

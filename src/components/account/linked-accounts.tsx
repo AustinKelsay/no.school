@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
+import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -10,6 +11,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from '@/hooks/use-toast'
 import { Loader2, Link2, LinkIcon, Unlink, Shield, Mail, Github, Key, User } from 'lucide-react'
 import { getProviderDisplayName } from '@/lib/account-linking'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 interface LinkedAccount {
   provider: string
@@ -26,6 +31,7 @@ interface LinkedAccountsData {
 export function LinkedAccountsManager() {
   const { data: session, update: updateSession } = useSession()
   const { toast } = useToast()
+  const searchParams = useSearchParams()
   const [accounts, setAccounts] = useState<LinkedAccountsData | null>(null)
   const [loading, setLoading] = useState(true)
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null)
@@ -61,6 +67,72 @@ export function LinkedAccountsManager() {
   useEffect(() => {
     fetchAccounts()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle OAuth callback messages
+  useEffect(() => {
+    const success = searchParams.get('success')
+    const error = searchParams.get('error')
+    
+    if (success === 'github_linked') {
+      toast({
+        title: 'Success',
+        description: 'GitHub account linked successfully'
+      })
+      // Clean up URL params
+      window.history.replaceState({}, '', '/profile?tab=accounts')
+      fetchAccounts()
+    } else if (success === 'email_linked') {
+      toast({
+        title: 'Success',
+        description: 'Email account linked successfully'
+      })
+      // Clean up URL params
+      window.history.replaceState({}, '', '/profile?tab=accounts')
+      fetchAccounts()
+    } else if (error) {
+      let errorMessage = 'Failed to link account'
+      switch(error) {
+        case 'session_mismatch':
+          errorMessage = 'Session mismatch. Please try again.'
+          break
+        case 'token_exchange_failed':
+          errorMessage = 'Failed to authenticate with GitHub'
+          break
+        case 'user_fetch_failed':
+          errorMessage = 'Failed to get GitHub user information'
+          break
+        case 'This account is already linked to another user':
+          errorMessage = 'This GitHub account is already linked to another user'
+          break
+        case 'You already have a github account linked':
+          errorMessage = 'You already have a GitHub account linked'
+          break
+        case 'invalid_token':
+          errorMessage = 'Invalid verification link. Please request a new one.'
+          break
+        case 'token_expired':
+          errorMessage = 'Verification link has expired. Please request a new one.'
+          break
+        case 'token_mismatch':
+          errorMessage = 'Verification link mismatch. Please request a new one.'
+          break
+        case 'verification_error':
+          errorMessage = 'Email verification failed. Please try again.'
+          break
+        default:
+          if (error.includes('already')) {
+            errorMessage = error
+          }
+      }
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive'
+      })
+      // Clean up URL params
+      window.history.replaceState({}, '', '/profile?tab=accounts')
+    }
+  }, [searchParams, toast]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Unlink account
   const handleUnlink = async (provider: string) => {
@@ -160,9 +232,13 @@ export function LinkedAccountsManager() {
   }
 
   // Available providers that can be linked
+  // Note: We exclude 'anonymous' and 'recovery' as they are not meant to be linked as additional accounts
   const availableProviders = ['nostr', 'email', 'github']
   const linkedProviders = accounts?.accounts.map(a => a.provider) || []
   const unlinkableProviders = availableProviders.filter(p => !linkedProviders.includes(p))
+  
+  // Get the current session provider - this will be used to disable the corresponding button
+  const currentProvider = session?.provider || null
 
   if (loading) {
     return (
@@ -252,7 +328,12 @@ export function LinkedAccountsManager() {
                 </p>
                 <div className="flex flex-wrap gap-2 mt-3">
                   {unlinkableProviders.map((provider) => (
-                    <LinkProviderButton key={provider} provider={provider} onLinked={fetchAccounts} />
+                    <LinkProviderButton 
+                      key={provider} 
+                      provider={provider} 
+                      onLinked={fetchAccounts}
+                      isCurrentProvider={provider === currentProvider}
+                    />
                   ))}
                 </div>
               </div>
@@ -292,11 +373,15 @@ export function LinkedAccountsManager() {
 interface LinkProviderButtonProps {
   provider: string
   onLinked: () => void
+  isCurrentProvider?: boolean
 }
 
-function LinkProviderButton({ provider, onLinked }: LinkProviderButtonProps) {
+function LinkProviderButton({ provider, onLinked, isCurrentProvider = false }: LinkProviderButtonProps) {
   const { toast } = useToast()
   const [linking, setLinking] = useState(false)
+  const [showEmailDialog, setShowEmailDialog] = useState(false)
+  const [email, setEmail] = useState('')
+  const [emailSending, setEmailSending] = useState(false)
 
   const handleLink = async () => {
     setLinking(true)
@@ -349,15 +434,66 @@ function LinkProviderButton({ provider, onLinked }: LinkProviderButtonProps) {
           variant: 'destructive'
         })
       }
-    } else if (provider === 'email' || provider === 'github') {
-      // For OAuth providers, redirect to sign-in with linking mode
-      toast({
-        title: 'Coming Soon',
-        description: `${getProviderDisplayName(provider)} account linking will be available soon`,
-      })
+    } else if (provider === 'email') {
+      // For email, show a dialog to enter email address
+      setShowEmailDialog(true)
+      setLinking(false)
+      return
+    } else if (provider === 'github') {
+      // For GitHub, use our OAuth linking flow
+      if (typeof window !== 'undefined') {
+        window.location.href = '/api/account/link-oauth?provider=github'
+      }
     }
     
     setLinking(false)
+  }
+
+  const handleEmailLink = async () => {
+    if (!email || !email.includes('@')) {
+      toast({
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    setEmailSending(true)
+    try {
+      // Send verification email for account linking
+      const response = await fetch('/api/account/send-link-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        toast({
+          title: 'Verification Email Sent',
+          description: `We've sent a verification link to ${email}. Please check your inbox and click the link to complete linking.`,
+        })
+        setShowEmailDialog(false)
+        setEmail('')
+      } else {
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to send verification email',
+          variant: 'destructive'
+        })
+      }
+    } catch (error) {
+      console.error('Failed to send verification email:', error)
+      toast({
+        title: 'Error',
+        description: 'Failed to send verification email',
+        variant: 'destructive'
+      })
+    } finally {
+      setEmailSending(false)
+    }
   }
 
   const getIcon = () => {
@@ -373,20 +509,104 @@ function LinkProviderButton({ provider, onLinked }: LinkProviderButtonProps) {
     }
   }
 
+  // If this is the current provider, wrap in tooltip and disable
+  if (isCurrentProvider) {
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={true}
+                className="gap-2 opacity-50 cursor-not-allowed"
+              >
+                {getIcon()}
+                Link {getProviderDisplayName(provider)}
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>You are currently signed in with {getProviderDisplayName(provider)}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    )
+  }
+
   return (
-    <Button
-      variant="outline"
-      size="sm"
-      onClick={handleLink}
-      disabled={linking}
-      className="gap-2"
-    >
-      {linking ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : (
-        getIcon()
+    <>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={handleLink}
+        disabled={linking}
+        className="gap-2"
+      >
+        {linking ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          getIcon()
+        )}
+        Link {getProviderDisplayName(provider)}
+      </Button>
+
+      {/* Email linking dialog */}
+      {provider === 'email' && (
+        <Dialog open={showEmailDialog} onOpenChange={setShowEmailDialog}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Link Email Account</DialogTitle>
+              <DialogDescription>
+                Enter the email address you want to link to your account. 
+                This email must not be already linked to another account.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="email" className="text-right">
+                  Email
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className="col-span-3"
+                  disabled={emailSending}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEmailDialog(false)
+                  setEmail('')
+                }}
+                disabled={emailSending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleEmailLink}
+                disabled={emailSending || !email}
+              >
+                {emailSending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Linking...
+                  </>
+                ) : (
+                  'Link Email'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
-      Link {getProviderDisplayName(provider)}
-    </Button>
+    </>
   )
 }

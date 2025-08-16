@@ -147,8 +147,9 @@ export async function linkAccount(
       }
     })
 
-    // If this is the first account being linked, set it as primary
-    if (user.accounts.length === 0 && !user.primaryProvider) {
+    // Only set as primary if user doesn't already have a primary provider
+    // This preserves the original authentication method as primary
+    if (!user.primaryProvider) {
       await prisma.user.update({
         where: { id: userId },
         data: {

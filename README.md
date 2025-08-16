@@ -910,6 +910,15 @@ const canSignEvents = !!session?.user?.privkey // True for ephemeral accounts
 
 ---
 
+## 📚 **Documentation**
+
+Comprehensive documentation is available in the [docs](./docs) directory:
+
+- **[Profile System Architecture](./docs/profile-system-architecture.md)** - Complete architectural overview
+- **[Profile API Reference](./docs/profile-api-reference.md)** - Detailed API documentation
+- **[Profile Implementation Guide](./docs/profile-implementation-guide.md)** - Step-by-step implementation
+- **[Documentation Index](./docs/README.md)** - Complete documentation directory
+
 ## 📝 **License**
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

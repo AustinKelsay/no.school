@@ -689,7 +689,7 @@ export const authOptions: NextAuthOptions = {
         // Map username to name for NextAuth compatibility
         session.user.name = token.username as string
         // Add provider to session for client-side signing detection
-        (session as any).provider = token.provider
+        session.provider = token.provider as string
         // Add additional Nostr profile fields to session
         Object.assign(session.user, {
           nip05: token.nip05,
