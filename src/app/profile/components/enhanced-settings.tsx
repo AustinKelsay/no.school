@@ -21,14 +21,16 @@ import {
   CheckCircle,
   Key,
   Mail,
-  Github,
+  GitBranch,
   User,
   Link2,
   RefreshCw,
   Shield,
-  Zap,
   Globe,
-  Settings
+  Settings,
+  WifiOff,
+  ServerCrash,
+  RotateCcw
 } from 'lucide-react'
 import { updateBasicProfile, updateEnhancedProfile, updateAccountPreferences, type BasicProfileData, type EnhancedProfileData } from '../actions'
 import type { AggregatedProfile } from '@/lib/profile-aggregator'
@@ -39,7 +41,7 @@ interface EnhancedSettingsProps {
 
 const providerIcons = {
   nostr: Key,
-  github: Github,
+  github: GitBranch,
   email: Mail,
   current: User,
   profile: User
@@ -53,13 +55,30 @@ const providerLabels = {
   profile: 'Profile'
 }
 
+// Error types for better error handling
+type ErrorType = 'network' | 'server' | 'validation' | 'permission' | 'unknown'
+
+interface ErrorDetails {
+  type: ErrorType
+  message: string
+  suggestion?: string
+  canRetry?: boolean
+}
+
 export function EnhancedSettings({ session }: EnhancedSettingsProps) {
   const { user } = session
   const [isPending, startTransition] = useTransition()
-  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
+  const [message, setMessage] = useState<{ 
+    type: 'success' | 'error' | 'info'
+    text: string
+    details?: ErrorDetails
+    onRetry?: () => void
+  } | null>(null)
   const [aggregatedProfile, setAggregatedProfile] = useState<AggregatedProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'profile' | 'account' | 'sync'>('profile')
+  const [syncingProvider, setSyncingProvider] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState<Record<string, number>>({})
   
   // Form states
   const [basicProfile, setBasicProfile] = useState<BasicProfileData>({
@@ -184,14 +203,197 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
     })
   }
 
-  const syncFromProvider = async (provider: string) => {
-    setMessage({ type: 'info', text: `Syncing from ${providerLabels[provider as keyof typeof providerLabels]}...` })
+  // Helper function to determine error type and provide suggestions
+  const analyzeError = (error: unknown): ErrorDetails => {
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return {
+        type: 'network',
+        message: 'Network connection failed',
+        suggestion: 'Please check your internet connection and try again.',
+        canRetry: true
+      }
+    }
     
-    // Simulate sync - in real implementation, this would call an API
-    setTimeout(() => {
-      setMessage({ type: 'success', text: `Successfully synced profile from ${providerLabels[provider as keyof typeof providerLabels]}` })
+    if (error instanceof Error) {
+      // Timeout errors
+      if (error.name === 'AbortError' || error.message.includes('abort')) {
+        return {
+          type: 'network',
+          message: 'Request timed out',
+          suggestion: 'The server is taking too long to respond. Please try again.',
+          canRetry: true
+        }
+      }
+      
+      // Network errors
+      if (error.message.includes('NetworkError') || 
+          error.message.includes('Failed to fetch') ||
+          error.message.includes('net::')) {
+        return {
+          type: 'network',
+          message: 'Unable to connect to the server',
+          suggestion: 'Check your internet connection or try again in a few moments.',
+          canRetry: true
+        }
+      }
+      
+      // Server errors
+      if (error.message.includes('500') || 
+          error.message.includes('502') || 
+          error.message.includes('503')) {
+        return {
+          type: 'server',
+          message: 'Server error occurred',
+          suggestion: 'The server is experiencing issues. Please try again later.',
+          canRetry: true
+        }
+      }
+      
+      // Permission errors
+      if (error.message.includes('401') || 
+          error.message.includes('403') ||
+          error.message.includes('Unauthorized') ||
+          error.message.includes('not linked')) {
+        return {
+          type: 'permission',
+          message: error.message,
+          suggestion: 'You may need to re-authenticate or link this provider first.',
+          canRetry: false
+        }
+      }
+      
+      // Validation errors
+      if (error.message.includes('400') || 
+          error.message.includes('Invalid') ||
+          error.message.includes('validation')) {
+        return {
+          type: 'validation',
+          message: error.message,
+          suggestion: 'Please check your input and try again.',
+          canRetry: false
+        }
+      }
+    }
+    
+    return {
+      type: 'unknown',
+      message: error instanceof Error ? error.message : 'An unexpected error occurred',
+      suggestion: 'Please try again. If the problem persists, contact support.',
+      canRetry: true
+    }
+  }
+
+  const syncFromProvider = async (provider: string, isRetry: boolean = false) => {
+    setSyncingProvider(provider)
+    
+    // Update retry count
+    const currentRetryCount = retryCount[provider] || 0
+    if (isRetry) {
+      setRetryCount(prev => ({ ...prev, [provider]: currentRetryCount + 1 }))
+      
+      // Exponential backoff: wait before retrying
+      const backoffDelay = Math.min(1000 * Math.pow(2, currentRetryCount), 10000) // Max 10 seconds
+      await new Promise(resolve => setTimeout(resolve, backoffDelay))
+    } else {
+      setRetryCount(prev => ({ ...prev, [provider]: 0 }))
+    }
+    
+    setMessage({ 
+      type: 'info', 
+      text: isRetry 
+        ? `Retrying sync from ${providerLabels[provider as keyof typeof providerLabels]} (Attempt ${currentRetryCount + 1})...`
+        : `Syncing from ${providerLabels[provider as keyof typeof providerLabels]}...`
+    })
+    
+    try {
+      // Add timeout for better error handling
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 30000) // 30 second timeout
+      
+      const response = await fetch('/api/profile/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ provider }),
+        signal: controller.signal
+      })
+      
+      clearTimeout(timeoutId)
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.error || `Sync failed with status ${response.status}`)
+      }
+
+      // Update local state with synced profile data
+      if (data.profile) {
+        // Update basic profile if changed
+        if (data.profile.name !== undefined || data.profile.email !== undefined) {
+          setBasicProfile(prev => ({
+            ...prev,
+            name: data.profile.name || prev.name,
+            email: data.profile.email || prev.email
+          }))
+        }
+
+        // Update enhanced profile if changed
+        if (data.profile.nip05 !== undefined || data.profile.lud16 !== undefined || data.profile.banner !== undefined) {
+          setEnhancedProfile(prev => ({
+            ...prev,
+            nip05: data.profile.nip05 || prev.nip05,
+            lud16: data.profile.lud16 || prev.lud16,
+            banner: data.profile.banner || prev.banner
+          }))
+        }
+      }
+
+      // Reset retry count on success
+      setRetryCount(prev => ({ ...prev, [provider]: 0 }))
+      
+      setMessage({ 
+        type: 'success', 
+        text: data.message || `Successfully synced profile from ${providerLabels[provider as keyof typeof providerLabels]}` 
+      })
+      
+      // Refresh aggregated profile data
+      try {
+        const aggregatedResponse = await fetch('/api/profile/aggregated')
+        if (aggregatedResponse.ok) {
+          const aggregatedData = await aggregatedResponse.json()
+          setAggregatedProfile(aggregatedData)
+        }
+      } catch (aggregateError) {
+        console.warn('Failed to refresh aggregated profile:', aggregateError)
+        // Don't fail the whole operation if aggregate refresh fails
+      }
+
       setTimeout(() => setMessage(null), 5000)
-    }, 2000)
+    } catch (error) {
+      console.error('Profile sync error:', error)
+      
+      const errorDetails = analyzeError(error)
+      const maxRetries = 3
+      const currentRetries = retryCount[provider] || 0
+      
+      // Determine if we should offer retry
+      const canRetry = errorDetails.canRetry && currentRetries < maxRetries
+      
+      setMessage({ 
+        type: 'error', 
+        text: `Failed to sync from ${providerLabels[provider as keyof typeof providerLabels]}`,
+        details: errorDetails,
+        onRetry: canRetry ? () => syncFromProvider(provider, true) : undefined
+      })
+      
+      // Don't auto-dismiss error messages
+      if (!canRetry) {
+        setTimeout(() => setMessage(null), 10000)
+      }
+    } finally {
+      setSyncingProvider(null)
+    }
   }
 
   if (loading) {
@@ -249,10 +451,51 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
       {/* Status Message */}
       {message && (
         <Alert variant={message.type === 'error' ? 'destructive' : 'default'}>
-          {message.type === 'error' && <AlertTriangle className="h-4 w-4" />}
-          {message.type === 'success' && <CheckCircle className="h-4 w-4" />}
-          {message.type === 'info' && <Info className="h-4 w-4" />}
-          <AlertDescription>{message.text}</AlertDescription>
+          <div className="flex items-start gap-2">
+            <div className="mt-0.5">
+              {message.type === 'error' && message.details?.type === 'network' && <WifiOff className="h-4 w-4" />}
+              {message.type === 'error' && message.details?.type === 'server' && <ServerCrash className="h-4 w-4" />}
+              {message.type === 'error' && !['network', 'server'].includes(message.details?.type || '') && <AlertTriangle className="h-4 w-4" />}
+              {message.type === 'success' && <CheckCircle className="h-4 w-4" />}
+              {message.type === 'info' && <Info className="h-4 w-4" />}
+            </div>
+            <div className="flex-1">
+              <AlertDescription className="font-medium">{message.text}</AlertDescription>
+              {message.details && (
+                <div className="mt-2 space-y-2">
+                  {message.details.suggestion && (
+                    <p className="text-sm text-muted-foreground">
+                      {message.details.suggestion}
+                    </p>
+                  )}
+                  {message.onRetry && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        message.onRetry?.()
+                        setMessage(null)
+                      }}
+                      className="mt-2"
+                    >
+                      <RotateCcw className="mr-2 h-3 w-3" />
+                      Try Again
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
+            {!message.onRetry && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setMessage(null)}
+                className="h-6 w-6 p-0"
+              >
+                ×
+              </Button>
+            )}
+          </div>
         </Alert>
       )}
 
@@ -621,10 +864,19 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
                       variant="outline"
                       size="sm"
                       onClick={() => syncFromProvider(account.provider)}
-                      disabled={isPending}
+                      disabled={isPending || syncingProvider !== null}
                     >
-                      <RefreshCw className="mr-2 h-4 w-4" />
-                      Sync
+                      {syncingProvider === account.provider ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Syncing...
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4" />
+                          Sync
+                        </>
+                      )}
                     </Button>
                   </div>
                 ))}

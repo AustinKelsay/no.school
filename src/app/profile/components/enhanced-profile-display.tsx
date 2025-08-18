@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Session } from 'next-auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { 
   User, 
   Mail, 
@@ -17,6 +18,8 @@ import {
   Github, 
   Twitter,
   ExternalLink,
+  Info,
+  AlertTriangle,
   Edit,
   Copy,
   Check,
@@ -66,26 +69,36 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
   const [showEditForm, setShowEditForm] = useState(false)
   const [aggregatedProfile, setAggregatedProfile] = useState<AggregatedProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const { user } = session
 
   // Fetch aggregated profile data
-  useEffect(() => {
-    async function fetchProfile() {
-      try {
-        const response = await fetch('/api/profile/aggregated')
-        if (response.ok) {
+  const fetchProfile = useCallback(async () => {
+    setLoading(true)
+    setErrorMessage(null)
+    try {
+      const response = await fetch('/api/profile/aggregated')
+      if (!response.ok) {
+        let message = 'Failed to load profile'
+        try {
           const data = await response.json()
-          setAggregatedProfile(data)
-        }
-      } catch (error) {
-        console.error('Failed to fetch aggregated profile:', error)
-      } finally {
-        setLoading(false)
+          if (data?.error) message = data.error
+        } catch {}
+        throw new Error(message)
       }
+      const data = await response.json()
+      setAggregatedProfile(data)
+    } catch (error) {
+      console.error('Failed to fetch aggregated profile:', error)
+      setErrorMessage(error instanceof Error ? error.message : 'Failed to fetch aggregated profile')
+    } finally {
+      setLoading(false)
     }
-    
-    fetchProfile()
   }, [])
+
+  useEffect(() => {
+    fetchProfile()
+  }, [fetchProfile])
 
   const isNostrFirst = aggregatedProfile?.profileSource === 'nostr' || 
     (!aggregatedProfile?.profileSource && aggregatedProfile?.primaryProvider === 'nostr')
@@ -103,6 +116,28 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
 
   const formatKey = (key: string) => {
     return `${key.substring(0, 8)}...${key.substring(56)}`
+  }
+
+  /**
+   * Normalize and validate an external website URL.
+   * Ensures the URL uses http/https and returns a fully-qualified URL string.
+   * Returns null when the value is invalid or unsafe.
+   */
+  function normalizeExternalUrl(raw: string): string | null {
+    const value = typeof raw === 'string' ? raw.trim() : ''
+    if (!value) return null
+    try {
+      const direct = new URL(value)
+      if (direct.protocol === 'http:' || direct.protocol === 'https:') return direct.toString()
+      return null
+    } catch {}
+    try {
+      const withHttps = new URL(`https://${value}`)
+      if (withHttps.protocol === 'http:' || withHttps.protocol === 'https:') return withHttps.toString()
+      return null
+    } catch {
+      return null
+    }
   }
 
   if (showEditForm) {
@@ -132,8 +167,25 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
     totalLinkedAccounts: 0
   }
 
+  const websiteHref = profile.website ? normalizeExternalUrl(profile.website.value) : null
+
   return (
     <div className="space-y-6">
+      {/* Error State */}
+      {errorMessage && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Unable to load profile</AlertTitle>
+          <AlertDescription>
+            {errorMessage}
+            <div className="mt-3">
+              <Button variant="outline" size="sm" onClick={fetchProfile} disabled={loading}>
+                Retry
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Profile Header */}
       <Card>
         <CardHeader>
@@ -414,15 +466,19 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
                   <Globe className="h-4 w-4" />
                   <ProviderBadge source={profile.website.source} />
                 </div>
-                <a 
-                  href={profile.website.value.startsWith('http') ? profile.website.value : `https://${profile.website.value}`} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-primary hover:underline flex items-center"
-                >
-                  {profile.website.value}
-                  <ExternalLink className="ml-1 h-3 w-3" />
-                </a>
+                {websiteHref ? (
+                  <a
+                    href={websiteHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline flex items-center"
+                  >
+                    {profile.website.value}
+                    <ExternalLink className="ml-1 h-3 w-3" />
+                  </a>
+                ) : (
+                  <span className="text-muted-foreground">{profile.website.value || 'Invalid URL'}</span>
+                )}
               </div>
             )}
 

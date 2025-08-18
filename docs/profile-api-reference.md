@@ -363,8 +363,9 @@ Sends verification email for account linking.
 
 **Email Contents**:
 - Subject: "Link your email to [Platform Name]"
-- Contains verification link valid for 1 hour
-- Link format: `/api/account/verify-email-link?token=[token]`
+- Contains verification link valid for 30 minutes
+- **⚠️ SECURITY**: Link format uses reference ID, not token: `/verify-email?ref=[reference]`
+- **Note**: Tokens are never exposed in URLs for security reasons
 
 **Error Responses**:
 - `400 Bad Request` - Invalid email format
@@ -374,10 +375,13 @@ Sends verification email for account linking.
 
 ### GET /api/account/verify-email-link
 
-Verifies email and completes account linking.
+**⚠️ DEPRECATED**: This endpoint exposes tokens in URLs and should not be used in production.
+
+**Recommended Approach**: Use `/verify-email` page with POST requests instead.
 
 **Query Parameters**:
-- `token` - Verification token from email
+- `token` - Verification token from email (⚠️ SECURITY RISK)
+- `email` - Email address to link
 
 **Response**: `302 Redirect`
 - Success: Redirects to `/profile?tab=accounts&success=email_linked`
@@ -385,14 +389,44 @@ Verifies email and completes account linking.
 
 **Verification Process**:
 1. Token validated against database
-2. Check token not expired (1 hour TTL)
+2. Check token not expired (30 minutes TTL)
 3. Link email to user account
 4. Delete token (one-time use)
 
 **Error Codes**:
 - `invalid_token` - Token not found or invalid
-- `token_expired` - Token older than 1 hour
+- `token_expired` - Token older than 30 minutes
 - `already_linked` - Email already linked
+
+**Security Considerations**:
+- Tokens in URLs can be logged in server logs and browser history
+- Use verification page with POST requests instead
+- Implement proper CSRF protection
+- Ensure tokens are single-use and short-lived
+
+### POST /verify-email (Recommended)
+
+**Secure verification page that handles tokens in request body.**
+
+**Query Parameters**:
+- `ref` - Reference identifier (not the actual token)
+
+**Request Body** (JSON):
+```json
+{
+  "token": "verification_token_here"
+}
+```
+
+**Response**: `302 Redirect`
+- Success: Redirects to `/profile?tab=accounts&success=email_linked`
+- Error: Redirects to `/verify-email?error=[error_code]`
+
+**Security Benefits**:
+- Tokens never appear in URLs or server logs
+- CSRF protection can be implemented
+- Better user experience with proper error handling
+- Tokens can be validated server-side before processing
 
 ## Server Actions
 

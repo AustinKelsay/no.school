@@ -6,19 +6,22 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { sanitizeEmail } from '@/lib/api-utils'
 import { linkAccount } from '@/lib/account-linking'
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const token = searchParams.get('token')
-    const email = searchParams.get('email')
+    const emailParam = searchParams.get('email')
 
-    if (!token || !email) {
+    if (!token || !emailParam) {
       return NextResponse.redirect(
         `${process.env.NEXTAUTH_URL}/profile?tab=accounts&error=missing_params`
       )
     }
+
+    const normalizedEmail = sanitizeEmail(emailParam)
 
     // Find and validate the verification token
     const verificationToken = await prisma.verificationToken.findUnique({
@@ -42,10 +45,25 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Parse the identifier to get the user ID
-    const [action, userId, tokenEmail] = verificationToken.identifier.split(':')
+    // Parse and validate the identifier format: expected 'link:<userId>:<email>'
+    const identifierParts = verificationToken.identifier.split(':')
+    if (identifierParts.length !== 3) {
+      console.error('Invalid verification token identifier format', {
+        identifier: verificationToken.identifier,
+        token
+      })
+      try {
+        await prisma.verificationToken.delete({ where: { token } })
+      } catch (cleanupError) {
+        console.warn('Failed to delete malformed verification token', { token, cleanupError })
+      }
+      return NextResponse.redirect(
+        `${process.env.NEXTAUTH_URL}/profile?tab=accounts&error=invalid_token_format`
+      )
+    }
+    const [action, userId, tokenEmail] = identifierParts
     
-    if (action !== 'link' || tokenEmail !== email) {
+    if (action !== 'link' || tokenEmail !== normalizedEmail) {
       return NextResponse.redirect(
         `${process.env.NEXTAUTH_URL}/profile?tab=accounts&error=token_mismatch`
       )
@@ -55,7 +73,7 @@ export async function GET(request: NextRequest) {
     const result = await linkAccount(
       userId,
       'email',
-      email,
+      normalizedEmail,
       {}
     )
 
@@ -74,7 +92,7 @@ export async function GET(request: NextRequest) {
         await prisma.user.update({
           where: { id: userId },
           data: { 
-            email,
+            email: normalizedEmail,
             emailVerified: new Date()
           }
         })

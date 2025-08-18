@@ -14,6 +14,10 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
+import { 
+  PreferencesUpdateSchema,
+  type PreferencesUpdate 
+} from '@/types/account-preferences'
 
 // Basic profile update schema for OAuth-first accounts
 const BasicProfileSchema = z.object({
@@ -30,14 +34,7 @@ const EnhancedProfileSchema = z.object({
 
 export type BasicProfileData = z.infer<typeof BasicProfileSchema>
 export type EnhancedProfileData = z.infer<typeof EnhancedProfileSchema>
-
-// Account preferences schema
-const AccountPreferencesSchema = z.object({
-  profileSource: z.enum(['nostr', 'oauth']),
-  primaryProvider: z.string().min(1, 'Primary provider is required')
-})
-
-export type AccountPreferencesData = z.infer<typeof AccountPreferencesSchema>
+export type AccountPreferencesData = PreferencesUpdate
 
 /**
  * Update basic profile information (name, email)
@@ -223,7 +220,7 @@ export async function updateAccountPreferences(data: AccountPreferencesData) {
       throw new Error('User not found')
     }
 
-    const validatedData = AccountPreferencesSchema.parse(data)
+    const validatedData = PreferencesUpdateSchema.parse(data)
     
     // Verify the primary provider exists in linked accounts
     const hasProvider = user.accounts.some(acc => acc.provider === validatedData.primaryProvider) || 
@@ -273,6 +270,50 @@ export async function updateAccountPreferences(data: AccountPreferencesData) {
     return { 
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to update account preferences' 
+    }
+  }
+}
+
+/**
+ * Sync profile data from a specific provider
+ * Respects the dual authentication architecture and profile source settings
+ */
+export async function syncProfileFromProvider(provider: string) {
+  try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user?.id) {
+      throw new Error('Not authenticated')
+    }
+
+    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/profile/sync`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Cookie': `next-auth.session-token=${session.user.id}` // Pass session for server-to-server call
+      },
+      body: JSON.stringify({ provider })
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Sync failed')
+    }
+
+    revalidatePath('/profile')
+    
+    return {
+      success: true,
+      message: data.message,
+      profile: data.profile
+    }
+  } catch (error) {
+    console.error('Error syncing profile:', error)
+    
+    return {
+      success: false,
+      message: error instanceof Error ? error.message : 'Failed to sync profile'
     }
   }
 }

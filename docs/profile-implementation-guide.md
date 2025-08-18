@@ -160,12 +160,16 @@ const canEditBasic = !isNostrFirst
 
 ### Account Linking Security
 
-Email verification ensures secure linking:
+**⚠️ SECURITY WARNING: Never expose verification tokens in URL query parameters**
+
+Email verification ensures secure linking. The preferred approach uses a verification page with POST requests to avoid exposing sensitive tokens in URLs, browser history, or server logs.
+
+#### Preferred Approach: Verification Page with POST
 
 ```typescript
 // Generate secure token
 const token = crypto.randomBytes(32).toString('hex')
-const expires = new Date(Date.now() + 3600000) // 1 hour
+const expires = new Date(Date.now() + 1800000) // 30 minutes - shorter expiry for security
 
 // Store in database
 await prisma.verificationToken.create({
@@ -176,13 +180,217 @@ await prisma.verificationToken.create({
   }
 })
 
-// Send verification email
+// Send verification email with link to verification page (not API endpoint)
 await sendEmail({
   to: email,
   subject: 'Link your email account',
-  html: `Click to verify: ${url}/api/account/verify-email-link?token=${token}`
+  html: `Click to verify: ${url}/verify-email?ref=${encodeURIComponent(`link:${userId}:${email}`)}`
 })
 ```
+
+The verification page (`/verify-email`) should:
+1. Extract the reference from the URL query parameter
+2. Present a form or use JavaScript to submit the token via POST
+3. Send the token in the request body, not as a URL parameter
+4. Implement proper CSRF protection
+
+#### Alternative Approach: Server-Side Token Lookup
+
+If you must use URL-based verification, use a short-lived lookup identifier instead of the actual token:
+
+```typescript
+// Generate a short, single-use lookup ID (not the secret token)
+const lookupId = crypto.randomBytes(8).toString('hex')
+const token = crypto.randomBytes(32).toString('hex')
+const expires = new Date(Date.now() + 900000) // 15 minutes - very short expiry
+
+// Store both in database
+await prisma.verificationToken.create({
+  data: {
+    identifier: `link:${userId}:${email}`,
+    token,
+    lookupId, // Add this field
+    expires
+  }
+})
+
+// Send verification email with lookup ID only
+await sendEmail({
+  to: email,
+  subject: 'Link your email account',
+  html: `Click to verify: ${url}/api/account/verify-email-link?ref=${lookupId}&email=${encodeURIComponent(email)}`
+})
+```
+
+#### Security Requirements
+
+- **Token Expiry**: Maximum 30 minutes for verification tokens
+- **Single Use**: Tokens must be invalidated immediately after use
+- **No Logging**: Never log full request URLs containing tokens
+- **HTTPS Only**: Always use HTTPS for verification links
+- **Rate Limiting**: Implement rate limiting on verification endpoints
+
+#### Implementing the Verification Page
+
+Create a secure verification page at `/verify-email`:
+
+```tsx
+// app/verify-email/page.tsx
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+
+export default function VerifyEmailPage() {
+  const [token, setToken] = useState('')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState('')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  
+  const ref = searchParams.get('ref')
+  
+  useEffect(() => {
+    if (!ref) {
+      setError('Invalid verification link')
+    }
+  }, [ref])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!token.trim()) return
+    
+    setIsSubmitting(true)
+    setError('')
+    
+    try {
+      const response = await fetch('/api/account/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, ref })
+      })
+      
+      if (response.ok) {
+        router.push('/profile?tab=accounts&success=email_linked')
+      } else {
+        const data = await response.json()
+        setError(data.error || 'Verification failed')
+      }
+    } catch (err) {
+      setError('Network error. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  if (!ref) {
+    return <div>Invalid verification link</div>
+  }
+
+  return (
+    <div className="container mx-auto max-w-md py-8">
+      <Card>
+        <CardHeader>
+          <CardTitle>Verify Your Email</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="token" className="block text-sm font-medium mb-2">
+                Verification Token
+              </label>
+              <Input
+                id="token"
+                type="text"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="Enter verification token"
+                required
+              />
+            </div>
+            
+            {error && (
+              <div className="text-red-600 text-sm">{error}</div>
+            )}
+            
+            <Button 
+              type="submit" 
+              disabled={isSubmitting || !token.trim()}
+              className="w-full"
+            >
+              {isSubmitting ? 'Verifying...' : 'Verify Email'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+```
+
+And create the corresponding API endpoint:
+
+```typescript
+// app/api/account/verify-email/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { linkAccount } from '@/lib/account-linking'
+
+export async function POST(request: NextRequest) {
+  try {
+    const { token, ref } = await request.json()
+    
+    if (!token || !ref) {
+      return NextResponse.json(
+        { error: 'Missing token or reference' },
+        { status: 400 }
+      )
+    }
+
+    // Find verification token by reference
+    const verificationToken = await prisma.verificationToken.findFirst({
+      where: { 
+        identifier: ref,
+        token: token
+      }
+    })
+
+    if (!verificationToken) {
+      return NextResponse.json(
+        { error: 'Invalid verification token' },
+        { status: 400 }
+      )
+    }
+
+    // Check expiry and process verification...
+    // (Same logic as the GET endpoint but more secure)
+    
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Verification failed' },
+      { status: 500 }
+    )
+  }
+}
+```
+
+#### Security Summary
+
+**Key Principles**:
+1. **Never expose secrets in URLs** - Tokens should be in request bodies, not query parameters
+2. **Short-lived tokens** - 15-30 minutes maximum for verification tokens
+3. **Single-use only** - Tokens must be invalidated immediately after use
+4. **Secure transmission** - Use HTTPS and avoid logging sensitive data
+5. **User experience** - Verification pages provide better UX than direct API calls
+
+**Migration Path**:
+- Phase 1: Implement the new verification page with POST endpoint
+- Phase 2: Update email templates to use the new verification page
+- Phase 3: Deprecate the old GET endpoint with security warnings
+- Phase 4: Remove the old endpoint after sufficient migration time
 
 ### Provider Data Fetching
 
@@ -423,9 +631,25 @@ if (process.env.NODE_ENV === 'development') {
 ### From Single to Multi-Account
 
 1. **Database Migration**
+
+**PostgreSQL/MySQL:**
 ```sql
-ALTER TABLE users ADD COLUMN primaryProvider VARCHAR(50);
-ALTER TABLE users ADD COLUMN profileSource VARCHAR(50) DEFAULT 'oauth';
+ALTER TABLE users 
+ADD COLUMN primaryProvider VARCHAR(50),
+ADD COLUMN profileSource VARCHAR(50) DEFAULT 'oauth';
+```
+
+**SQLite:**
+```sql
+ALTER TABLE users ADD COLUMN primaryProvider TEXT;
+ALTER TABLE users ADD COLUMN profileSource TEXT DEFAULT 'oauth';
+```
+
+**SQL Server:**
+```sql
+ALTER TABLE users 
+ADD primaryProvider NVARCHAR(50),
+    profileSource NVARCHAR(50) DEFAULT 'oauth';
 ```
 
 2. **Update Authentication**

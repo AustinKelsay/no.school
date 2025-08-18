@@ -450,7 +450,9 @@ function LinkProviderButton({ provider, onLinked, isCurrentProvider = false }: L
   }
 
   const handleEmailLink = async () => {
-    if (!email || !email.includes('@')) {
+    const normalizedEmail = email.trim().toLowerCase()
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i
+    if (!emailRegex.test(normalizedEmail)) {
       toast({
         title: 'Invalid Email',
         description: 'Please enter a valid email address',
@@ -465,7 +467,7 @@ function LinkProviderButton({ provider, onLinked, isCurrentProvider = false }: L
       const response = await fetch('/api/account/send-link-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email })
+        body: JSON.stringify({ email: normalizedEmail })
       })
 
       const data = await response.json()
@@ -473,7 +475,7 @@ function LinkProviderButton({ provider, onLinked, isCurrentProvider = false }: L
       if (response.ok) {
         toast({
           title: 'Verification Email Sent',
-          description: `We've sent a verification link to ${email}. Please check your inbox and click the link to complete linking.`,
+          description: `We've sent a verification link to ${normalizedEmail}. Please check your inbox and click the link to complete linking.`,
         })
         setShowEmailDialog(false)
         setEmail('')

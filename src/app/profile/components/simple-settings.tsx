@@ -52,16 +52,21 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
   })
 
   const [linkedAccounts, setLinkedAccounts] = useState<any[]>([])
+  
+  // Tracks initial data loading errors so users get visible feedback
+  const [initialLoadError, setInitialLoadError] = useState<string | null>(null)
 
   // Determine account type
   const isNostrFirst = !user.privkey
   const canEditBasic = !isNostrFirst
 
-  // Fetch preferences and linked accounts
+  // Fetch preferences and linked accounts. Surfaces any failures to the UI.
   useEffect(() => {
     async function fetchData() {
+      const errors: string[] = []
+
+      // Preferences
       try {
-        // Fetch preferences
         const prefResponse = await fetch('/api/account/preferences')
         if (prefResponse.ok) {
           const prefs = await prefResponse.json()
@@ -69,19 +74,31 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
             profileSource: prefs.profileSource || 'oauth',
             primaryProvider: prefs.primaryProvider || ''
           })
+        } else {
+          const err = await prefResponse.json().catch(() => ({}))
+          errors.push(err?.error || 'Failed to load account preferences')
         }
+      } catch {
+        errors.push('Failed to load account preferences')
+      }
 
-        // Fetch linked accounts
+      // Linked accounts
+      try {
         const linkedResponse = await fetch('/api/account/linked')
         if (linkedResponse.ok) {
           const accounts = await linkedResponse.json()
           setLinkedAccounts(accounts)
+        } else {
+          const err = await linkedResponse.json().catch(() => ({}))
+          errors.push(err?.error || 'Failed to load linked accounts')
         }
-      } catch (error) {
-        console.error('Failed to fetch data:', error)
+      } catch {
+        errors.push('Failed to load linked accounts')
       }
+
+      if (errors.length > 0) setInitialLoadError(errors.join(' · '))
     }
-    
+
     fetchData()
   }, [])
 
@@ -144,8 +161,10 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
           title: 'Preferences Updated',
           description: 'Your account preferences have been saved.'
         })
-        // Refresh the page to reflect changes
-        setTimeout(() => window.location.reload(), 1500)
+        setPreferences({
+          profileSource: data.profileSource || preferences.profileSource,
+          primaryProvider: data.primaryProvider || preferences.primaryProvider
+        })
       } else {
         toast({
           title: 'Update Failed',
@@ -180,8 +199,25 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
           title: 'Sync Complete',
           description: data.message
         })
-        // Refresh the page to show new data
-        setTimeout(() => window.location.reload(), 1500)
+        try {
+          const aggregatedResponse = await fetch('/api/profile/aggregated')
+          if (aggregatedResponse.ok) {
+            const aggregated = await aggregatedResponse.json()
+            setBasicProfile(prev => ({
+              ...prev,
+              name: (aggregated?.name?.value ?? prev.name) || prev.name,
+              email: (aggregated?.email?.value ?? prev.email) || prev.email
+            }))
+            setEnhancedProfile(prev => ({
+              ...prev,
+              nip05: (aggregated?.nip05?.value ?? prev.nip05) || prev.nip05,
+              lud16: (aggregated?.lud16?.value ?? prev.lud16) || prev.lud16,
+              banner: (aggregated?.banner?.value ?? prev.banner) || prev.banner
+            }))
+          }
+        } catch (err) {
+          console.error('Failed to refresh aggregated profile after sync:', err)
+        }
       } else {
         toast({
           title: 'Sync Failed',
@@ -202,6 +238,12 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
 
   return (
     <div className="space-y-6">
+      {initialLoadError && (
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>{initialLoadError}</AlertDescription>
+        </Alert>
+      )}
       {/* Account Info */}
       <Card>
         <CardHeader>

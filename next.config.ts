@@ -114,7 +114,7 @@ const nextConfig: NextConfig = {
     // Work around snstr dist entry requiring a nested path Turbopack sometimes misses
     config.resolve.alias = {
       ...(config.resolve.alias || {}),
-      snstr: require.resolve("snstr/dist/snstr/src/index.js"),
+      snstr: require.resolve("snstr/dist/src/index.js"),
     };
 
     return config;

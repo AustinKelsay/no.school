@@ -8,11 +8,14 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
-
-const PreferencesSchema = z.object({
-  profileSource: z.enum(['nostr', 'oauth']).optional(),
-  primaryProvider: z.string().optional()
-})
+import {
+  PreferencesSchema,
+  PreferencesResponse,
+  PreferencesSuccessResponse,
+  PreferencesErrorResponse,
+  buildPreferencesUpdate,
+  type PreferencesUpdate
+} from '@/types/account-preferences'
 
 export async function GET() {
   try {
@@ -33,16 +36,18 @@ export async function GET() {
       }
     })
     
-    return NextResponse.json({
+    const response: PreferencesResponse = {
       profileSource: user?.profileSource || 'oauth',
       primaryProvider: user?.primaryProvider || session.provider || 'email'
-    })
+    }
+    
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Failed to fetch preferences:', error)
-    return NextResponse.json(
-      { error: 'Failed to fetch preferences' },
-      { status: 500 }
-    )
+    const errorResponse: PreferencesErrorResponse = {
+      error: 'Failed to fetch preferences'
+    }
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }
 
@@ -76,9 +81,16 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    const updates: any = {}
-    if (data.profileSource !== undefined) updates.profileSource = data.profileSource
-    if (data.primaryProvider !== undefined) updates.primaryProvider = data.primaryProvider
+    // Build updates object with proper typing and validation
+    const updates = buildPreferencesUpdate(data)
+    
+    // Ensure we have at least one update
+    if (Object.keys(updates).length === 0) {
+      return NextResponse.json(
+        { error: 'No valid updates provided' },
+        { status: 400 }
+      )
+    }
     
     const user = await prisma.user.update({
       where: { id: session.user.id },
@@ -89,16 +101,36 @@ export async function POST(request: NextRequest) {
       }
     })
     
-    return NextResponse.json({
+    const response: PreferencesSuccessResponse = {
       success: true,
       profileSource: user.profileSource,
       primaryProvider: user.primaryProvider
-    })
+    }
+    
+    return NextResponse.json(response)
   } catch (error) {
     console.error('Failed to update preferences:', error)
-    return NextResponse.json(
-      { error: 'Failed to update preferences' },
-      { status: 500 }
-    )
+    
+    // Handle Zod validation errors
+    if (error instanceof z.ZodError) {
+      const errorResponse: PreferencesErrorResponse = {
+        error: 'Invalid request data',
+        details: error.issues
+      }
+      return NextResponse.json(errorResponse, { status: 400 })
+    }
+    
+    // Handle Prisma errors
+    if (error instanceof Error && error.message.includes('P2025')) {
+      const errorResponse: PreferencesErrorResponse = {
+        error: 'User not found'
+      }
+      return NextResponse.json(errorResponse, { status: 404 })
+    }
+    
+    const errorResponse: PreferencesErrorResponse = {
+      error: 'Failed to update preferences'
+    }
+    return NextResponse.json(errorResponse, { status: 500 })
   }
 }

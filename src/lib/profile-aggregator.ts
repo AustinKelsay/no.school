@@ -14,6 +14,8 @@ export interface LinkedAccountData {
   data: Record<string, any>
   isConnected: boolean
   isPrimary: boolean
+  // Alternative values for fields present on this account, stored separately from `data`
+  alternatives?: Record<string, { value: any; source: string }>
 }
 
 export interface AggregatedProfile {
@@ -50,36 +52,147 @@ export interface AggregatedProfile {
  * Fetch GitHub profile data using access token
  */
 async function fetchGitHubProfile(accessToken: string): Promise<Record<string, any>> {
-  try {
-    const response = await fetch('https://api.github.com/user', {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Accept': 'application/json'
+  const url = 'https://api.github.com/user'
+  const maxAttempts = 3
+  const baseDelayMs = 500
+  const maxDelayMs = 4000
+  const perAttemptTimeoutMs = 10000
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const attemptLabel = `${attempt}/${maxAttempts}`
+    try {
+      const response = await fetchWithTimeout(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Accept': 'application/json'
+        }
+      }, perAttemptTimeoutMs)
+
+      // Handle rate limit explicitly
+      if (response.status === 429) {
+        if (attempt === maxAttempts) {
+          const bodyText = await safeReadBodyText(response)
+          console.error(`[GitHubProfile] Final rate-limit (429) failure on attempt ${attemptLabel}. body=${truncateForLog(bodyText)}`)
+          return {}
+        }
+        const retryAfterHeader = response.headers.get('Retry-After')
+        const retryAfterMs = parseRetryAfterHeader(retryAfterHeader) ?? calculateExponentialBackoffDelay(attempt, baseDelayMs, maxDelayMs)
+        console.warn(`[GitHubProfile] Received 429. attempt=${attemptLabel} retryAfterMs=${retryAfterMs}`)
+        await sleep(retryAfterMs)
+        continue
       }
-    })
-    
-    if (!response.ok) {
-      console.error('Failed to fetch GitHub profile:', response.status)
+
+      // Retry on transient server errors
+      if (response.status >= 500 && response.status <= 599) {
+        if (attempt < maxAttempts) {
+          const delayMs = calculateExponentialBackoffDelay(attempt, baseDelayMs, maxDelayMs)
+          console.warn(`[GitHubProfile] Transient 5xx (${response.status}). attempt=${attemptLabel} retrying in ${delayMs}ms`)
+          await sleep(delayMs)
+          continue
+        }
+        const bodyText = await safeReadBodyText(response)
+        console.error(`[GitHubProfile] Final 5xx failure after ${attemptLabel}. status=${response.status} body=${truncateForLog(bodyText)}`)
+        return {}
+      }
+
+      // Non-retriable failures (4xx other than 429)
+      if (!response.ok) {
+        const bodyText = await safeReadBodyText(response)
+        console.error(`[GitHubProfile] Non-retriable response. status=${response.status} attempt=${attemptLabel} body=${truncateForLog(bodyText)}`)
+        return {}
+      }
+
+      const data = await response.json()
+      return {
+        name: data.name,
+        email: data.email,
+        username: data.login,
+        image: data.avatar_url,
+        about: data.bio,
+        website: data.blog,
+        location: data.location,
+        company: data.company,
+        twitter: data.twitter_username,
+        github: data.login
+      }
+    } catch (error: any) {
+      const isAbort = error?.name === 'AbortError'
+      if (attempt < maxAttempts) {
+        const delayMs = calculateExponentialBackoffDelay(attempt, baseDelayMs, maxDelayMs)
+        console.warn(`[GitHubProfile] ${isAbort ? 'Timeout' : 'Network'} error on attempt ${attemptLabel}. Retrying in ${delayMs}ms`, error)
+        await sleep(delayMs)
+        continue
+      }
+      console.error(`[GitHubProfile] Final failure after ${maxAttempts} attempts.`, error)
       return {}
     }
-    
-    const data = await response.json()
-    return {
-      name: data.name,
-      email: data.email,
-      username: data.login,
-      image: data.avatar_url,
-      about: data.bio,
-      website: data.blog,
-      location: data.location,
-      company: data.company,
-      twitter: data.twitter_username,
-      github: data.login
-    }
-  } catch (error) {
-    console.error('Error fetching GitHub profile:', error)
-    return {}
   }
+
+  // Fallback – should not be reached
+  return {}
+}
+
+/**
+ * Delay the current async flow for the specified number of milliseconds.
+ */
+function sleep(milliseconds: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, milliseconds))
+}
+
+/**
+ * Compute exponential backoff with jitter (bounded).
+ */
+function calculateExponentialBackoffDelay(attempt: number, baseDelayMs: number, maxDelayMs: number): number {
+  const exp = Math.min(maxDelayMs, baseDelayMs * Math.pow(2, attempt - 1))
+  const jitterPortion = Math.random() * (exp * 0.3)
+  return Math.floor(exp + jitterPortion)
+}
+
+/**
+ * Parse Retry-After header to milliseconds. Supports seconds or HTTP-date.
+ */
+function parseRetryAfterHeader(headerValue: string | null): number | null {
+  if (!headerValue) return null
+  const seconds = Number(headerValue)
+  if (!Number.isNaN(seconds) && Number.isFinite(seconds)) return Math.max(0, Math.floor(seconds * 1000))
+  const dateMs = Date.parse(headerValue)
+  if (!Number.isNaN(dateMs)) return Math.max(0, dateMs - Date.now())
+  return null
+}
+
+/**
+ * Fetch with an AbortController-based timeout.
+ */
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number): Promise<Response> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal })
+    return response
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+/**
+ * Read response body safely as text for logging without throwing.
+ */
+async function safeReadBodyText(response: Response): Promise<string> {
+  try {
+    return await response.text()
+  } catch {
+    return ''
+  }
+}
+
+/**
+ * Truncate long strings for concise logs.
+ */
+function truncateForLog(text: string, maxLength: number = 1000): string {
+  if (!text) return ''
+  if (text.length <= maxLength) return text
+  return `${text.slice(0, maxLength)}…[truncated]`
 }
 
 /**
@@ -240,11 +353,9 @@ export async function getAggregatedProfile(userId: string): Promise<AggregatedPr
     // Add alternative values to the data structure
     for (const [key, value] of Object.entries(account.data)) {
       if (value && aggregated[key as keyof AggregatedProfile]) {
-        // Store alternative sources in the account data
-        if (!account.data._alternatives) {
-          account.data._alternatives = {}
-        }
-        account.data._alternatives[key] = { value, source }
+        // Store alternative sources without mutating the raw account data
+        if (!account.alternatives) account.alternatives = {}
+        account.alternatives[key] = { value, source }
       }
     }
   }
