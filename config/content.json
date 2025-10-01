@@ -1,6 +1,7 @@
 {
   "_comments": {
     "_overview": "Content configuration system - controls how content is displayed across the application, particularly homepage sections and content filtering",
+    "_runtime_usage": "Loaded by src/lib/content-config.ts and src/hooks/useContentConfig.ts; JSON must remain valid. Keys should match defined unions: sections ∈ {courses, documents, videos}; price filters ∈ {all, free, paid}; sort ∈ {newest, oldest, price-low, price-high, popular}.",
     "homepage": "Homepage content section configuration - controls which content types appear, their order, filtering, and display settings",
     "homepage.sections": "Configuration for each content type section (courses, documents, videos) on the homepage",
     "homepage.sections.enabled": "Boolean to show/hide the entire section on homepage. If false, section is completely removed.",
@@ -8,9 +9,9 @@
     "homepage.sections.description": "Section description text displayed below the title",
     "homepage.sections.filters": "Content filtering configuration to control what items appear in the section",
     "homepage.sections.filters.priceFilter": "Filter by price: 'all' (free + paid), 'free' (only free content), 'paid' (only premium content)",
-    "homepage.sections.filters.categories": "Array of category strings to filter by. Empty array [] shows all categories.",
-    "homepage.sections.filters.maxItems": "Maximum number of items to display in the section carousel. Prevents overly long carousels.",
-    "homepage.sections.filters.sortBy": "Sort order: 'newest' (creation date desc), 'oldest' (creation date asc), 'price-low', 'price-high', 'popular' (engagement metrics)",
+    "homepage.sections.filters.categories": "Array of category strings to filter by. Must match entries in global.categories; empty [] shows all.",
+    "homepage.sections.filters.maxItems": "Maximum number of items to display in the section carousel (positive integer).",
+    "homepage.sections.filters.sortBy": "Sort order: 'newest' (creation date desc), 'oldest' (creation date asc), 'price-low', 'price-high', 'popular' (enrollments+views)",
     "homepage.sections.carousel": "Responsive carousel display configuration for the content section",
     "homepage.sections.carousel.itemsPerView": "Number of items visible at each screen size breakpoint",
     "homepage.sections.carousel.itemsPerView.mobile": "Items visible on mobile screens (< 768px)",
@@ -18,18 +19,18 @@
     "homepage.sections.carousel.itemsPerView.desktop": "Items visible on desktop screens (> 1024px)",
     "homepage.sections.carousel.autoplay": "Boolean - whether carousel automatically advances to next item",
     "homepage.sections.carousel.loop": "Boolean - whether carousel loops back to beginning when reaching the end",
-    "homepage.sectionOrder": "Array defining the order sections appear on homepage. Only enabled sections will be rendered.",
+    "homepage.sectionOrder": "Array defining the order sections appear on homepage. Only enabled sections will be rendered; unrecognized keys are ignored.",
     "contentPage": "Content library page configuration - controls filtering, pagination, and search features",
     "contentPage.filters": "Content page filtering and display options",
-    "contentPage.filters.defaultView": "Default view mode: 'grid' (card layout) or 'list' (row layout)",
-    "contentPage.filters.itemsPerPage": "Number of items to show per page for pagination",
+    "contentPage.filters.defaultView": "Default view mode: 'grid' (card layout) or 'list' (row layout).",
+    "contentPage.filters.itemsPerPage": "Number of items to show per page for pagination (positive integer).",
     "contentPage.filters.enableSearch": "Boolean - show/hide search input for filtering content by title/description",
     "contentPage.filters.enableFilters": "Boolean - show/hide category and price filter controls",
     "contentPage.filters.enableSorting": "Boolean - show/hide sort dropdown for ordering results",
     "global": "Global configuration shared across the application",
-    "global.categories": "Master list of available content categories. Must match database category values.",
+    "global.categories": "Master list of available content categories (strings). Must match content item 'category' values.",
     "global.priceFilterOptions": "Labels for price filter dropdown options. Keys must be 'all', 'free', 'paid'.",
-    "global.sortOptions": "Labels for sort dropdown options. Keys must match valid sort values."
+    "global.sortOptions": "Labels for sort dropdown options. Keys must be 'newest', 'oldest', 'price-low', 'price-high', 'popular'."
   },
   "homepage": {
     "sections": {

@@ -10,18 +10,19 @@
     "darkMode": null
   },
   "_comments": {
-    "_overview": "Theme configuration system - controls theme UI controls visibility and default values for branded deployments",
-    "ui": "UI control visibility settings - determines which theme controls appear in the application header",
-    "ui.showThemeSelector": "Show/hide the theme selector dropdown in header. Controls access to 47+ available color themes (cosmic-night, elegant-luxury, etc.)",
-    "ui.showFontToggle": "Show/hide the font selection menu in header. Controls access to 24+ available fonts (Inter, Poppins, etc.)",
-    "ui.showThemeToggle": "Show/hide the dark/light mode toggle button in header. Controls manual dark mode switching.",
-    "defaults": "Default/forced theme values - overrides user preferences for branded deployments",
-    "defaults.theme": "Force a specific color theme (e.g., 'cosmic-night', 'elegant-luxury'). null = user choice via localStorage. When set, users cannot change theme.",
-    "defaults.font": "Force a specific font (e.g., 'inter', 'poppins'). null = theme default or user preference. When set, users cannot change font.",
-    "defaults.darkMode": "Force dark/light mode. true=always dark, false=always light, null=system preference or user choice. When set, users cannot toggle mode.",
-    "_priority": "Configuration priority: forced defaults (highest) > user localStorage > system defaults (lowest)",
-    "_validation": "All configured values are validated against available themes/fonts. Invalid values fall back to defaults with error logging.",
-    "_usage": "Used by ThemeProvider, Header component, and theme context to control theme system behavior across the application."
+    "_overview": "Theme configuration system — controls visibility of theme controls and default selections for color theme, font, and dark mode.",
+    "_runtime_usage": "Consumed by src/lib/theme-ui-config.ts, src/components/configured-theme-provider.tsx, and src/contexts/theme-context.tsx. JSON must remain valid; this _comments block documents keys without affecting runtime.",
+    "ui": "UI control visibility — determines which theme controls appear in the header.",
+    "ui.showThemeSelector": "Show/hide theme selector (list of complete themes defined in lib/theme-config.ts#completeThemes). When hidden, users cannot change the color theme.",
+    "ui.showFontToggle": "Show/hide font selector (values from lib/theme-config.ts#availableFonts). When hidden, users cannot change the font.",
+    "ui.showThemeToggle": "Show/hide light/dark mode toggle (next-themes). When hidden, users cannot manually switch light/dark.",
+    "defaults": "Default selections — set initial theme/font/darkMode for branded deployments. These act as defaults; to lock them, hide the corresponding toggles in ui.*.",
+    "defaults.theme": "Default complete theme (e.g., 'cosmic-night', 'elegant-luxury'). null = use saved user choice (localStorage) or library default. Does NOT lock selection by itself — hide selector to lock.",
+    "defaults.font": "Default font (e.g., 'inter', 'poppins'). null = use saved user choice or theme default. Does NOT lock selection by itself — hide font toggle to lock.",
+    "defaults.darkMode": "Default light/dark preference. true = start dark, false = start light, null = 'system'. Does NOT lock selection by itself — hide theme toggle to lock.",
+    "_priority": "Priority: user localStorage (if present) > defaults.* (theme/font/darkMode) > library/system defaults.",
+    "_validation": "defaults.theme must exist in completeThemes; defaults.font must exist in availableFonts. See src/lib/theme-ui-config.ts validation helpers.",
+    "_usage": "Used by ThemeProvider (darkMode default), Header/ThemeSelector (visibility), and ThemeColorProvider (initial theme/font and persistence)."
   },
   "_examples": {
     "hideAllToggles": {

@@ -4,7 +4,7 @@ import React, { useEffect, useRef } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { MessageCircle } from 'lucide-react'
 import { encodeAddress } from 'snstr'
-import { DEFAULT_RELAYS } from '@/contexts/snstr-context'
+import { getRelays } from '@/lib/nostr-relays'
 
 interface ZapThreadsProps {
   /**
@@ -81,7 +81,7 @@ export function createNaddrAnchor(options: {
       identifier: options.identifier,
       pubkey: options.pubkey,
       kind: options.kind,
-      relays: options.relays || DEFAULT_RELAYS
+      relays: options.relays || getRelays('zapThreads')
     })
   } catch (error) {
     console.error('Error creating naddr anchor:', error)
@@ -95,7 +95,7 @@ export function ZapThreads({
   eventDetails,
   author,
   user,
-  relays = DEFAULT_RELAYS.join(','),
+  relays = getRelays('zapThreads').join(','),
   disable = 'likes,zaps',
   title = 'Comments & Discussion',
   showCard = true

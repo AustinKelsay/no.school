@@ -29,7 +29,7 @@ import {
   Tag
 } from 'lucide-react'
 import type { NostrEvent } from 'snstr'
-import { DEFAULT_RELAYS } from '@/contexts/snstr-context'
+import { getRelays } from '@/lib/nostr-relays'
 
 interface ResourcePageProps {
   params: Promise<{
@@ -454,7 +454,7 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                 identifier: resourceId,
                 pubkey: event.pubkey,
                 kind: event.kind,
-                relays: DEFAULT_RELAYS
+                relays: getRelays('default')
               }}
               title="Comments"
             />

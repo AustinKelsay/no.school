@@ -13,6 +13,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { RelayPool, type NostrEvent } from 'snstr'
+import { DEFAULT_RELAYS, getRelays } from './nostr-relays'
 import { 
   createResourceEvent, 
   createCourseEvent,
@@ -22,12 +23,7 @@ import {
 import { DraftService, CourseDraftService, DraftLessonService } from '@/lib/draft-service'
 import type { Resource, Course, Lesson } from '@prisma/client'
 
-// Default relays for publishing
-const DEFAULT_RELAYS = [
-  'wss://relay.nostr.band',
-  'wss://nos.lol',
-  'wss://relay.damus.io'
-]
+// Default relays for publishing are loaded from config via DEFAULT_RELAYS
 
 /**
  * Publishing result types
@@ -119,7 +115,7 @@ export class PublishService {
       }
 
       // Publish to relays
-      const relayPool = new RelayPool(relays)
+      const relayPool = new RelayPool(relays && relays.length ? relays : getRelays('default'))
       const publishPromises = relayPool.publish(relays, event)
       const publishResults = await Promise.allSettled(publishPromises)
       
@@ -282,7 +278,7 @@ export class PublishService {
       }
 
       // Publish course event to relays
-      const relayPool = new RelayPool(relays)
+      const relayPool = new RelayPool(relays && relays.length ? relays : getRelays('default'))
       const publishPromises = relayPool.publish(relays, courseEvent)
       const publishResults = await Promise.allSettled(publishPromises)
       

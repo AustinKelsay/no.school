@@ -10,6 +10,11 @@
       "wss://purplerelay.com",
       "wss://nostr.wine"
     ],
+    "zapThreads": [
+      "wss://relay.nostr.band",
+      "wss://nos.lol",
+      "wss://relay.damus.io"
+    ],
     "custom": []
   },
   "eventTypes": {
@@ -74,24 +79,25 @@
   },
   "_comments": {
     "_overview": "Nostr protocol configuration - controls relay usage, event types, and publishing defaults",
+    "_runtime_usage": "Used primarily by src/contexts/snstr-context.tsx to seed RelayPool (DEFAULT_RELAYS = relays.default). Do not add empty arrays for 'content'/'profile'/'zapThreads' unless you also populate them — an empty array would result in zero active relays. Current fetch/publish services have their own internal relay defaults; align them in future to use this config.",
     "relays": "Relay configuration for different use cases",
     "relays.default": "Default relays used for general event publishing and fetching. These should be reliable, well-connected relays.",
-    "relays.content": "Relays specifically for content events (courses, resources). Often a subset of default relays for better performance.",
-    "relays.profile": "Relays optimized for user profile data. May include specialized profile aggregators like purplepag.es.",
-    "relays.zapThreads": "Relays used by the zapthreads widget for Lightning comments and zaps. Should match zapthreads configuration.",
-    "relays.custom": "User-defined custom relays that can be added dynamically. Empty by default.",
+    "relays.content": "(Optional) Relays specifically for content events (courses, resources). If omitted, we fall back to 'default'.",
+    "relays.profile": "(Optional) Relays optimized for user profile data (kind 0). If omitted, falls back to 'default'.",
+    "relays.zapThreads": "(Optional) Relays used by the zapthreads widget for Lightning comments and zaps. If omitted, falls back to 'default'.",
+    "relays.custom": "User-defined additional relays. Not loaded automatically; wire in UI or provider if needed.",
     "eventTypes": "Nostr event type definitions and their NIPs",
     "eventTypes.courseList": "NIP-51 list events for course curation (kind 30004)",
     "eventTypes.freeContent": "NIP-23 long-form content for free educational resources",
     "eventTypes.paidContent": "NIP-99 paid content events for premium resources",
     "eventTypes.userProfile": "NIP-01 user metadata events (kind 0)",
     "eventTypes.contactList": "NIP-02 contact list and relay configuration (kind 3)",
-    "publishingDefaults": "Default settings for publishing Nostr events",
+    "publishingDefaults": "Default settings for publishing Nostr events (advisory; not yet wired in publish-service)",
     "publishingDefaults.tags": "Default tags added to all published events",
     "publishingDefaults.tags.includeClientTag": "Add client identification tag to events",
     "publishingDefaults.timeout": "Event publishing timeout in milliseconds",
     "publishingDefaults.retryAttempts": "Number of retry attempts for failed publishes",
-    "features": "Nostr integration feature toggles",
+    "features": "Nostr integration feature toggles (advisory; snstr-context handles only the relay pool setup — other toggles require explicit wiring)",
     "features.enableRealtimeSync": "Enable real-time synchronization of events from relays",
     "features.cacheProfiles": "Cache user profiles locally to reduce relay queries",
     "features.cacheEventsDuration": "How long to cache events in seconds (5 minutes default)",

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { PublishService, type PublishCourseResult } from '@/lib/publish-service'
 import { z } from 'zod'
+import { getRelays } from '@/lib/nostr-relays'
 import { prisma } from '@/lib/prisma'
 import type { NostrEvent } from 'snstr'
 
@@ -27,7 +28,9 @@ const publishSchema = z.object({
     tags: z.array(z.array(z.string())),
     content: z.string(),
     sig: z.string()
-  })).optional()
+  })).optional(),
+  relays: z.array(z.string()).optional(),
+  relaySet: z.enum(['default','content','profile','zapThreads']).optional()
 })
 
 const paramsSchema = z.object({
@@ -77,7 +80,7 @@ export async function POST(
       )
     }
 
-    const { privkey, signedEvent, relays, publishedLessonEvents } = validationResult.data
+    const { privkey, signedEvent, relays, relaySet, publishedLessonEvents } = validationResult.data
 
     // If a signed event is provided (NIP-07 flow), handle it differently
     if (signedEvent) {
@@ -234,7 +237,7 @@ export async function POST(
       courseDraftId,
       session.user.id,
       privkey,
-      relays
+      relays && relays.length ? relays : getRelays(relaySet || 'default')
     )
 
     return NextResponse.json({

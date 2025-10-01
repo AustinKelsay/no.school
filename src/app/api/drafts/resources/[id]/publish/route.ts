@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { PublishService, type PublishResourceResult } from '@/lib/publish-service'
 import { z } from 'zod'
+import { getRelays } from '@/lib/nostr-relays'
 import { prisma } from '@/lib/prisma'
 import type { NostrEvent } from 'snstr'
 
@@ -18,7 +19,8 @@ const publishSchema = z.object({
     content: z.string(),
     sig: z.string()
   }).optional(),
-  relays: z.array(z.string()).optional()
+  relays: z.array(z.string()).optional(),
+  relaySet: z.enum(['default','content','profile','zapThreads']).optional()
 })
 
 const paramsSchema = z.object({
@@ -68,7 +70,7 @@ export async function POST(
       )
     }
 
-    const { privkey, signedEvent, relays } = validationResult.data
+    const { privkey, signedEvent, relays, relaySet } = validationResult.data
 
     // If a signed event is provided (NIP-07 flow), handle it differently
     if (signedEvent) {
@@ -160,7 +162,7 @@ export async function POST(
       draftId,
       session.user.id,
       privkey,
-      relays
+      relays && relays.length ? relays : getRelays(relaySet || 'default')
     )
 
     return NextResponse.json({

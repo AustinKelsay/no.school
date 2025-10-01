@@ -1,85 +1,85 @@
 # Configuration Files
 
-This directory contains JSON configuration files that control various aspects of the PlebDevs platform behavior and appearance.
+Configuration JSON files that control behavior, appearance, and integrations. Each file contains a `_comments` section with inline documentation (keeps JSON valid — no `//` comments).
+
+Tip: These files are bundled client-side. Never put secrets here; use environment variables for secrets.
 
 ## Files Overview
 
-### 🔐 `auth.json` - Authentication Configuration
-Controls authentication providers, security settings, and UI text for the signin system.
+### 🔐 `auth.json` — Authentication
+Providers (email, GitHub, Nostr, anonymous, recovery), session/redirect settings, UI toggles, and signin copy.
 
-**Key sections:**
-- `providers` - Enable/disable authentication methods (email, GitHub, Nostr, anonymous, recovery)
-- `security` - Session management, redirects, and access control
-- `features` - UI toggles for signin page layout and components
-- `copy` - All user-facing text and error messages
+- Providers
+  - `email.enabled` toggles magic links; uses Nodemailer envs: `EMAIL_SERVER_HOST`, `EMAIL_SERVER_PORT`, `EMAIL_SERVER_USER`, `EMAIL_SERVER_PASSWORD`, `EMAIL_SERVER_SECURE`, `EMAIL_FROM`.
+  - `github.enabled` toggles OAuth; set `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`. For linking, create a second OAuth app and set `GITHUB_LINK_CLIENT_ID`/`GITHUB_LINK_CLIENT_SECRET` with callback `/api/account/oauth-callback`.
+  - `nostr.enabled` toggles NIP‑07 extension login; `autoCreateUser` controls first‑sign‑in account creation.
+  - `anonymous.enabled` allows ephemeral, platform‑custodied keys. (We no longer auto‑fill lud16/nip05.)
+  - `recovery.enabled` enables private‑key recovery (hex or nsec).
+- Security/pages/features/copy: control redirects, page routes, UX toggles, and all signin text.
 
-**Example:** Enable only GitHub and Nostr authentication:
+Example (GitHub+Nostr only):
 ```json
-{
-  "providers": {
-    "email": { "enabled": false },
-    "github": { "enabled": true },
-    "nostr": { "enabled": true }
-  }
-}
+{ "providers": { "email": { "enabled": false }, "github": { "enabled": true }, "nostr": { "enabled": true } } }
 ```
 
-### 🎨 `theme.json` - Theme & Font Configuration
-Controls theme selector visibility and default values for the 47-theme system.
+### 🎨 `theme.json` — Theme & Font
+Header control visibility and defaults for color theme, font, and dark mode.
 
-**Key sections:**
-- `ui` - Show/hide theme controls in header
-- `defaults` - Force specific theme, font, or dark mode
+- `ui.showThemeSelector|showFontToggle|showThemeToggle` hide or show controls.
+- `defaults.theme|font|darkMode` set initial selections (not hard locks). To lock, hide the corresponding control.
+- Priority: user localStorage (if present) > defaults.* > library/system defaults.
 
-**Example:** Force dark mode with clean-slate theme:
+Example (dark + clean‑slate):
 ```json
-{
-  "defaults": {
-    "theme": "clean-slate",
-    "darkMode": true
-  }
-}
+{ "defaults": { "theme": "clean-slate", "darkMode": true } }
 ```
 
-### 📝 `content.json` - Content Management
-Configuration for content discovery, search, and display preferences.
+### 📝 `content.json` — Content Display
+Homepage sections (courses, videos, documents), filters (price/category/sort), pagination and search options, and global labels (categories, sort/price labels).
 
-### 🔤 `copy.json` - Site Copy & Text
-Centralized text content for marketing pages, landing sections, and general site copy.
+### 🔤 `copy.json` — Site Copy & Text
+All user‑facing strings for navigation, homepage, content pages, error/empty states, cards, and lessons.
 
-## Configuration Priority
+### ⚡ `nostr.json` — Nostr Relays & NIPs
+Relay sets and event type mapping. The app now reads relays from this file everywhere.
 
-1. **JSON config files** (highest priority)
-2. **User localStorage** (saved preferences)
-3. **System defaults** (fallback)
+- Relay sets: `default`, `content` (optional), `profile` (optional), `zapThreads` (new), `custom`.
+- Runtime: `src/lib/nostr-relays.ts` provides `getRelays(set)` and `DEFAULT_RELAYS`.
+- Fetch/publish services aligned to config; API publish routes accept `relaySet`.
+- ZapThreads widget uses the `zapThreads` set by default.
+
+### 🛡️ `admin.json` — Admin & Moderator
+Pubkey lists (npub or hex) and permission flags. `features.*` are advisory until wired; admin-utils reads admins/moderators and normalizes keys.
+
+## Priority & Overrides
+
+- Auth: config is authoritative for which providers/UI are visible.
+- Theme: localStorage > defaults.* > system (see theme.json comments).
+- Nostr: explicit `relays[]` in API calls override; otherwise `relaySet` → config; otherwise falls back to `default`.
 
 ## Usage in Code
 
-Configurations are imported and used throughout the application:
-
-```typescript
-// Authentication config
+```ts
+// Config imports
 import authConfig from '../config/auth.json'
-
-// Theme config
 import themeConfig from '../config/theme.json'
+import contentConfig from '../config/content.json'
+import copyConfig from '../config/copy.json'
+import { getRelays, DEFAULT_RELAYS } from '@/lib/nostr-relays'
 
-// Access provider settings
+// Examples
 const emailEnabled = authConfig.providers.email.enabled
-
-// Check UI toggles
 const showThemeSelector = themeConfig.ui.showThemeSelector
+const relays = getRelays('default') // from config/nostr.json
 ```
 
-## Environment-Specific Configs
+## Environment Notes
 
-For different environments, you can:
-1. Override config files during build/deploy
-2. Use environment variables where supported
-3. Implement config file switching based on `NODE_ENV`
+- Email: requires Nodemailer envs listed above.
+- GitHub: one OAuth app for sign‑in (`/api/auth/callback/github`) and a second for linking (`/api/account/oauth-callback`).
+- Docker dev: Compose runs `prisma db push --accept-data-loss` on startup (development‑only convenience).
 
-## Security Notes
+## Security
 
-- Configuration files are bundled into the client-side application
-- Do not include secrets, API keys, or sensitive data
-- Server-side secrets should use environment variables instead
+- These JSON files are shipped to the client; do not store secrets here.
+- Use environment variables for credentials and secrets.

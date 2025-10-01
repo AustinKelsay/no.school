@@ -34,7 +34,7 @@ import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { useInteractions } from '@/hooks/useInteractions'
 import { encodePublicKey } from 'snstr'
 import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
-import { DEFAULT_RELAYS } from '@/contexts/snstr-context'
+import { getRelays } from '@/lib/nostr-relays'
 
 interface LessonDetailsPageProps {
   params: Promise<{
@@ -555,7 +555,7 @@ function LessonContent({
               identifier: lessonData.resource.id,
               pubkey: lessonData.resource.note.pubkey,
               kind: lessonData.resource.note.kind,
-              relays: DEFAULT_RELAYS
+              relays: getRelays('default')
             }}
             title="Comments"
           />

@@ -4,13 +4,7 @@
  */
 
 import { NostrEvent, type RelayPool } from 'snstr'
-
-// Default relays to fetch from
-const DEFAULT_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://relay.nostr.band',
-  'wss://nos.lol'
-]
+import { DEFAULT_RELAYS, getRelays } from './nostr-relays'
 
 export class NostrFetchService {
   /**
@@ -196,7 +190,7 @@ export class NostrFetchService {
       }, 5000) // 5 second timeout
       
       pool.subscribe(
-        DEFAULT_RELAYS,
+        relays && relays.length ? relays : getRelays('default'),
         [{ ids: [eventId] }],
         (event: NostrEvent) => {
           foundEvent = event
@@ -230,7 +224,7 @@ export class NostrFetchService {
       }, 5000) // 5 second timeout
       
       pool.subscribe(
-        DEFAULT_RELAYS,
+        relays && relays.length ? relays : getRelays('default'),
         [{ ids: eventIds }],
         (event: NostrEvent) => {
           events.set(event.id, event)
