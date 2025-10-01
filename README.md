@@ -139,6 +139,14 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to view the application.
 
+### **Auth Setup**
+
+- GitHub (Sign‑in): set your OAuth App Authorization callback URL to `http://localhost:3000/api/auth/callback/github` and set `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`.
+- GitHub (Account Linking): create a second OAuth App with callback `http://localhost:3000/api/account/oauth-callback` and set `GITHUB_LINK_CLIENT_ID`/`GITHUB_LINK_CLIENT_SECRET`.
+- Email (Verification): provide Nodemailer envs — `EMAIL_SERVER_HOST`, `EMAIL_SERVER_PORT`, `EMAIL_SERVER_USER`, `EMAIL_SERVER_PASSWORD`, `EMAIL_SERVER_SECURE`, and `EMAIL_FROM` — used for the secure `/verify-email` code flow.
+
+Note: In development, Docker Compose runs `prisma db push --accept-data-loss` on startup to apply schema changes quickly.
+
 ### **Build & Deploy**
 
 ```bash
@@ -698,7 +706,14 @@ const authOptions = {
   providers: [
     // 🟠 OAUTH-FIRST: Email Magic Links (User may not know about Nostr)
     EmailProvider({
-      server: process.env.EMAIL_SERVER,
+      server: {
+        host: process.env.EMAIL_SERVER_HOST,
+        port: parseInt(process.env.EMAIL_SERVER_PORT || '587'),
+        auth: {
+          user: process.env.EMAIL_SERVER_USER,
+          pass: process.env.EMAIL_SERVER_PASSWORD
+        }
+      },
       from: process.env.EMAIL_FROM
       // → Gets ephemeral keypair for background Nostr functionality
       // → Email profile is source of truth, no Nostr profile sync

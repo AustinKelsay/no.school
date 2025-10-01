@@ -92,13 +92,10 @@ function generateAnonymousUserData(pubkey: string) {
   const shortPubkey = pubkey.substring(0, authConfig.providers.anonymous.usernameLength)
   const username = `${authConfig.providers.anonymous.usernamePrefix}${shortPubkey}`
   const avatar = `${authConfig.providers.anonymous.defaultAvatar}${pubkey}`
-  const nip05 = `${username}@${authConfig.providers.anonymous.defaultNip05Domain}`
   
   return {
     username,
-    avatar,
-    nip05,
-    lud16: authConfig.providers.anonymous.defaultLightning
+    avatar
   }
 }
 
@@ -462,9 +459,7 @@ if (authConfig.providers.anonymous.enabled) {
                 pubkey: keys.publicKey,
                 privkey: keys.privateKey, // Store for anonymous accounts
                 username: userData.username,
-                avatar: userData.avatar,
-                nip05: userData.nip05,
-                lud16: userData.lud16,
+                avatar: userData.avatar
               }
             })
             console.log('Created new anonymous user:', user.id)

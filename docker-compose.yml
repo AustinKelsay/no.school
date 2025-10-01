@@ -42,7 +42,7 @@ services:
       sh -c "
         chmod +x /app/wait-for-db.sh &&
         /app/wait-for-db.sh db 5432 &&
-        npx prisma db push &&
+        npx prisma db push --accept-data-loss &&
         npx prisma generate &&
         npm run dev
       "
