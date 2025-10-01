@@ -128,27 +128,19 @@ Returns all linked accounts for the current user.
 
 **Response**: `200 OK`
 ```json
-[
-  {
-    "provider": "github",
-    "providerAccountId": "123456",
-    "linkedAt": "2024-01-15T10:30:00Z",
-    "isActive": true
-  },
-  {
-    "provider": "nostr",
-    "providerAccountId": "02a1...",
-    "linkedAt": "2024-01-16T14:20:00Z",
-    "isActive": true
-  },
-  {
-    "provider": "email",
-    "providerAccountId": "john@example.com",
-    "linkedAt": "2024-01-17T09:15:00Z",
-    "isActive": true
-  }
-]
+{
+  "accounts": [
+    { "provider": "github", "isPrimary": true,  "createdAt": "2025-01-01T00:00:00.000Z" },
+    { "provider": "nostr",  "isPrimary": false, "createdAt": "2025-01-01T00:00:00.000Z" }
+  ],
+  "primaryProvider": "github",
+  "profileSource": "oauth"
+}
 ```
+
+Notes:
+- Provider identifiers are not included here. For `providerAccountId` values, see `/api/profile/aggregated`.
+- `createdAt` is the timestamp when the provider was linked.
 
 ### POST /api/account/link
 
@@ -182,7 +174,7 @@ Links a new account to the current user.
 - `409 Conflict` - Account already linked to another user
 - `401 Unauthorized` - No valid session
 
-### DELETE /api/account/unlink
+### POST /api/account/unlink
 
 Unlinks an account from the current user.
 
@@ -204,8 +196,7 @@ Unlinks an account from the current user.
 ```
 
 **Error Responses**:
-- `400 Bad Request` - Cannot unlink primary provider
-- `404 Not Found` - Account not linked
+- `400 Bad Request` - Cannot unlink your last authentication method or account not found
 - `401 Unauthorized` - No valid session
 
 ## Account Preferences APIs
@@ -245,6 +236,26 @@ Updates user's account preferences.
   "profileSource": "nostr",
   "primaryProvider": "nostr"
 }
+```
+
+**Error Responses**:
+- `400 Bad Request` - Provider not linked to account
+- `401 Unauthorized` - No valid session
+
+### POST /api/account/primary
+
+Changes the user's primary authentication provider.
+
+**Authentication**: Required
+
+**Request Body**:
+```json
+{ "provider": "nostr" }
+```
+
+**Response**: `200 OK`
+```json
+{ "success": true, "message": "Successfully changed primary provider to nostr" }
 ```
 
 **Error Responses**:
@@ -311,7 +322,7 @@ Initiates OAuth flow for account linking.
 
 **Response**: `302 Redirect`
 - Redirects to GitHub OAuth authorization page
-- Includes encrypted state parameter for security
+- Includes a base64-encoded state parameter validated for size and JSON schema
 
 **OAuth Flow**:
 1. User redirected to GitHub
@@ -325,18 +336,20 @@ Handles OAuth callback and completes account linking.
 
 **Query Parameters**:
 - `code` - OAuth authorization code from provider
-- `state` - Encrypted state containing user info
+- `state` - Base64-encoded state JSON (validated)
 
 **Response**: `302 Redirect`
 - Success: Redirects to `/profile?tab=accounts&success=github_linked`
 - Error: Redirects to `/profile?tab=accounts&error=[error_code]`
 
 **Error Codes**:
+- `invalid_state` - State param malformed or failed validation
+- `invalid_action` - Unexpected action in state
 - `session_mismatch` - User session expired or changed
-- `already_linked` - Account already linked to another user
 - `token_exchange_failed` - Failed to get access token
 - `user_fetch_failed` - Could not retrieve provider profile
 - `linking_failed` - Database operation failed
+- String messages from linking (e.g., "This account is already linked to another user")
 
 ## Email Linking APIs
 
@@ -362,10 +375,8 @@ Sends verification email for account linking.
 ```
 
 **Email Contents**:
-- Subject: "Link your email to [Platform Name]"
-- Contains verification link valid for 30 minutes
-- **⚠️ SECURITY**: Link format uses reference ID, not token: `/verify-email?ref=[reference]`
-- **Note**: Tokens are never exposed in URLs for security reasons
+- Subject: "Verify your email to link your account"
+- Contains a link to `/verify-email?ref=...` and a 6-digit code valid for 60 minutes
 
 **Error Responses**:
 - `400 Bad Request` - Invalid email format
@@ -373,60 +384,27 @@ Sends verification email for account linking.
 - `401 Unauthorized` - No valid session
 - `500 Internal Server Error` - Failed to send email
 
-### GET /api/account/verify-email-link
+### POST /api/account/verify-email
 
-**⚠️ DEPRECATED**: This endpoint exposes tokens in URLs and should not be used in production.
+Completes email linking by verifying a short code (token) with a lookup reference.
 
-**Recommended Approach**: Use `/verify-email` page with POST requests instead.
-
-**Query Parameters**:
-- `token` - Verification token from email (⚠️ SECURITY RISK)
-- `email` - Email address to link
-
-**Response**: `302 Redirect`
-- Success: Redirects to `/profile?tab=accounts&success=email_linked`
-- Error: Redirects to `/profile?tab=accounts&error=[error_code]`
-
-**Verification Process**:
-1. Token validated against database
-2. Check token not expired (30 minutes TTL)
-3. Link email to user account
-4. Delete token (one-time use)
-
-**Error Codes**:
-- `invalid_token` - Token not found or invalid
-- `token_expired` - Token older than 30 minutes
-- `already_linked` - Email already linked
-
-**Security Considerations**:
-- Tokens in URLs can be logged in server logs and browser history
-- Use verification page with POST requests instead
-- Implement proper CSRF protection
-- Ensure tokens are single-use and short-lived
-
-### POST /verify-email (Recommended)
-
-**Secure verification page that handles tokens in request body.**
-
-**Query Parameters**:
-- `ref` - Reference identifier (not the actual token)
-
-**Request Body** (JSON):
+**Request Body**:
 ```json
-{
-  "token": "verification_token_here"
-}
+{ "ref": "<lookupId>", "token": "123456" }
 ```
 
-**Response**: `302 Redirect`
-- Success: Redirects to `/profile?tab=accounts&success=email_linked`
-- Error: Redirects to `/verify-email?error=[error_code]`
+**Response**: `200 OK`
+```json
+{ "success": true }
+```
 
-**Security Benefits**:
-- Tokens never appear in URLs or server logs
-- CSRF protection can be implemented
-- Better user experience with proper error handling
-- Tokens can be validated server-side before processing
+**Error Responses**:
+- `400 Bad Request` with `error` set to `invalid_token`, `token_expired`, `token_mismatch`, or `invalid_token_format`
+- `500 Internal Server Error` with `error` set to `verification_error`
+
+### GET /verify-email (Page)
+
+Renders a form to submit the 6-digit code. On success, redirects to `/profile?tab=accounts&success=email_linked`.
 
 ## Server Actions
 
@@ -576,8 +554,12 @@ DATABASE_URL=postgresql://user:pass@host:5432/dbname
 NEXTAUTH_URL=http://localhost:3000
 NEXTAUTH_SECRET=your-secret-key-min-32-chars
 
-# Email (for verification)
-EMAIL_SERVER=smtp://user:pass@smtp.example.com:587
+# Email (for verification via Nodemailer)
+EMAIL_SERVER_HOST=smtp.example.com
+EMAIL_SERVER_PORT=587
+EMAIL_SERVER_USER=user
+EMAIL_SERVER_PASSWORD=pass
+EMAIL_SERVER_SECURE=false
 EMAIL_FROM=noreply@example.com
 ```
 
@@ -592,8 +574,8 @@ GITHUB_CLIENT_SECRET=your-github-client-secret
 GITHUB_LINK_CLIENT_ID=separate-app-client-id
 GITHUB_LINK_CLIENT_SECRET=separate-app-secret
 
-# Nostr Relays (defaults provided)
-NOSTR_RELAYS=wss://relay.damus.io,wss://nos.lol
+# CORS (middleware)
+ALLOWED_ORIGINS=http://localhost:3000
 
 # Cache Configuration
 CACHE_TTL=300000  # 5 minutes in ms
@@ -609,41 +591,4 @@ DEBUG=true
 LOG_LEVEL=debug
 ```
 
-## Rate Limiting
-
-API endpoints include rate limiting for security:
-
-| Endpoint | Limit | Window |
-|----------|-------|--------|
-| /api/account/link | 10 requests | 1 hour |
-| /api/account/sync | 20 requests | 1 hour |
-| /api/account/send-link-verification | 5 requests | 1 hour |
-| /api/profile/aggregated | 100 requests | 1 hour |
-
-Rate limit headers included in responses:
-- `X-RateLimit-Limit` - Maximum requests
-- `X-RateLimit-Remaining` - Requests remaining
-- `X-RateLimit-Reset` - Reset timestamp
-
-## CORS Configuration
-
-APIs support CORS for cross-origin requests:
-
-```typescript
-// Allowed origins
-const allowedOrigins = [
-  process.env.NEXTAUTH_URL,
-  'http://localhost:3000',
-  'https://yourdomain.com'
-]
-
-// Allowed methods
-const allowedMethods = ['GET', 'POST', 'DELETE', 'OPTIONS']
-
-// Allowed headers
-const allowedHeaders = [
-  'Content-Type',
-  'Authorization',
-  'X-Requested-With'
-]
-```
+Note: Nostr relays used for profile sync are defined in code (relay.nostr.band, nos.lol, relay.damus.io).

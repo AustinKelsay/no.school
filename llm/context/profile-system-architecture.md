@@ -34,7 +34,7 @@ Users can configure how their profile data is prioritized:
 // Nostr-First Priority
 nostr → current session → oauth providers
 
-// OAuth-First Priority  
+// OAuth-First Priority
 current session → oauth providers → nostr
 ```
 
@@ -93,8 +93,9 @@ interface AggregatedProfile {
 2. Calls server actions based on field type:
    - `updateBasicProfile` for name/email (OAuth-first only)
    - `updateEnhancedProfile` for NIP-05/Lightning/banner (all users)
-3. Data saved to database
-4. Page revalidated to show changes
+3. Preferences and primary provider managed via `/api/account/preferences` and `/api/account/primary`
+4. Data saved to database
+5. Page revalidated to show changes
 
 ## Implementation Components
 
@@ -236,13 +237,13 @@ Each field displays its data source with color-coded badges:
 ### Account Linking Security
 
 1. **Email Verification**
-   - Verification token sent to email
-   - One-time use with 1-hour expiration
-   - Token deleted after successful verification
+   - Sends 6-digit code + link to `/verify-email?ref=...`
+   - User submits code via POST `/api/account/verify-email`
+   - One-time use with 1-hour expiration; record deleted on success/expiry
 
 2. **OAuth State Validation**
-   - Encrypted state parameter prevents CSRF
-   - Session verification on callback
+   - Base64-encoded state with strict length + JSON schema validation
+   - Session/userId verification on callback
    - Provider account uniqueness enforced
 
 3. **Session Requirements**
@@ -264,11 +265,10 @@ Each field displays its data source with color-coded badges:
 
 ## Performance Optimizations
 
-### Caching Strategy
-- Aggregated profiles cached for 5 minutes
-- Provider data fetched in parallel
-- Skeleton loading states during fetch
-- Optimistic UI updates
+### Fetch & Retry Strategy
+- No server-side cache for `/api/profile/aggregated` at present
+- Provider data fetched on demand with retry/backoff and 429 handling (GitHub)
+- Skeleton loading states during fetch in the UI
 
 ### Query Optimization
 - Batch fetch linked accounts
@@ -323,7 +323,7 @@ Each field displays its data source with color-coded badges:
 - ✅ Profile source priority respected
 - ✅ Primary provider preserved
 - ✅ Proper data aggregation
-- ✅ Cache invalidation
+  
 
 ## Future Enhancements
 

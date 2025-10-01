@@ -70,15 +70,17 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Generate verification token
-    const token = crypto.randomBytes(32).toString('hex')
+    // Generate short code + lookup reference for secure POST verification
+    const code = (Math.floor(100000 + Math.random() * 900000)).toString() // 6-digit code
+    const lookupId = crypto.randomBytes(8).toString('hex')
     const expires = new Date(Date.now() + 3600000) // 1 hour from now
 
-    // Store verification token
+    // Store verification record: identifier carries context; token holds short code; lookupId is used in URL
     await prisma.verificationToken.create({
       data: {
         identifier: `link:${session.user.id}:${normalizedEmail}`,
-        token,
+        token: code,
+        lookupId,
         expires
       }
     })
@@ -107,32 +109,30 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    const verificationUrl = `${process.env.NEXTAUTH_URL}/api/account/verify-email-link?token=${token}&email=${encodeURIComponent(normalizedEmail)}`
+    const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email?ref=${lookupId}`
 
     await transporter.sendMail({
       from: process.env.EMAIL_FROM,
       to: normalizedEmail,
-      subject: 'Verify your email to link to your account',
+      subject: 'Verify your email to link your account',
       html: `
         <div>
           <h2>Verify your email address</h2>
-          <p>Click the link below to verify your email and link it to your account:</p>
-          <a href="${verificationUrl}" style="display: inline-block; padding: 12px 24px; background-color: #0070f3; color: white; text-decoration: none; border-radius: 5px;">
-            Verify Email
-          </a>
-          <p>Or copy and paste this link in your browser:</p>
-          <p>${verificationUrl}</p>
-          <p>This link will expire in 1 hour.</p>
+          <p>Use the verification code below on the page we open for you.</p>
+          <p style="font-size: 20px; font-weight: bold; letter-spacing: 2px;">${code}</p>
+          <p>Open this secure page to enter your code:</p>
+          <p><a href="${verificationUrl}">${verificationUrl}</a></p>
+          <p>This code expires in 1 hour.</p>
           <p>If you didn't request this, please ignore this email.</p>
         </div>
       `,
       text: `
         Verify your email address
-        
-        Click the link below to verify your email and link it to your account:
-        ${verificationUrl}
-        
-        This link will expire in 1 hour.
+
+        Your verification code: ${code}
+        Open this page to enter your code: ${verificationUrl}
+
+        This code will expire in 1 hour.
         
         If you didn't request this, please ignore this email.
       `

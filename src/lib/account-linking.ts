@@ -301,7 +301,7 @@ export async function getLinkedAccounts(userId: string): Promise<{
     accounts: user.accounts.map(account => ({
       provider: account.provider,
       isPrimary: account.provider === user.primaryProvider,
-      createdAt: new Date() // Account model doesn't have createdAt, using current date as placeholder
+      createdAt: (account as any).createdAt || new Date()
     })),
     primaryProvider: user.primaryProvider,
     profileSource: user.profileSource

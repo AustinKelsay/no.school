@@ -58,11 +58,12 @@ The profile and settings system provides a comprehensive multi-account managemen
     ├── link/                             # Link new account
     ├── unlink/                           # Unlink account
     ├── preferences/                      # Account preferences
+    ├── primary/                          # Change primary provider
     ├── sync/                             # Sync from provider
     ├── link-oauth/                       # OAuth initiation
     ├── oauth-callback/                   # OAuth completion
-    ├── send-link-verification/           # Email verification
-    └── verify-email-link/                # Complete email link
+    ├── send-link-verification/           # Send email with ref+code
+    └── verify-email/                     # POST: Complete email link
 ```
 
 ## Data Flow Architecture
@@ -160,16 +161,14 @@ const canEditBasic = !isNostrFirst
 
 ### Account Linking Security
 
-**⚠️ SECURITY WARNING: Never expose verification tokens in URL query parameters**
+Email verification ensures secure linking. The implementation uses a secure verification page at `/verify-email?ref=...` and a POST endpoint `/api/account/verify-email` that accepts `{ ref, token }` (short code). Tokens are single-use and expire after 60 minutes.
 
-Email verification ensures secure linking. The preferred approach uses a verification page with POST requests to avoid exposing sensitive tokens in URLs, browser history, or server logs.
-
-#### Preferred Approach: Verification Page with POST
+#### Verification Page with POST (implemented)
 
 ```typescript
 // Generate secure token
 const token = crypto.randomBytes(32).toString('hex')
-const expires = new Date(Date.now() + 1800000) // 30 minutes - shorter expiry for security
+const expires = new Date(Date.now() + 3600000) // 60 minutes
 
 // Store in database
 await prisma.verificationToken.create({
@@ -180,7 +179,7 @@ await prisma.verificationToken.create({
   }
 })
 
-// Send verification email with link to verification page (not API endpoint)
+// Send verification email with link to verification page
 await sendEmail({
   to: email,
   subject: 'Link your email account',
@@ -188,13 +187,13 @@ await sendEmail({
 })
 ```
 
-The verification page (`/verify-email`) should:
+The verification page (`/verify-email`) does:
 1. Extract the reference from the URL query parameter
 2. Present a form or use JavaScript to submit the token via POST
 3. Send the token in the request body, not as a URL parameter
 4. Implement proper CSRF protection
 
-#### Alternative Approach: Server-Side Token Lookup
+#### Alternative: Server-Side Token Lookup
 
 If you must use URL-based verification, use a short-lived lookup identifier instead of the actual token:
 
@@ -202,7 +201,7 @@ If you must use URL-based verification, use a short-lived lookup identifier inst
 // Generate a short, single-use lookup ID (not the secret token)
 const lookupId = crypto.randomBytes(8).toString('hex')
 const token = crypto.randomBytes(32).toString('hex')
-const expires = new Date(Date.now() + 900000) // 15 minutes - very short expiry
+const expires = new Date(Date.now() + 3600000) // 60 minutes
 
 // Store both in database
 await prisma.verificationToken.create({
@@ -218,19 +217,19 @@ await prisma.verificationToken.create({
 await sendEmail({
   to: email,
   subject: 'Link your email account',
-  html: `Click to verify: ${url}/api/account/verify-email-link?ref=${lookupId}&email=${encodeURIComponent(email)}`
+  html: `Click to verify: ${url}/verify-email?ref=${lookupId}`
 })
 ```
 
 #### Security Requirements
 
-- **Token Expiry**: Maximum 30 minutes for verification tokens
+- **Token Expiry**: Maximum 60 minutes (current) or shorter if preferred
 - **Single Use**: Tokens must be invalidated immediately after use
 - **No Logging**: Never log full request URLs containing tokens
 - **HTTPS Only**: Always use HTTPS for verification links
 - **Rate Limiting**: Implement rate limiting on verification endpoints
 
-#### Implementing the Verification Page
+#### Implementing the Verification Page (example)
 
 Create a secure verification page at `/verify-email`:
 
@@ -566,15 +565,15 @@ describe('Account Linking Flow', () => {
 
 #### 2. Email verification not working
 **Problem**: Email server not configured
-**Solution**: Set `EMAIL_SERVER` and `EMAIL_FROM` environment variables
+**Solution**: Set Nodemailer vars `EMAIL_SERVER_HOST`, `EMAIL_SERVER_PORT`, `EMAIL_SERVER_USER`, `EMAIL_SERVER_PASSWORD`, `EMAIL_SERVER_SECURE`, and `EMAIL_FROM`.
 
 #### 3. Nostr profile not syncing
 **Problem**: Relays not responding
 **Solution**: Check relay connectivity, try different relays
 
 #### 4. Profile data not updating
-**Problem**: Cache not invalidating
-**Solution**: Wait for 5-minute TTL or manually clear cache
+**Problem**: No new data available or provider API throttling
+**Solution**: Use the Sync buttons in Settings; GitHub requests include retry/backoff and 429 handling. There is no server cache for `/api/profile/aggregated` currently.
 
 ### Debug Mode
 
