@@ -29,7 +29,6 @@ const publishSchema = z.object({
     content: z.string(),
     sig: z.string()
   })).optional(),
-  relays: z.array(z.string()).optional(),
   relaySet: z.enum(['default','content','profile','zapThreads']).optional()
 })
 

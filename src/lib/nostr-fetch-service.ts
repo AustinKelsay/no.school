@@ -23,7 +23,7 @@ export class NostrFetchService {
         const tempPool = new RP(relays)
         
         try {
-          const event = await this.fetchWithPool(tempPool, eventId)
+          const event = await this.fetchWithPool(tempPool, eventId, relays)
           tempPool.close()
           return event
         } catch (error) {
@@ -33,7 +33,7 @@ export class NostrFetchService {
       }
       
       // Use provided relay pool
-      return await this.fetchWithPool(relayPool, eventId)
+      return await this.fetchWithPool(relayPool, eventId, relays)
     } catch (error) {
       console.error('Error fetching Nostr event:', error)
       return null
@@ -57,7 +57,7 @@ export class NostrFetchService {
         const tempPool = new RP(relays)
         
         try {
-          const fetchedEvents = await this.fetchMultipleWithPool(tempPool, eventIds)
+          const fetchedEvents = await this.fetchMultipleWithPool(tempPool, eventIds, relays)
           tempPool.close()
           return fetchedEvents
         } catch (error) {
@@ -67,7 +67,7 @@ export class NostrFetchService {
       }
       
       // Use provided relay pool
-      return await this.fetchMultipleWithPool(relayPool, eventIds)
+      return await this.fetchMultipleWithPool(relayPool, eventIds, relays)
     } catch (error) {
       console.error('Error fetching Nostr events:', error)
       return events
@@ -179,7 +179,11 @@ export class NostrFetchService {
   }
 
   // Private helper methods
-  private static async fetchWithPool(pool: RelayPool, eventId: string): Promise<NostrEvent | null> {
+  private static async fetchWithPool(
+    pool: RelayPool,
+    eventId: string,
+    relays: string[] = getRelays('default')
+  ): Promise<NostrEvent | null> {
     return new Promise((resolve) => {
       let foundEvent: NostrEvent | null = null
       let sub: { close: () => void }
@@ -211,7 +215,8 @@ export class NostrFetchService {
 
   private static async fetchMultipleWithPool(
     pool: RelayPool, 
-    eventIds: string[]
+    eventIds: string[],
+    relays: string[] = getRelays('default')
   ): Promise<Map<string, NostrEvent>> {
     const events = new Map<string, NostrEvent>()
     

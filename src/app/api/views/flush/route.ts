@@ -35,7 +35,7 @@ function parseDailyKey(dayKey: string): { dayISO: string; inner: ParsedKey } | n
 }
 
 async function flushTotals(): Promise<number> {
-  const keys = (await kv.smembers<string>("views:dirty")) || []
+  const keys = (await kv.smembers<string[]>("views:dirty")) || []
   if (!keys.length) return 0
 
   // Fetch counts in parallel
@@ -71,11 +71,11 @@ async function flushTotals(): Promise<number> {
 }
 
 async function flushDaily(): Promise<number> {
-  const days = (await kv.smembers<string>("views:dirty:daily-index")) || []
+  const days = (await kv.smembers<string[]>("views:dirty:daily-index")) || []
   let processed = 0
   for (const day of days) {
     const setKey = `views:dirty:daily:${day}`
-    const dayKeys = (await kv.smembers<string>(setKey)) || []
+    const dayKeys = (await kv.smembers<string[]>(setKey)) || []
     if (!dayKeys.length) {
       // clean the index entry and continue
       await kv.srem("views:dirty:daily-index", day)
@@ -132,4 +132,3 @@ export async function POST(req: NextRequest) {
   const daily = await flushDaily()
   return NextResponse.json({ flushedTotals: totals, flushedDaily: daily })
 }
-

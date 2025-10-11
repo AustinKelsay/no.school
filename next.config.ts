@@ -5,8 +5,7 @@ const nextConfig: NextConfig = {
   transpilePackages: ["snstr"],
   // Enable experimental features for better performance
   experimental: {
-    // Enable optimized package imports
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-avatar', '@radix-ui/react-dropdown-menu'],
+    // optimizePackageImports disabled to avoid server vendor chunk using web runtime
   },
 
   // Turbopack configuration (moved from experimental.turbo)
@@ -89,33 +88,25 @@ const nextConfig: NextConfig = {
   },
 
   // Webpack configuration for optimal bundling
-  webpack: (config) => {
-    // Optimize bundle size
-    config.optimization.splitChunks = {
-      chunks: 'all',
-      cacheGroups: {
-        vendor: {
-          test: /[\\/]node_modules[\\/]/,
-          name: 'vendors',
-          chunks: 'all',
-        },
-      },
-    };
-    
-    // Handle Node.js modules for server-side packages like nodemailer
-    config.resolve.fallback = {
-      ...config.resolve.fallback,
-      fs: false,
-      net: false,
-      dns: false,
-      tls: false,
-      child_process: false,
-    };
-    // Work around snstr dist entry requiring a nested path Turbopack sometimes misses
-    config.resolve.alias = {
-      ...(config.resolve.alias || {}),
-      snstr: require.resolve("snstr/dist/src/index.js"),
-    };
+  webpack: (config, { isServer }) => {
+    // Do not override Next's splitChunks; custom vendor chunk can break server runtime
+
+    // Only apply browser fallbacks on the client build
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        dns: false,
+        tls: false,
+        child_process: false,
+      };
+    }
+
+    // Ensure no legacy deep alias for snstr remains; rely on package exports
+    if (config.resolve.alias && (config.resolve.alias as any).snstr) {
+      delete (config.resolve.alias as any).snstr;
+    }
 
     return config;
   },
