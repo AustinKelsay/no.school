@@ -25,7 +25,8 @@ import {
   BookOpen, 
   Video, 
   FileText,
-  RotateCcw
+  RotateCcw,
+  Eye
 } from 'lucide-react'
 import Link from 'next/link'
 import { Lesson } from '@/data/types'
@@ -35,6 +36,7 @@ import { useInteractions } from '@/hooks/useInteractions'
 import { encodePublicKey } from 'snstr'
 import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
 import { getRelays } from '@/lib/nostr-relays'
+import { ViewsText } from '@/components/ui/views-text'
 
 interface LessonDetailsPageProps {
   params: Promise<{
@@ -214,6 +216,11 @@ function LessonMetadata({
           <span>{duration}</span>
         </div>
       )}
+
+      <div className="flex items-center space-x-1">
+        <Eye className="h-4 w-4" />
+        <ViewsText ns="lesson" id={lesson.id} notation="compact" />
+      </div>
       
       {/* Engagement metrics */}
       <InteractionMetrics

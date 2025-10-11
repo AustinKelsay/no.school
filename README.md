@@ -139,6 +139,58 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) to view the application.
 
+### Page View Tracking (Vercel KV)
+
+This project includes a universal view counter without touching the SQL schema. It uses Vercel KV for atomic counters and falls back to an in-memory map in local dev.
+
+- API route: `src/app/api/views/route.ts` (Edge). Supports:
+  - `POST /api/views` with `{ key?: string, ns?: string, id?: string }` to increment and return `{ count }`.
+  - `GET /api/views?key=…` or `?ns=…&id=…` to read the current count.
+- Hook: `src/hooks/useViews.ts` returns `{ key, count }` and increments once per session by default.
+- UI: `src/components/ui/views-text.tsx` renders a localized count with an optional “views” label.
+
+Env vars (add to `.env.local` or Vercel project settings):
+
+```
+KV_REST_API_URL=https://<your-kv-rest-url>
+KV_REST_API_TOKEN=<your-kv-rest-token>
+VIEWS_CRON_SECRET=<strong-random-string>
+```
+
+Usage example:
+
+```
+import { Eye } from "lucide-react"
+import { ViewsText } from "@/components/ui/views-text"
+
+<div className="flex items-center gap-2">
+  <Eye className="h-4 w-4" />
+  <ViewsText ns="content" id={resourceId} />
+  {/* or compact: <ViewsText ns="lesson" id={lessonId} notation="compact" /> */}
+  {/* dedupe options: track once per session (default) or per day */}
+  {/* <ViewsText ns="content" id={id} dedupe="day" /> */}
+```
+
+#### Hybrid Flush to Postgres
+
+Schema: prisma/schema.prisma adds two tables — `ViewCounterTotal` and `ViewCounterDaily`.
+
+- Increment path (Edge): `POST /api/views` writes to KV and marks dirty keys + daily buckets.
+- Flush path (Node): `GET /api/views/flush` reads dirty keys from KV and upserts into Postgres.
+- Auth: Accepts Vercel Cron via `x-vercel-cron` or `?token=VIEWS_CRON_SECRET`.
+- Schedule: vercel.json includes a cron every 15 minutes to call `/api/views/flush`.
+
+Apply schema locally:
+
+```
+npm run db:push
+```
+
+Notes:
+- UI continues to read from KV for low latency; server-side analytics and any SQL sorting/ranking can use `ViewCounterTotal`/`ViewCounterDaily`.
+- You can change cron cadence in `vercel.json`.
+
+
 ### **Auth Setup**
 
 - GitHub (Sign‑in): set your OAuth App Authorization callback URL to `http://localhost:3000/api/auth/callback/github` and set `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET`.

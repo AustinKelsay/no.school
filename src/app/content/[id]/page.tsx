@@ -30,6 +30,7 @@ import {
 } from 'lucide-react'
 import type { NostrEvent } from 'snstr'
 import { getRelays } from '@/lib/nostr-relays'
+import { ViewsText } from '@/components/ui/views-text'
 
 interface ResourcePageProps {
   params: Promise<{
@@ -233,7 +234,7 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                  formatNpubWithEllipsis(event.pubkey)
   const type = parsedEvent.type || 'document'
   const difficulty = 'intermediate' // Default since it's not in parseEvent
-  const viewCount = 1250 // Mock data
+  // Views are tracked via /api/views and Vercel KV
   const duration = type === 'video' ? '15 min' : undefined
   
   // Use only real interaction data - no fallbacks
@@ -305,7 +306,7 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                 
                 <div className="flex items-center space-x-1.5 sm:space-x-2">
                   <Eye className="h-5 w-5 text-muted-foreground" />
-                  <span>{viewCount?.toLocaleString() || 0} views</span>
+                  <ViewsText ns="content" id={resourceId} />
                 </div>
                 
                 {duration && (
@@ -422,7 +423,9 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                   )}
                   <div>
                     <h4 className="font-semibold mb-2">Views</h4>
-                    <p className="text-sm text-muted-foreground">{viewCount?.toLocaleString() || 0}</p>
+                    <p className="text-sm text-muted-foreground">
+                      <ViewsText ns="content" id={resourceId} label={false} />
+                    </p>
                   </div>
                   <div>
                     <h4 className="font-semibold mb-2">Created</h4>

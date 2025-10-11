@@ -286,3 +286,28 @@ model UserBadge {
 
     @@unique([userId, badgeId]) // Each user can only have one of each badge
 }
+
+// ============================================================
+// Views (Hybrid: KV hot path, DB analytics/reporting)
+// ============================================================
+
+model ViewCounterTotal {
+  key        String   @id
+  namespace  String
+  entityId   String?
+  path       String?
+  total      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model ViewCounterDaily {
+  id        String   @id @default(cuid())
+  key       String
+  day       DateTime
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([key, day])
+}

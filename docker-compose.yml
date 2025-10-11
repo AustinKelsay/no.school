@@ -39,13 +39,18 @@ services:
       - /app/node_modules
       - /app/.next
     command: >
-      sh -c "
-        chmod +x /app/wait-for-db.sh &&
-        /app/wait-for-db.sh db 5432 &&
-        npx prisma db push --accept-data-loss &&
-        npx prisma generate &&
+      sh -lc '
+        set -e
+        chmod +x /app/wait-for-db.sh
+        /app/wait-for-db.sh db 5432
+        # Ensure deps are installed inside the mounted volume
+        if [ ! -x node_modules/.bin/prisma ]; then
+          npm install
+        fi
+        npx prisma db push --accept-data-loss
+        npx prisma generate
         npm run dev
-      "
+      '
 
 volumes:
   postgres_data:

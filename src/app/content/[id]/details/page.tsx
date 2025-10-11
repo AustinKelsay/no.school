@@ -34,6 +34,7 @@ import {
 import Link from 'next/link'
 import type { NostrEvent } from 'snstr'
 import { getRelays } from '@/lib/nostr-relays'
+import { ViewsText } from '@/components/ui/views-text'
 
 interface ResourceDetailsPageProps {
   params: Promise<{
@@ -77,7 +78,7 @@ function ContentSkeleton() {
 /**
  * Content metadata component
  */
-function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEvent: ReturnType<typeof parseEvent> }) {
+function ContentMetadata({ event, parsedEvent, resourceKey }: { event: NostrEvent; parsedEvent: ReturnType<typeof parseEvent>, resourceKey: string }) {
   const { fetchProfile, normalizeKind0 } = useNostr()
   const [authorProfile, setAuthorProfile] = useState<NormalizedProfile | null>(null)
 
@@ -142,7 +143,7 @@ function ContentMetadata({ event, parsedEvent }: { event: NostrEvent; parsedEven
         
         <div className="flex items-center space-x-1">
           <Eye className="h-4 w-4" />
-          <span>1,250 views</span>
+          <ViewsText ns="content" id={resourceKey} notation="compact" />
         </div>
         
         {readingTime && (
@@ -308,7 +309,7 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
 
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight">{title}</h1>
         
-        <ContentMetadata event={event} parsedEvent={parsedEvent} />
+        <ContentMetadata event={event} parsedEvent={parsedEvent} resourceKey={resourceId} />
       </div>
 
       {/* Main Content */}
