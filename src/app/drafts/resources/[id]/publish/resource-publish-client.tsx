@@ -31,6 +31,22 @@ interface ResourcePublishPageClientProps {
   resourceId: string
 }
 
+interface DraftData {
+  id: string
+  type: string
+  title: string
+  summary: string
+  content: string
+  image?: string
+  price?: number
+  topics: string[]
+  additionalLinks?: string[]
+  videoUrl?: string
+  createdAt: string
+  updatedAt: string
+  userId: string
+}
+
 /**
  * Publish status component
  */
@@ -175,17 +191,7 @@ function PublishStatus({
 /**
  * Resource summary component
  */
-function ResourceSummary({ draftData }: { draftData: {
-  id: string
-  type: string
-  title: string
-  summary: string
-  content: string
-  image?: string
-  price?: number
-  topics: string[]
-  additionalLinks?: string[]
-} }) {
+function ResourceSummary({ draftData }: { draftData: DraftData }) {
   const getTypeIcon = (type: string) => {
     switch (type) {
       case 'video':
@@ -318,8 +324,18 @@ function PublishActions({
 export function ResourcePublishPageClient({ resourceId }: ResourcePublishPageClientProps) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { data: draftData, isLoading, isError } = useResourceDraftQuery(resourceId)
   const { publish, publishStatus, isSuccess, data: publishResult } = usePublishResource(resourceId)
+  const enabled = !isSuccess
+  const { data: draftData, isLoading, isError } = useResourceDraftQuery(resourceId, {
+    enabled
+  })
+  const [draftSnapshot, setDraftSnapshot] = useState<DraftData | null>(null)
+
+  useEffect(() => {
+    if (draftData) {
+      setDraftSnapshot(draftData)
+    }
+  }, [draftData])
 
   const handlePublish = () => {
     publish({})
@@ -337,21 +353,22 @@ export function ResourcePublishPageClient({ resourceId }: ResourcePublishPageCli
       queryClient.invalidateQueries({ queryKey: ['documents'] })
       queryClient.invalidateQueries({ queryKey: ['videos'] })
       queryClient.invalidateQueries({ queryKey: ['resources'] })
-      queryClient.invalidateQueries({ queryKey: ['resource', publishResult.resource.id] })
-      
-      // The resource ID is the same as the draft ID (the 'd' tag)
-      // Redirect to the content page after a longer delay to allow for:
-      // 1. Database transaction to complete
-      // 2. Cache invalidation to propagate
-      // 3. Nostr events to propagate to relays
-      setTimeout(() => {
-        // Use replace instead of push to prevent back button issues
-        router.replace(`/content/${publishResult.resource.id}`)
-      }, 3500) // 3.5 second delay to ensure data is available
-    }
-  }, [isSuccess, publishResult, router, queryClient])
+      queryClient.removeQueries({ queryKey: ['drafts', 'resources', resourceId] })
 
-  if (isLoading) {
+      const targetId = publishResult.resource.id
+      router.prefetch(`/content/${targetId}`)
+
+      const redirectTimer = setTimeout(() => {
+        router.replace(`/content/${targetId}`)
+      }, 300)
+
+      return () => clearTimeout(redirectTimer)
+    }
+  }, [isSuccess, publishResult, router, queryClient, resourceId])
+
+  const resolvedDraft: DraftData | null = draftData ?? draftSnapshot
+
+  if (isLoading && !resolvedDraft) {
     return (
       <MainLayout>
         <Section spacing="lg">
@@ -371,7 +388,7 @@ export function ResourcePublishPageClient({ resourceId }: ResourcePublishPageCli
     )
   }
 
-  if (isError || !draftData) {
+  if (isError && !resolvedDraft && !isSuccess) {
     notFound()
   }
 
@@ -416,7 +433,7 @@ export function ResourcePublishPageClient({ resourceId }: ResourcePublishPageCli
             </div>
 
             <div className="space-y-6">
-              <ResourceSummary draftData={draftData} />
+              {resolvedDraft && <ResourceSummary draftData={resolvedDraft} />}
               
               <PublishActions 
                 resourceId={resourceId}

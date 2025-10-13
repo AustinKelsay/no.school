@@ -213,15 +213,18 @@ export function usePublishResource(draftId: string) {
           body: JSON.stringify({ signedEvent, relays: [] }) // Relays already published
         })
 
-        if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Failed to update database')
+        const json = await response.json()
+        if (!response.ok || json?.success === false) {
+          const message = (json && typeof json === 'object' && 'error' in json)
+            ? (json as { error?: string }).error
+            : undefined
+          throw new Error(message || 'Failed to update database')
         }
 
         publishStatus.updateStep('database', 'completed', 'Resource record created')
         publishStatus.updateStep('cleanup', 'completed', 'Publishing completed')
 
-        return response.json()
+        return (json as { data?: PublishResourceResult }).data ?? (json as PublishResourceResult)
       } else {
         // Server-side signing - send everything to API
         const response = await fetch(`/api/drafts/resources/${draftId}/publish`, {
@@ -230,12 +233,17 @@ export function usePublishResource(draftId: string) {
           body: JSON.stringify({ privkey })
         })
 
-        if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Failed to publish')
+        const json = await response.json()
+        if (!response.ok || json?.success === false) {
+          const message = (json && typeof json === 'object' && 'error' in json)
+            ? (json as { error?: string }).error
+            : undefined
+          throw new Error(message || 'Failed to publish')
         }
 
-        return response.json()
+        publishStatus.updateStep('cleanup', 'completed', 'Resource published successfully')
+
+        return (json as { data?: PublishResourceResult }).data ?? (json as PublishResourceResult)
       }
     },
     onSuccess: () => {
@@ -445,15 +453,18 @@ export function usePublishCourse(courseDraftId: string) {
           })
         })
 
-        if (!response.ok) {
-          const error = await response.json()
-          throw new Error(error.error || 'Failed to update database')
+        const json = await response.json()
+        if (!response.ok || json?.success === false) {
+          const message = (json && typeof json === 'object' && 'error' in json)
+            ? (json as { error?: string }).error
+            : undefined
+          throw new Error(message || 'Failed to update database')
         }
 
         publishStatus.updateStep('database', 'completed', 'Course and lesson records created')
         publishStatus.updateStep('cleanup', 'completed', 'Publishing completed')
 
-        return response.json()
+        return (json as { data?: PublishCourseResult }).data ?? (json as PublishCourseResult)
       }
 
       // Server-side publishing (handles all steps)
@@ -463,13 +474,16 @@ export function usePublishCourse(courseDraftId: string) {
         body: JSON.stringify({ privkey })
       })
 
-      if (!response.ok) {
-        const error = await response.json()
-        throw new Error(error.error || 'Failed to publish course')
+      const json = await response.json()
+      if (!response.ok || json?.success === false) {
+        const message = (json && typeof json === 'object' && 'error' in json)
+          ? (json as { error?: string }).error
+          : undefined
+        throw new Error(message || 'Failed to publish course')
       }
 
       publishStatus.updateStep('cleanup', 'completed', 'Course published successfully')
-      return response.json()
+      return (json as { data?: PublishCourseResult }).data ?? (json as PublishCourseResult)
     },
     onSuccess: () => {
       // Invalidate relevant queries
@@ -487,4 +501,3 @@ export function usePublishCourse(courseDraftId: string) {
     publish: mutation.mutate
   }
 }
-

@@ -9,11 +9,12 @@ const createDraftSchema = z.object({
   type: z.enum(['document', 'video', 'guide', 'tutorial', 'cheatsheet', 'reference']),
   title: z.string().min(1, 'Title is required').max(200, 'Title too long'),
   summary: z.string().min(1, 'Summary is required').max(1000, 'Summary too long'),
-  content: z.string().min(1, 'Content is required'),
+  content: z.string().optional(),
   image: z.string().url().optional().or(z.literal('')),
   price: z.number().int().min(0).optional(),
   topics: z.array(z.string()).min(1, 'At least one topic is required'),
-  additionalLinks: z.array(z.string().url()).optional()
+  additionalLinks: z.array(z.string().url()).optional(),
+  videoUrl: z.string().url().optional()
 })
 
 const querySchema = z.object({
@@ -106,17 +107,32 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { type, title, summary, content, image, price, topics, additionalLinks } = validationResult.data
+    const { type, title, summary, content, image, price, topics, additionalLinks, videoUrl } = validationResult.data
+
+    if (type === 'video') {
+      if (!videoUrl) {
+        return NextResponse.json(
+          { error: 'Video URL is required for video content' },
+          { status: 400 }
+        )
+      }
+    } else if (!content || !content.trim()) {
+      return NextResponse.json(
+        { error: 'Content is required for non-video resources' },
+        { status: 400 }
+      )
+    }
 
     const draft = await DraftService.create({
       type,
       title,
       summary,
-      content,
+      content: type === 'video' ? (content ?? '') : content!,
       image: image || undefined,
       price,
       topics,
       additionalLinks: additionalLinks || [],
+      videoUrl,
       userId: session.user.id
     })
 

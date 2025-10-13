@@ -12,13 +12,40 @@ import { parseEvent } from '@/data/types'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
 import { encodePublicKey } from 'snstr'
-import { VideoPlayer } from '@/components/ui/video-player'
 import { ResourceActions } from '@/components/ui/resource-actions'
 import { ZapThreads } from '@/components/ui/zap-threads'
 import { InteractionMetrics } from '@/components/ui/interaction-metrics'
 import { useInteractions } from '@/hooks/useInteractions'
 import { useCommentThreads, formatCommentCount } from '@/hooks/useCommentThreads'
 import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
+import { extractVideoBodyMarkdown } from '@/lib/content-utils'
+
+function resolveVideoPlaybackUrl(
+  parsedVideoUrl: string | undefined,
+  rawContent: string,
+  resourceType: string
+): string | undefined {
+  // Newer events populate `videoUrl` via NIP-23 tags, so prefer that when present.
+  if (resourceType !== 'video') {
+    return parsedVideoUrl?.trim() || undefined
+  }
+
+  if (parsedVideoUrl?.trim()) {
+    return parsedVideoUrl.trim()
+  }
+
+  // Early video events stored only the share link in `content`, so we scan the
+  // markdown/HTML body for the first absolute URL. This keeps pre-migration
+  // posts playable without forcing manual edits.
+  const legacyMatch = rawContent.match(/https?:\/\/[^\s<>()\[\]"']+/i)
+  if (!legacyMatch) {
+    return undefined
+  }
+
+  // Trim trailing punctuation that often follows markdown links (e.g. `...\n`).
+  return legacyMatch[0].replace(/[.,;)]+$/, '')
+}
+import { VideoPlayer } from '@/components/ui/video-player'
 import { 
   Clock, 
   Eye, 
@@ -274,6 +301,8 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
   const additionalLinks = parsedEvent.additionalLinks || []
   const difficulty = 'intermediate' // Default
   const isPremium = false // Default
+  const videoUrl = resolveVideoPlaybackUrl(parsedEvent.videoUrl, event.content, type)
+  const videoBodyMarkdown = type === 'video' ? extractVideoBodyMarkdown(event.content) : ''
 
   return (
     <div className="space-y-6">
@@ -316,15 +345,18 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
       <div className="space-y-6">
         {type === 'video' ? (
           <Card>
-            <CardContent className="pt-6">
-              <VideoPlayer 
-                url={event.content} 
+            <CardContent className="pt-6 space-y-6">
+              <VideoPlayer
+                url={videoUrl}
+                content={event.content}
                 title={title}
                 duration="15 min"
               />
-              <div className="prose prose-lg max-w-none mt-6">
-                <p className="text-muted-foreground">Video URL: {event.content}</p>
-              </div>
+              {videoBodyMarkdown && (
+                <div className="prose prose-lg max-w-none">
+                  <MarkdownRenderer content={videoBodyMarkdown} />
+                </div>
+              )}
             </CardContent>
           </Card>
         ) : (

@@ -15,6 +15,7 @@ export interface ResourceDraft {
   price?: number
   topics: string[]
   additionalLinks?: string[]
+  videoUrl?: string
   createdAt: string
   updatedAt: string
   userId: string
@@ -26,6 +27,10 @@ export interface ResourceDraftQueryResult {
   isError: boolean
   error: Error | null
   refetch: () => void
+}
+
+interface UseResourceDraftQueryOptions {
+  enabled?: boolean
 }
 
 /**
@@ -51,13 +56,16 @@ async function fetchResourceDraft(draftId: string): Promise<ResourceDraft> {
 /**
  * Hook for fetching a single resource draft
  */
-export function useResourceDraftQuery(draftId: string): ResourceDraftQueryResult {
+export function useResourceDraftQuery(
+  draftId: string,
+  options: UseResourceDraftQueryOptions = {}
+): ResourceDraftQueryResult {
   const { data: session } = useSession()
   
   const query = useQuery({
     queryKey: ['drafts', 'resources', draftId],
     queryFn: () => fetchResourceDraft(draftId),
-    enabled: !!draftId && !!session?.user?.id,
+    enabled: !!draftId && !!session?.user?.id && (options.enabled ?? true),
     staleTime: 5 * 60 * 1000, // 5 minutes
     gcTime: 10 * 60 * 1000, // 10 minutes
     retry: (failureCount, error) => {

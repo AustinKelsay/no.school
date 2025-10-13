@@ -9,11 +9,12 @@ const updateDraftSchema = z.object({
   type: z.enum(['document', 'video', 'guide', 'tutorial', 'cheatsheet', 'reference']).optional(),
   title: z.string().min(1, 'Title is required').max(200, 'Title too long').optional(),
   summary: z.string().min(1, 'Summary is required').max(1000, 'Summary too long').optional(),
-  content: z.string().min(1, 'Content is required').optional(),
+  content: z.string().optional(),
   image: z.string().url().optional().or(z.literal('')).optional(),
   price: z.number().int().min(0).optional(),
   topics: z.array(z.string()).min(1, 'At least one topic is required').optional(),
-  additionalLinks: z.array(z.string().url()).optional()
+  additionalLinks: z.array(z.string().url()).optional(),
+  videoUrl: z.string().url().optional()
 })
 
 const paramsSchema = z.object({
@@ -136,6 +137,27 @@ export async function PUT(
     }
 
     const updateData = validationResult.data
+
+    const effectiveType = updateData.type ?? existingDraft.type
+    const effectiveVideoUrl = updateData.videoUrl ?? existingDraft.videoUrl
+
+    if (effectiveType === 'video' && !effectiveVideoUrl) {
+      return NextResponse.json(
+        { error: 'Video URL is required for video content' },
+        { status: 400 }
+      )
+    }
+
+    if (effectiveType !== 'video') {
+      const effectiveContent = updateData.content ?? existingDraft.content
+      if (!effectiveContent || !effectiveContent.trim()) {
+        return NextResponse.json(
+          { error: 'Content is required for non-video resources' },
+          { status: 400 }
+        )
+      }
+    }
+
     const draft = await DraftService.update(id, updateData)
 
     return NextResponse.json({

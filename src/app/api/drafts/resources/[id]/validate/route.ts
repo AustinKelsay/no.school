@@ -69,10 +69,6 @@ export async function POST(
       errors.push('Summary is required')
     }
 
-    if (!draft.content || draft.content.trim().length === 0) {
-      errors.push('Content is required')
-    }
-
     if (!draft.type || draft.type.trim().length === 0) {
       errors.push('Content type is required')
     }
@@ -81,19 +77,24 @@ export async function POST(
       errors.push('At least one topic is required')
     }
 
-    // Validate content length (different requirements for different types)
-    if (draft.type === 'video') {
-      // For videos, content should be a valid URL
-      if (draft.content) {
+    const isVideoDraft = draft.type === 'video'
+
+    if (isVideoDraft) {
+      const videoUrl = draft.videoUrl?.trim()
+
+      if (!videoUrl) {
+        errors.push('Video URL is required for video drafts')
+      } else {
         try {
-          new URL(draft.content)
+          new URL(videoUrl)
         } catch (e) {
-          errors.push('Video content must be a valid URL')
+          errors.push('Video URL must be a valid URL')
         }
       }
     } else {
-      // For other types, require at least 100 characters
-      if (draft.content && draft.content.length < 100) {
+      if (!draft.content || draft.content.trim().length === 0) {
+        errors.push('Content is required')
+      } else if (draft.content.length < 100) {
         errors.push('Content must be at least 100 characters long')
       }
     }

@@ -23,6 +23,91 @@ export const EVENT_KINDS = {
   CURATION_SET: 30004,          // NIP-51 (course lists)
 } as const
 
+const YOUTUBE_REGEX = /(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/))([A-Za-z0-9_-]{11})/
+const VIMEO_REGEX = /vimeo\.com\/(?:video\/)?(\d+)/
+const DIRECT_VIDEO_REGEX = /\.(mp4|webm|mov|m4v|mkv)(?:\?.*)?$/i
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, char => {
+    switch (char) {
+      case '&':
+        return '&amp;'
+      case '<':
+        return '&lt;'
+      case '>':
+        return '&gt;'
+      case '"':
+        return '&quot;'
+      case "'":
+        return '&#39;'
+      default:
+        return char
+    }
+  })
+}
+
+function buildVideoEmbedHtml(originalUrl: string, title: string): string {
+  const sanitizedTitle = escapeHtml(title)
+  const trimmedUrl = originalUrl.trim()
+
+  const youtubeMatch = trimmedUrl.match(YOUTUBE_REGEX)
+  if (youtubeMatch) {
+    const videoId = youtubeMatch[1]
+    const embedUrl = `https://www.youtube.com/embed/${videoId}`
+    return [
+      '<div class="video-embed" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;box-shadow:0 12px 24px rgba(15,23,42,0.25);">',
+      `<iframe src="${embedUrl}" title="${sanitizedTitle}" style="position:absolute;top:0;left:0;width:100%;height:100%;" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`,
+      '</div>'
+    ].join('\n')
+  }
+
+  const vimeoMatch = trimmedUrl.match(VIMEO_REGEX)
+  if (vimeoMatch) {
+    const videoId = vimeoMatch[1]
+    const embedUrl = `https://player.vimeo.com/video/${videoId}`
+    return [
+      '<div class="video-embed" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;box-shadow:0 12px 24px rgba(15,23,42,0.25);">',
+      `<iframe src="${embedUrl}" title="${sanitizedTitle}" style="position:absolute;top:0;left:0;width:100%;height:100%;" frameborder="0" allow="autoplay; fullscreen; picture-in-picture" allowfullscreen></iframe>`,
+      '</div>'
+    ].join('\n')
+  }
+
+  if (DIRECT_VIDEO_REGEX.test(trimmedUrl)) {
+    return [
+      '<div class="video-embed" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:12px;box-shadow:0 12px 24px rgba(15,23,42,0.25);">',
+      `<video controls src="${escapeHtml(trimmedUrl)}" style="position:absolute;top:0;left:0;width:100%;height:100%;" preload="metadata">`,
+      '  Your browser does not support the video tag.',
+      '</video>',
+      '</div>'
+    ].join('\n')
+  }
+
+  // Fallback to a simple link if we can't determine the provider
+  return `>[!TIP]\n> Watch the video here: [${sanitizedTitle}](${trimmedUrl})`
+}
+
+function formatDraftContent(draft: Draft | DraftWithIncludes): string {
+  if (draft.type !== 'video') {
+    return draft.content
+  }
+
+  const title = draft.title?.trim() || 'Video Resource'
+  const videoUrl = draft.videoUrl?.trim()
+  const body = draft.content?.trim()
+
+  const sections: string[] = [`# ${title}`]
+
+  if (videoUrl) {
+    sections.push('', buildVideoEmbedHtml(videoUrl, title))
+  }
+
+  if (body) {
+    sections.push('', body)
+  }
+
+  return sections.join('\n').replace(/\n{3,}/g, '\n\n')
+}
+
 /**
  * Create and sign a resource event from a draft (server-side signing)
  * Uses NIP-23 for free content or NIP-99 for paid content
@@ -34,6 +119,7 @@ export function createResourceEvent(
 ): NostrEvent {
   const isPaid = (draft.price || 0) > 0
   const kind = isPaid ? EVENT_KINDS.CLASSIFIED_LISTING : EVENT_KINDS.LONG_FORM_CONTENT
+  const formattedContent = formatDraftContent(draft)
   
   // Build tags array
   const tags: string[][] = [
@@ -63,6 +149,10 @@ export function createResourceEvent(
     tags.push(['t', draft.type])
   }
   
+  if (draft.type === 'video' && draft.videoUrl) {
+    tags.push(['video', draft.videoUrl])
+  }
+
   // Add additional links as 'r' tags
   if (draft.additionalLinks && draft.additionalLinks.length > 0) {
     draft.additionalLinks.forEach(link => {
@@ -74,7 +164,7 @@ export function createResourceEvent(
   // This is for server-side signing only (OAuth users)
   const event = createEvent({
     kind,
-    content: draft.content,
+    content: formattedContent,
     tags
   }, privateKey) as NostrEvent
   
@@ -147,6 +237,7 @@ export function createUnsignedResourceEvent(
 ): Omit<NostrEvent, 'id' | 'sig'> {
   const isPaid = (draft.price || 0) > 0
   const kind = isPaid ? EVENT_KINDS.CLASSIFIED_LISTING : EVENT_KINDS.LONG_FORM_CONTENT
+  const formattedContent = formatDraftContent(draft)
   
   // Build tags array
   const tags: string[][] = [
@@ -176,6 +267,10 @@ export function createUnsignedResourceEvent(
     tags.push(['t', draft.type])
   }
   
+  if (draft.type === 'video' && draft.videoUrl) {
+    tags.push(['video', draft.videoUrl])
+  }
+
   // Add additional links as 'r' tags
   if (draft.additionalLinks && draft.additionalLinks.length > 0) {
     draft.additionalLinks.forEach(link => {
@@ -188,7 +283,7 @@ export function createUnsignedResourceEvent(
     created_at: Math.floor(Date.now() / 1000),
     kind,
     tags,
-    content: draft.content,
+    content: formattedContent,
   }
 }
 

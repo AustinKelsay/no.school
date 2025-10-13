@@ -17,6 +17,7 @@ const createResourceSchema = z.object({
   price: z.number().int().min(0).default(0),
   noteId: z.string().optional(),
   videoId: z.string().optional(),
+  videoUrl: z.string().url().optional(),
 })
 
 /**
@@ -144,7 +145,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { id, price, noteId, videoId } = validationResult.data
+    const { id, price, noteId, videoId, videoUrl } = validationResult.data
 
     // Check if resource already exists
     const existing = await prisma.resource.findUnique({
@@ -166,6 +167,7 @@ export async function POST(request: NextRequest) {
         price,
         noteId,
         videoId,
+        videoUrl,
       },
       include: {
         user: {

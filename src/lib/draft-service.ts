@@ -33,6 +33,7 @@ export interface CreateDraftData {
   price?: number
   topics: string[]
   additionalLinks?: string[]
+  videoUrl?: string
   userId: string
 }
 
@@ -45,6 +46,7 @@ export interface UpdateDraftData {
   price?: number
   topics?: string[]
   additionalLinks?: string[]
+  videoUrl?: string
 }
 
 export interface CreateDraftLessonData {
@@ -299,6 +301,7 @@ export class DraftService {
         price: data.price || 0,
         topics: data.topics,
         additionalLinks: data.additionalLinks || [],
+        videoUrl: data.videoUrl,
         userId: data.userId,
       },
       include: {
@@ -415,14 +418,15 @@ export class DraftService {
     return await prisma.draft.update({
       where: { id },
       data: {
-        ...(data.type && { type: data.type }),
-        ...(data.title && { title: data.title }),
-        ...(data.summary && { summary: data.summary }),
-        ...(data.content && { content: data.content }),
+        ...(data.type !== undefined && { type: data.type }),
+        ...(data.title !== undefined && { title: data.title }),
+        ...(data.summary !== undefined && { summary: data.summary }),
+        ...(data.content !== undefined && { content: data.content }),
         ...(data.image !== undefined && { image: data.image }),
         ...(data.price !== undefined && { price: data.price }),
-        ...(data.topics && { topics: data.topics }),
-        ...(data.additionalLinks && { additionalLinks: data.additionalLinks }),
+        ...(data.topics !== undefined && { topics: data.topics }),
+        ...(data.additionalLinks !== undefined && { additionalLinks: data.additionalLinks }),
+        ...(data.videoUrl !== undefined && { videoUrl: data.videoUrl }),
         updatedAt: new Date()
       },
       include: {

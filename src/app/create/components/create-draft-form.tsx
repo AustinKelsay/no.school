@@ -99,12 +99,12 @@ export default function CreateDraftForm() {
           type: draft.type as ContentType,
           title: draft.title,
           summary: draft.summary,
-          content: draft.type === 'video' ? '' : draft.content,
+          content: draft.type === 'video' ? (draft.content || '') : draft.content,
           image: draft.image || '',
           price: draft.price || 0,
           topics: draft.topics || [],
           additionalLinks: draft.additionalLinks || [],
-          videoUrl: draft.type === 'video' ? draft.content : ''
+          videoUrl: draft.videoUrl || ''
         })
       } catch (err) {
         console.error('Error loading draft:', err)
@@ -223,23 +223,32 @@ export default function CreateDraftForm() {
     setMessage(null)
     
     try {
-      // Prepare data based on type
-      const dataToSubmit = { ...formData }
-      
-      // For video type, put the video URL in the content field
-      if (formData.type === 'video' && formData.videoUrl) {
-        dataToSubmit.content = formData.videoUrl
-      }
-      
       const url = draftId ? `/api/drafts/resources/${draftId}` : '/api/drafts/resources'
       const method = draftId ? 'PUT' : 'POST'
       
+      const payload = {
+        ...formData,
+        content: formData.content,
+      }
+
+      if (formData.type === 'video') {
+        const trimmedVideoUrl = formData.videoUrl?.trim()
+
+        if (trimmedVideoUrl) {
+          (payload as typeof payload & { videoUrl?: string }).videoUrl = trimmedVideoUrl
+        } else {
+          delete (payload as { videoUrl?: string }).videoUrl
+        }
+      } else {
+        delete (payload as { videoUrl?: string }).videoUrl
+      }
+
       const response = await fetch(url, {
         method,
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(dataToSubmit),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) {

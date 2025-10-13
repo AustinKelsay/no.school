@@ -106,6 +106,7 @@ model Resource {
     purchases    Purchase[]
     noteId       String?       @unique
     videoId      String?
+    videoUrl     String?
     createdAt    DateTime      @default(now())
     updatedAt    DateTime      @updatedAt
 }
@@ -122,6 +123,7 @@ model Draft {
     price           Int?          @default(0)
     topics          String[]
     additionalLinks String[]
+    videoUrl        String?
     createdAt       DateTime      @default(now())
     updatedAt       DateTime      @updatedAt
     draftLessons    DraftLesson[]

@@ -95,6 +95,18 @@ function extractVideoUrl(content: string): string | undefined {
   if (youtubeMatch) {
     return `https://www.youtube.com/watch?v=${youtubeMatch[1]}`
   }
+
+  // Extract Vimeo URL from iframe
+  const vimeoMatch = content.match(/player\.vimeo\.com\/video\/(\d+)/i)
+  if (vimeoMatch) {
+    return `https://vimeo.com/${vimeoMatch[1]}`
+  }
+
+  // Extract generic iframe src
+  const iframeMatch = content.match(/<iframe[^>]+src="([^"]+)"/i)
+  if (iframeMatch) {
+    return iframeMatch[1]
+  }
   
   // Extract direct video URL from source tags
   const videoMatch = content.match(/src="([^"]+\.(mp4|webm|mov))"/i)
@@ -151,7 +163,23 @@ export function formatContentForDisplay(content: string): string {
     .replace(/\n\s*\n\s*\n/g, '\n\n')  // Collapse multiple blank lines
     .replace(/^\s+|\s+$/g, '')  // Trim whitespace
     .replace(/\t/g, '  ')  // Convert tabs to spaces
-} 
+}
+
+/**
+ * Extract the additional markdown body for video content by removing the title and embed block
+ */
+export function extractVideoBodyMarkdown(content: string): string {
+  if (!content) {
+    return ''
+  }
+
+  let body = content
+
+  body = body.replace(/^#\s+.*$/m, '').trimStart()
+  body = body.replace(/<div class="video-embed"[\s\S]*?<\/div>/i, '').trim()
+
+  return body
+}
 
 /**
  * Content utilities for parsing Nostr events
@@ -208,6 +236,7 @@ export interface ParsedResourceEvent {
   currency?: string
   isPremium?: boolean
   category?: string
+  videoUrl?: string
 }
 
 export const parseCourseEvent = (event: NostrEvent): ParsedCourseEvent => {
@@ -311,11 +340,12 @@ export const parseEvent = (event: NostrEvent): ParsedResourceEvent => {
     published_at: '',
     created_at: event.created_at || 0,
     topics: [],
-    additionalLinks: [],
-    d: '',
-    tags: event.tags || [],
-    type: 'document', // Default type
-  }
+  additionalLinks: [],
+  d: '',
+  tags: event.tags || [],
+  type: 'document', // Default type
+  videoUrl: undefined,
+}
 
   // Iterate over the tags array to extract data
   if (event.tags) {
@@ -369,6 +399,9 @@ export const parseEvent = (event: NostrEvent): ParsedResourceEvent => {
         case 'r':
           if (tag[1]) eventData.additionalLinks.push(tag[1])
           break
+        case 'video':
+          eventData.videoUrl = tag[1] || ''
+          break
         case 'p':
           // Assuming author pubkey is in p tag
           eventData.authorPubkey = tag[1] || ''
@@ -394,5 +427,9 @@ export const parseEvent = (event: NostrEvent): ParsedResourceEvent => {
     eventData.category = eventData.topics.find(topic => topic !== 'video') || eventData.topics[0]
   }
 
+  if (eventData.type === 'video' && !eventData.videoUrl) {
+    eventData.videoUrl = extractVideoUrl(event.content) || undefined
+  }
+
   return eventData
-} 
+}

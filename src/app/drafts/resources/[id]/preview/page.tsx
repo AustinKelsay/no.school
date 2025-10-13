@@ -47,6 +47,7 @@ interface DraftData {
   price?: number | null
   topics: string[]
   additionalLinks: string[]
+  videoUrl?: string | null
   createdAt: string
   updatedAt: string
   userId: string
@@ -109,7 +110,12 @@ function ContentMetadata({ draftData }: { draftData: DraftData }) {
     return Math.ceil(words / wordsPerMinute)
   }
 
-  const readingTime = draftData.type !== 'video' ? getReadingTime(draftData.content) : null
+  const additionalContent = draftData.content?.trim()
+  const readingTime = draftData.type !== 'video'
+    ? getReadingTime(draftData.content)
+    : additionalContent
+      ? getReadingTime(additionalContent)
+      : null
 
   return (
     <div className="space-y-4">
@@ -212,6 +218,7 @@ function ResourceDraftContent({ resourceId }: { resourceId: string }) {
   const category = draftData.topics[0] || 'general'
   const type = draftData.type || 'document'
   const additionalLinks = draftData.additionalLinks || []
+  const additionalContent = draftData.content?.trim()
   const difficulty = 'intermediate' // Default
   const isPremium = (draftData.price ?? 0) > 0
 
@@ -269,15 +276,17 @@ function ResourceDraftContent({ resourceId }: { resourceId: string }) {
       <div className="space-y-6">
         {type === 'video' ? (
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-6 space-y-6">
               <VideoPlayer 
-                url={draftData.content} 
+                url={draftData.videoUrl || undefined}
                 title={draftData.title}
                 duration="15 min"
               />
-              <div className="prose prose-lg max-w-none mt-6">
-                <p className="text-muted-foreground">Video URL: {draftData.content}</p>
-              </div>
+              {additionalContent && (
+                <div className="prose prose-lg max-w-none">
+                  <MarkdownRenderer content={draftData.content} />
+                </div>
+              )}
             </CardContent>
           </Card>
         ) : (

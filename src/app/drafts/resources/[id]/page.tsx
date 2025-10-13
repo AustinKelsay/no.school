@@ -46,6 +46,7 @@ interface DraftData {
   price?: number | null
   topics: string[]
   additionalLinks: string[]
+  videoUrl?: string | null
   createdAt: string
   updatedAt: string
   userId: string

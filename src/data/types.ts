@@ -34,6 +34,7 @@ export interface Resource {
   price: number           // @default(0) - price in sats
   noteId?: string         // @unique (optional) - references Nostr event
   videoId?: string        // Optional video ID for video resources
+  videoUrl?: string       // Direct video URL for embeds
   createdAt: string       // @default(now())
   updatedAt: string       // @updatedAt
 }

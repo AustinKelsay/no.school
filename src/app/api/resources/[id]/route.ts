@@ -13,6 +13,7 @@ const updateResourceSchema = z.object({
   price: z.number().int().min(0).optional(),
   noteId: z.string().optional(),
   videoId: z.string().optional(),
+  videoUrl: z.string().url().optional(),
 })
 
 interface RouteParams {

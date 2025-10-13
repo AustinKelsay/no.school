@@ -145,6 +145,7 @@ export class PublishService {
             price: draft.price || 0,
             noteId: event.id, // Store the Nostr event ID
             videoId: draft.type === 'video' ? draft.id : undefined,
+            videoUrl: draft.type === 'video' ? draft.videoUrl ?? null : null,
           }
         })
 

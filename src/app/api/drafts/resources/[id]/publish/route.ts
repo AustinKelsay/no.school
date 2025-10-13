@@ -124,6 +124,7 @@ export async function POST(
             price: fullDraft.price || 0,
             noteId: signedEvent.id,
             videoId: fullDraft.type === 'video' ? draftId : undefined,
+            videoUrl: fullDraft.type === 'video' ? fullDraft.videoUrl ?? undefined : undefined,
           }
         })
 

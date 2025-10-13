@@ -7,7 +7,32 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
-import { getEstimatedReadingTime, formatContentForDisplay } from '@/lib/content-utils'
+import { getEstimatedReadingTime, formatContentForDisplay, extractVideoBodyMarkdown } from '@/lib/content-utils'
+
+function resolveLessonVideoUrl(
+  parsedVideoUrl: string | undefined,
+  rawContent: string,
+  type: string
+): string | undefined {
+  // Newer lessons ship a dedicated video URL via tags, so honor that first.
+  if (type !== 'video') {
+    return parsedVideoUrl?.trim() || undefined
+  }
+
+  if (parsedVideoUrl?.trim()) {
+    return parsedVideoUrl.trim()
+  }
+
+  // Legacy lessons published before the videoUrl column stored the share link
+  // directly in the markdown body. We scan for the first absolute URL so those
+  // lessons continue to play without re-editing.
+  const legacyMatch = rawContent.match(/https?:\/\/[^\s<>()\[\]"']+/i)
+  if (!legacyMatch) {
+    return undefined
+  }
+
+  return legacyMatch[0].replace(/[.,;)]+$/, '')
+}
 import { parseCourseEvent, parseEvent } from '@/lib/content-utils'
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
 import { VideoPlayer } from '@/components/ui/video-player'
@@ -295,6 +320,7 @@ function LessonContent({
   let resourceImage = ''
   let resourceTopics: string[] = []
   let resourceAdditionalLinks: string[] = []
+  let resourceVideoUrl: string | undefined = lessonData.resource.videoUrl || undefined
 
   let courseTitle = 'Unknown Course'
   let courseCategory = 'general'
@@ -317,6 +343,7 @@ function LessonContent({
       resourceImage = parsedResource.image || resourceImage
       resourceTopics = parsedResource.topics || resourceTopics
       resourceAdditionalLinks = parsedResource.additionalLinks || resourceAdditionalLinks
+      resourceVideoUrl = parsedResource.videoUrl || resourceVideoUrl
     } catch (error) {
       console.error('Error parsing resource note:', error)
     }
@@ -344,7 +371,7 @@ function LessonContent({
     isMarkdown: true,
     type: resourceType as 'video' | 'document',
     hasVideo: resourceType === 'video',
-    videoUrl: resourceType === 'video' ? '#' : undefined,
+    videoUrl: resourceType === 'video' ? resourceVideoUrl : undefined,
     title: resourceTitle,
     additionalLinks: resourceAdditionalLinks
   }
@@ -360,6 +387,8 @@ function LessonContent({
   }
 
   const formattedContent = formatContentForDisplay(content.content)
+  const playbackUrl = resolveLessonVideoUrl(content.videoUrl, content.content, content.type)
+  const videoBodyMarkdown = content.type === 'video' ? extractVideoBodyMarkdown(content.content) : ''
   
   // Use enhanced lesson displays from useLessonsQuery hook
   const lessonDisplays = lessonsData || []
@@ -464,15 +493,21 @@ function LessonContent({
 
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-3 space-y-6">
           {content.type === 'video' && content.hasVideo ? (
-            <VideoPlayer
-              content={formattedContent}
-              title={content.title}
-              videoUrl={content.videoUrl}
-              duration="30 min"
-              thumbnailUrl={resourceImage}
-            />
+            <>
+              <VideoPlayer
+                content={content.content}
+                title={content.title}
+                url={playbackUrl}
+                videoUrl={playbackUrl}
+                duration="30 min"
+                thumbnailUrl={resourceImage}
+              />
+              {videoBodyMarkdown && (
+                <MarkdownRenderer content={videoBodyMarkdown} />
+              )}
+            </>
           ) : (
             <MarkdownRenderer content={formattedContent} />
           )}

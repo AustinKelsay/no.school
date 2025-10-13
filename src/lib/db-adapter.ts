@@ -15,6 +15,7 @@ function transformResource(resource: any): Resource {
     ...resource,
     noteId: resource.noteId ?? undefined,
     videoId: resource.videoId ?? undefined,
+    videoUrl: resource.videoUrl ?? undefined,
     createdAt: resource.createdAt.toISOString(),
     updatedAt: resource.updatedAt.toISOString()
   }
