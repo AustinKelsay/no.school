@@ -489,7 +489,7 @@ export function CourseDraftPageClient({ courseId }: CourseDraftPageClientProps) 
 
                 {/* Draft overlay indicator */}
                 <div className="absolute top-4 right-4">
-                  <DraftPreviewBadge className="bg-white/90" />
+                  <DraftPreviewBadge className="bg-background/95 backdrop-blur-sm text-foreground border-border shadow-lg" />
                 </div>
               </div>
             </div>

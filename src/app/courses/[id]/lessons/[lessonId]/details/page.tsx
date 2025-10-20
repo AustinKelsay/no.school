@@ -33,7 +33,7 @@ function resolveLessonVideoUrl(
 
   return legacyMatch[0].replace(/[.,;)]+$/, '')
 }
-import { parseCourseEvent, parseEvent } from '@/lib/content-utils'
+import { parseCourseEvent, parseEvent } from '@/data/types'
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
 import { VideoPlayer } from '@/components/ui/video-player'
 import { ZapThreads } from '@/components/ui/zap-threads'

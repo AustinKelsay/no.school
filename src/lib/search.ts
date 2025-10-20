@@ -94,7 +94,7 @@ export function searchCourses(courses: CourseWithNote[], keyword: string): Searc
     
     if (course.note) {
       const parsedEvent = parseCourseEvent(course.note)
-      title = parsedEvent.name || ''
+      title = parsedEvent.title || parsedEvent.name || ''
       description = parsedEvent.description || ''
     }
     
@@ -215,7 +215,7 @@ export function getSearchSuggestions(
   for (const course of courses) {
     if (course.note) {
       const parsedEvent = parseCourseEvent(course.note)
-      const title = parsedEvent.name || ''
+      const title = parsedEvent.title || parsedEvent.name || ''
       if (title.toLowerCase().includes(lowerKeyword)) {
         suggestions.add(title)
       }

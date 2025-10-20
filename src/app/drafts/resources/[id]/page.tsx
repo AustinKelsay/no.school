@@ -445,7 +445,7 @@ function ResourceDraftPageContent({ resourceId }: { resourceId: string }) {
 
                 {/* Draft overlay indicator */}
                 <div className="absolute top-4 right-4">
-                  <DraftPreviewBadge className="bg-background/90 backdrop-blur-sm" />
+                  <DraftPreviewBadge className="bg-background/95 backdrop-blur-sm text-foreground border-border shadow-lg" />
                 </div>
               </div>
             </div>

@@ -117,7 +117,7 @@ function courseEventToSearchResult(event: NostrEvent, keyword: string): SearchRe
   try {
     const parsedEvent = parseCourseEvent(event)
     
-    const title = parsedEvent.name || ''
+    const title = parsedEvent.title || parsedEvent.name || ''
     const description = parsedEvent.description || ''
     const content = parsedEvent.content || ''
     

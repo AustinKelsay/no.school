@@ -108,15 +108,23 @@ export interface ParsedCourseEvent {
   pubkey: string
   content: string
   kind: number
+  title: string
   name: string
   description: string
   image: string
   published_at: string
   created_at: number
   topics: string[]
+  additionalLinks: string[]
   d: string
   tags: string[][]
-  type: 'course'
+  type: "course"
+  instructor?: string
+  instructorPubkey?: string
+  price?: string
+  currency?: string
+  isPremium?: boolean
+  category?: string
 }
 
 /**
@@ -135,8 +143,14 @@ export interface ParsedResourceEvent {
   topics: string[]
   type: 'document' | 'video'
   author?: string
+  authorPubkey?: string
   price?: string
+  currency?: string
+  isPremium?: boolean
   d: string
+  tags: string[][]
+  videoUrl?: string
+  category?: string
 }
 
 // ============================================================================
@@ -149,63 +163,81 @@ export interface ParsedResourceEvent {
 export function parseCourseEvent(event: NostrCourseListEvent | NostrEvent): ParsedCourseEvent {
   const eventData: ParsedCourseEvent = {
     id: event.id,
-    pubkey: event.pubkey || '',
-    content: event.content || '',
+    pubkey: event.pubkey || "",
+    content: event.content || "",
     kind: event.kind || 30004,
-    name: '',
-    description: '',
-    image: '',
-    published_at: '',
+    title: "",
+    name: "",
+    description: "",
+    image: "",
+    published_at: "",
     created_at: event.created_at,
     topics: [],
-    d: '',
+    additionalLinks: [],
+    d: "",
     tags: event.tags,
-    type: 'course',
+    type: "course",
   }
 
   // Iterate over the tags array to extract data
   event.tags.forEach(tag => {
     switch (tag[0]) {
-      case 'name':
+      case "name":
+      case "title":
+        eventData.title = tag[1]
         eventData.name = tag[1]
         break
-      case 'title':
-        eventData.name = tag[1]
-        break
-      case 'description':
+      case "description":
+      case "about":
         eventData.description = tag[1]
         break
-      case 'about':
-        eventData.description = tag[1]
-        break
-      case 'image':
+      case "image":
+      case "picture":
         eventData.image = tag[1]
         break
-      case 'picture':
-        eventData.image = tag[1]
-        break
-      case 'published_at':
+      case "published_at":
         eventData.published_at = tag[1]
         break
-      case 'd':
+      case "d":
         eventData.d = tag[1]
         break
-      case 'price':
-        // Price is handled in database model
+      case "price":
+        eventData.price = tag[1]
+        eventData.isPremium = parseFloat(tag[1] || "0") > 0
         break
-      case 'l':
+      case "currency":
+        eventData.currency = tag[1]
+        break
+      case "l":
         // Grab index 1 and any subsequent elements in the array
         tag.slice(1).forEach(topic => {
           eventData.topics.push(topic)
         })
         break
-      case 't':
+      case "t":
         eventData.topics.push(tag[1])
+        break
+      case "r":
+        eventData.additionalLinks.push(tag[1])
+        break
+      case "instructor":
+        eventData.instructor = tag[1]
+        break
+      case "p":
+        eventData.instructorPubkey = tag[1]
         break
       default:
         break
     }
   })
+
+  if (!eventData.instructorPubkey) {
+    eventData.instructorPubkey = eventData.pubkey
+  }
+
+  if (eventData.topics.length > 0) {
+    eventData.category = eventData.topics[0]
+  }
 
   return eventData
 }
@@ -216,77 +248,139 @@ export function parseCourseEvent(event: NostrCourseListEvent | NostrEvent): Pars
 export function parseEvent(event: NostrFreeContentEvent | NostrPaidContentEvent | NostrEvent): ParsedResourceEvent {
   const eventData: ParsedResourceEvent = {
     id: event.id,
-    pubkey: event.pubkey || '',
-    content: event.content || '',
+    pubkey: event.pubkey || "",
+    content: event.content || "",
     kind: event.kind || 30023,
     additionalLinks: [],
-    title: '',
-    summary: '',
-    image: '',
-    published_at: '',
+    title: "",
+    summary: "",
+    image: "",
+    published_at: "",
     topics: [],
-    type: 'document', // Default type
-    d: ''
+    type: "document", // Default type
+    author: undefined,
+    authorPubkey: undefined,
+    price: undefined,
+    currency: undefined,
+    isPremium: undefined,
+    d: "",
+    tags: event.tags,
+    videoUrl: undefined,
+    category: undefined,
   }
 
-  // Iterate over the tags array to extract data
-  event.tags.forEach(tag => {
-    switch (tag[0]) {
-      case 'title':
-        eventData.title = tag[1]
-        break
-      case 'summary':
-        eventData.summary = tag[1]
-        break
-      case 'description':
-        eventData.summary = tag[1]
-        break
-      case 'name':
-        eventData.title = tag[1]
-        break
-      case 'image':
-        eventData.image = tag[1]
-        break
-      case 'published_at':
-        eventData.published_at = tag[1]
-        break
-      case 'author':
-        eventData.author = tag[1]
-        break
-      case 'price':
-        eventData.price = tag[1]
-        break
-      case 'l':
-        // Grab index 1 and any subsequent elements in the array
-        tag.slice(1).forEach(topic => {
-          eventData.topics.push(topic)
-        })
-        break
-      case 'd':
-        eventData.d = tag[1]
-        break
-      case 't':
-        if (tag[1] === 'video') {
-          eventData.type = 'video'
-          eventData.topics.push(tag[1])
-        } else if (tag[1] !== 'plebdevs') {
-          eventData.topics.push(tag[1])
-        }
-        break
-      case 'r':
-        eventData.additionalLinks.push(tag[1])
-        break
-      default:
-        break
-    }
-  })
+  if (event.tags) {
+    event.tags.forEach(tag => {
+      if (!Array.isArray(tag) || tag.length === 0) {
+        return
+      }
 
-  // if published_at is an empty string, then set it to event.created_at
+      switch (tag[0]) {
+        case "title":
+        case "name":
+          eventData.title = tag[1] || ""
+          break
+        case "summary":
+        case "description":
+          eventData.summary = tag[1] || ""
+          break
+        case "image":
+          eventData.image = tag[1] || ""
+          break
+        case "published_at":
+          eventData.published_at = tag[1] || ""
+          break
+        case "author":
+          eventData.author = tag[1] || ""
+          break
+        case "price":
+          eventData.price = tag[1] || ""
+          eventData.isPremium = parseFloat(tag[1] || "0") > 0
+          break
+        case "currency":
+          eventData.currency = tag[1] || ""
+          break
+        case "l":
+          tag.slice(1).forEach(topic => {
+            if (topic) {
+              eventData.topics.push(topic)
+            }
+          })
+          break
+        case "d":
+          eventData.d = tag[1] || ""
+          break
+        case "t":
+          if (tag[1] === "video") {
+            eventData.type = "video"
+            eventData.topics.push(tag[1])
+          } else if (tag[1] !== "plebdevs") {
+            eventData.topics.push(tag[1])
+          }
+          break
+        case "r":
+          if (tag[1]) {
+            eventData.additionalLinks.push(tag[1])
+          }
+          break
+        case "video":
+          eventData.videoUrl = tag[1] || ""
+          break
+        case "p":
+          eventData.authorPubkey = tag[1] || ""
+          break
+        default:
+          break
+      }
+    })
+  }
+
+  if (!eventData.authorPubkey) {
+    eventData.authorPubkey = eventData.pubkey
+  }
+
   if (!eventData.published_at) {
     eventData.published_at = event.created_at.toString()
   }
 
+  if (eventData.topics.length > 0) {
+    eventData.category = eventData.topics.find(topic => topic !== "video") || eventData.topics[0]
+  }
+
+  if (eventData.type === "video" && !eventData.videoUrl) {
+    eventData.videoUrl = extractVideoUrlFromContent(event.content) || undefined
+  }
+
   return eventData
+}
+
+function extractVideoUrlFromContent(content: string): string | undefined {
+  const youtubeMatch = content.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]+)/i)
+  if (youtubeMatch) {
+    return `https://www.youtube.com/watch?v=${youtubeMatch[1]}`
+  }
+
+  const vimeoMatch = content.match(/player\.vimeo\.com\/video\/(\d+)/i)
+  if (vimeoMatch) {
+    return `https://vimeo.com/${vimeoMatch[1]}`
+  }
+
+  const iframeMatch = content.match(/<iframe[^>]+src="([^"]+)"/i)
+  if (iframeMatch) {
+    return iframeMatch[1]
+  }
+
+  const videoMatch = content.match(/src="([^"]+\.(mp4|webm|mov))"/i)
+  if (videoMatch) {
+    return videoMatch[1]
+  }
+
+  const genericUrlMatch = content.match(/https?:\/\/[^\s<>()\[\]"']+/i)
+  if (genericUrlMatch) {
+    return genericUrlMatch[0].replace(/[.,;)]+$/, "")
+  }
+
+  return undefined
 }
 
 // ============================================================================
@@ -380,7 +474,7 @@ export interface ContentItem {
 export function createCourseDisplay(course: Course, parsedEvent: ParsedCourseEvent): CourseDisplay {
   return {
     ...course,
-    title: parsedEvent.name || 'Unknown Course',
+    title: parsedEvent.title || parsedEvent.name || "Unknown Course",
     description: parsedEvent.description || 'No description available',
     category: parsedEvent.topics[0] || 'general',
     instructor: 'Unknown', // Would come from user table in real implementation
