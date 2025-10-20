@@ -239,13 +239,7 @@ export class ResourceAdapter {
     const resources = await prisma.resource.findMany({
       orderBy: { createdAt: 'desc' }
     })
-    return resources.map(resource => ({
-      ...resource,
-      noteId: resource.noteId ?? undefined,
-      videoId: resource.videoId ?? undefined,
-      createdAt: resource.createdAt.toISOString(),
-      updatedAt: resource.updatedAt.toISOString()
-    }))
+    return resources.map(transformResource)
   }
 
   static async findAllPaginated(options?: PaginationOptions): Promise<{

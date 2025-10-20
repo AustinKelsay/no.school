@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { usePathname } from "next/navigation"
 
 type Dedupe = "session" | "day" | false
@@ -76,7 +76,7 @@ export function useViews(options: UseViewsOptions = {}) {
   }, [])
 
   // Helper for client-side deduping
-  function shouldTrackOnce(): boolean {
+  const shouldTrackOnce = useCallback((): boolean => {
     if (!track) return false
     if (!dedupe) return true
 
@@ -101,10 +101,10 @@ export function useViews(options: UseViewsOptions = {}) {
     }
 
     return true
-  }
+  }, [dedupe, memSet, resolvedKey, track])
 
   // Deduped GET that broadcasts to all listeners
-  async function refetchCount(): Promise<number | undefined> {
+  const refetchCount = useCallback(async (): Promise<number | undefined> => {
     let p = viewsBus.inflightGet.get(resolvedKey)
     if (!p) {
       p = (async () => {
@@ -130,7 +130,7 @@ export function useViews(options: UseViewsOptions = {}) {
       viewsBus.inflightGet.set(resolvedKey, p)
     }
     return p
-  }
+  }, [resolvedKey])
 
   // Subscribe to shared bus and perform initial fetch
   useEffect(() => {
@@ -139,7 +139,7 @@ export function useViews(options: UseViewsOptions = {}) {
     if (typeof existing === "number") setCount(existing)
     void refetchCount()
     return unsubscribe
-  }, [resolvedKey])
+  }, [refetchCount, resolvedKey])
 
   // Increment once based on dedupe policy
   useEffect(() => {
@@ -171,8 +171,7 @@ export function useViews(options: UseViewsOptions = {}) {
     return () => {
       cancelled = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedKey])
+  }, [refetchCount, resolvedKey, shouldTrackOnce])
 
   return { key: resolvedKey, count }
 }
