@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { Prisma } from '@prisma/client'
 import { authOptions } from '@/lib/auth'
 import { DraftLessonService, CourseDraftService } from '@/lib/draft-service'
 import { z } from 'zod'
@@ -144,10 +145,27 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Failed to create draft lesson:', error)
     
-    // Handle unique constraint violations
-    if (error instanceof Error && error.message.includes('Unique constraint failed')) {
+    // Handle unique constraint violations with specific messaging
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      const targetMeta = error.meta?.target
+      const target = Array.isArray(targetMeta) ? (targetMeta as string[]) : []
+
+      if (target.includes('courseDraftId') && target.includes('index')) {
+        return NextResponse.json(
+          { error: 'A lesson with this index already exists in the course draft' },
+          { status: 409 }
+        )
+      }
+
+      if (target.includes('courseDraftId') && target.includes('resourceId')) {
+        return NextResponse.json(
+          { error: 'This resource is already included in the course draft' },
+          { status: 409 }
+        )
+      }
+
       return NextResponse.json(
-        { error: 'A lesson with this index already exists in the course draft' },
+        { error: 'A unique constraint was violated while creating the draft lesson' },
         { status: 409 }
       )
     }

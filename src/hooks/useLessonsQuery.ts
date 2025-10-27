@@ -416,7 +416,7 @@ export function useLessonQuery(lessonId: string, options: UseLessonsQueryOptions
       // Fetch the course to get all lessons for proper context
       if (lesson.courseId) {
         const courseLessons = await fetchLessonsForCourse(lesson.courseId, relayPool, relays)
-        return courseLessons.find(l => l.id === lessonId) || null
+        return courseLessons.find(l => l.id === lesson.id) || null
       }
       
       // If no course, just return the lesson with basic resource data

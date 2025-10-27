@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { notFound, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
@@ -14,15 +14,16 @@ import { Section } from '@/components/layout/section'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { preserveLineBreaks } from '@/lib/text-utils'
 import { useCourseDraftQuery, useDeleteCourseDraft } from '@/hooks/useCourseDraftQuery'
-import { parseEvent, type NostrEvent } from '@/data/types'
+import { useResourceNotes } from '@/hooks/useResourceNotes'
+import {
+  resolveDraftLesson,
+  type ResolvedDraftLesson,
+} from '@/lib/drafts/lesson-resolution'
 import { 
   Clock, 
   BookOpen, 
-  Play,
   Tag,
-  ExternalLink,
   GraduationCap,
-  User,
   Edit,
   Eye,
   Trash2,
@@ -30,21 +31,16 @@ import {
   FileText,
   Video,
   DollarSign,
-  Loader2
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
 
 interface CourseDraftPageClientProps {
   courseId: string
 }
 
-interface LessonData {
-  id: string
-  title: string
-  index: number
-  contentType?: string
-  price?: number
-  image?: string
-  summary?: string
+interface DraftCourseLessonDisplay extends ResolvedDraftLesson {
+  noteError?: string
 }
 
 /**
@@ -52,10 +48,12 @@ interface LessonData {
  */
 function DraftCourseLessons({ 
   lessons, 
-  courseId 
+  courseId,
+  isSyncing,
 }: { 
-  lessons: LessonData[]
+  lessons: DraftCourseLessonDisplay[]
   courseId: string 
+  isSyncing: boolean
 }) {
   if (!lessons || lessons.length === 0) {
     return (
@@ -97,13 +95,22 @@ function DraftCourseLessons({
               <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5" />
               <span>Course Lessons (Draft)</span>
             </div>
-            <DraftPreviewBadge />
+            <div className="flex items-center gap-2">
+              {isSyncing && (
+                <span className="flex items-center text-xs text-muted-foreground">
+                  <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />
+                  Syncing lesson content…
+                </span>
+              )}
+              <DraftPreviewBadge />
+            </div>
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0 sm:pt-6">
           <div className="space-y-3 sm:space-y-4">
             {lessons.map((lesson, index) => {
               const isPremium = (lesson.price || 0) > 0
+              const contentType = lesson.type || 'document'
               
               return (
                 <div key={lesson.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 border rounded-lg hover:bg-accent/50 transition-colors">
@@ -125,7 +132,7 @@ function DraftCourseLessons({
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          {lesson.contentType === 'video' ? (
+                          {contentType === 'video' ? (
                             <Video className="h-5 w-5 text-muted-foreground" />
                           ) : (
                             <FileText className="h-5 w-5 text-muted-foreground" />
@@ -143,12 +150,21 @@ function DraftCourseLessons({
                           {lesson.summary}
                         </p>
                       )}
+                      {lesson.noteError && (
+                        <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {lesson.noteError}
+                        </p>
+                      )}
                       <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground flex-wrap mt-1">
-                        {lesson.contentType && (
+                        {contentType && (
                           <Badge variant="secondary" className="text-xs capitalize">
-                            {lesson.contentType}
+                            {contentType}
                           </Badge>
                         )}
+                        <Badge variant="outline" className="text-xs capitalize">
+                          {lesson.status === 'published' ? 'Published lesson' : 'Draft lesson'}
+                        </Badge>
                         {isPremium ? (
                           <Badge variant="secondary" className="text-xs">
                             <DollarSign className="h-3 w-3 mr-0.5" />
@@ -236,7 +252,7 @@ function DraftCourseActions({ courseId, onDelete }: { courseId: string; onDelete
  */
 export function CourseDraftPageClient({ courseId }: CourseDraftPageClientProps) {
   const router = useRouter()
-  const { data: session, status: sessionStatus } = useSession()
+  const { status: sessionStatus } = useSession()
   const { data: draftData, isLoading: loading, isError, error } = useCourseDraftQuery(courseId)
   const { deleteCourseDraftAsync } = useDeleteCourseDraft()
   
@@ -249,6 +265,40 @@ export function CourseDraftPageClient({ courseId }: CourseDraftPageClientProps) 
       alert('Failed to delete draft. Please try again.')
     }
   }
+
+  const draftLessons = useMemo(() => draftData?.draftLessons ?? [], [draftData])
+
+  const resourceIds = useMemo(() => {
+    const ids = draftLessons
+      .map(lesson => lesson.resourceId ?? lesson.resource?.id)
+      .filter((id): id is string => Boolean(id))
+    return Array.from(new Set(ids))
+  }, [draftLessons])
+
+  const resourceNotesQuery = useResourceNotes(resourceIds, {
+    enabled: resourceIds.length > 0 && sessionStatus === 'authenticated',
+  })
+
+  const resolvedLessons: DraftCourseLessonDisplay[] = useMemo(() => {
+    if (!draftData) return []
+
+    return draftLessons
+      .map(lesson => {
+        const resourceId = lesson.resourceId ?? lesson.resource?.id ?? undefined
+        const noteResult = resourceId ? resourceNotesQuery.notes.get(resourceId) : undefined
+        const resolution = resolveDraftLesson(draftData, lesson, noteResult)
+        if (!resolution.data) {
+          return null
+        }
+
+        return {
+          ...resolution.data,
+          noteError: noteResult?.noteError,
+        } as DraftCourseLessonDisplay
+      })
+      .filter((lesson): lesson is DraftCourseLessonDisplay => lesson !== null)
+      .sort((a, b) => a.index - b.index)
+  }, [draftData, draftLessons, resourceNotesQuery.notes])
 
   // Show loading state while session is loading or data is loading
   if (sessionStatus === 'loading' || (loading && sessionStatus === 'authenticated')) {
@@ -314,52 +364,13 @@ export function CourseDraftPageClient({ courseId }: CourseDraftPageClientProps) 
     )
   }
   
-  // Transform draft lessons to the format expected by the component
-  const transformedLessons: LessonData[] = draftData.draftLessons.map(lesson => {
-    const lessonData: LessonData = {
-      id: lesson.id,
-      title: '',
-      index: lesson.index,
-      contentType: 'document',
-      price: 0
-    }
-    
-    // Get data from resource or draft
-    if (lesson.resource) {
-      lessonData.title = lesson.resource.title || 'Untitled Resource'
-      lessonData.price = lesson.resource.price || 0
-      
-      // Parse resource note if available
-      if (lesson.resource.note) {
-        // Add missing sig property for parseEvent
-        const noteWithSig = {
-          ...lesson.resource.note,
-          sig: ''
-        } as NostrEvent
-        const parsedNote = parseEvent(noteWithSig)
-        lessonData.title = parsedNote.title || lessonData.title
-        lessonData.image = parsedNote.image
-        lessonData.summary = parsedNote.summary
-        lessonData.contentType = parsedNote.type || 'document'
-      }
-    } else if (lesson.draft) {
-      lessonData.title = lesson.draft.title
-      lessonData.summary = lesson.draft.summary
-      lessonData.contentType = lesson.draft.type
-      lessonData.price = lesson.draft.price || 0
-      lessonData.image = lesson.draft.image || undefined
-    }
-    
-    return lessonData
-  }).sort((a, b) => a.index - b.index)
-
   const title = draftData.title
   const description = draftData.summary
   const topics = draftData.topics
   const image = draftData.image
   const isPremium = (draftData.price ?? 0) > 0
   const currency = 'sats'
-  const lessonCount = transformedLessons.length
+  const lessonCount = resolvedLessons.length
   const estimatedDuration = lessonCount * 30 // 30 minutes per lesson
 
   const formatDuration = (minutes: number): string => {
@@ -440,7 +451,9 @@ export function CourseDraftPageClient({ courseId }: CourseDraftPageClientProps) 
                 )}
               </div>
 
-              <DraftCourseActions courseId={courseId} onDelete={handleDelete} />
+              <div className="hidden lg:block">
+                <DraftCourseActions courseId={courseId} onDelete={handleDelete} />
+              </div>
 
               {/* Topics/Tags */}
               {topics && topics.length > 0 && (
@@ -498,7 +511,11 @@ export function CourseDraftPageClient({ courseId }: CourseDraftPageClientProps) 
           {/* Course Content */}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <DraftCourseLessons lessons={transformedLessons} courseId={courseId} />
+              <DraftCourseLessons
+                lessons={resolvedLessons}
+                courseId={courseId}
+                isSyncing={resourceNotesQuery.isLoading}
+              />
             </div>
 
             <div className="space-y-6">

@@ -173,7 +173,7 @@ model Lesson {
     userLessons UserLesson[]
 
     @@unique([courseId, index])
-    @@unique([resourceId, index])
+    @@unique([courseId, resourceId])
     @@unique([draftId, index])
 }
 
@@ -190,7 +190,7 @@ model DraftLesson {
     updatedAt     DateTime    @updatedAt
 
     @@unique([courseDraftId, index])
-    @@unique([resourceId, index])
+    @@unique([courseDraftId, resourceId])
     @@unique([draftId, index])
 }
 

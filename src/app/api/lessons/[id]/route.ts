@@ -4,11 +4,20 @@ import { prisma } from '@/lib/prisma'
 import { resolveUniversalId } from '@/lib/universal-router'
 
 interface RouteParams {
-  params: Promise<{ id: string; lessonId: string }>
+  params: Promise<{ id: string }>
 }
 
 const lessonInclude = {
-  course: true,
+  course: {
+    select: {
+      id: true,
+      userId: true,
+      price: true,
+      noteId: true,
+      createdAt: true,
+      updatedAt: true,
+    }
+  },
   resource: {
     include: {
       user: {
@@ -50,17 +59,17 @@ function collectCandidateIdentifiers(rawId: string): string[] {
   return Array.from(candidates)
 }
 
-async function findLessonByFlexibleId(identifier: string, courseId: string, include: Prisma.LessonInclude) {
+async function findLessonByFlexibleId(identifier: string, include: Prisma.LessonInclude) {
   const lessonById = await prisma.lesson.findUnique({
     where: { id: identifier },
     include,
   })
-  if (lessonById && lessonById.courseId === courseId) {
+  if (lessonById) {
     return lessonById
   }
 
   const lessonByResourceId = await prisma.lesson.findFirst({
-    where: { resourceId: identifier, courseId },
+    where: { resourceId: identifier },
     include,
   })
   if (lessonByResourceId) {
@@ -71,8 +80,7 @@ async function findLessonByFlexibleId(identifier: string, courseId: string, incl
     where: {
       resource: {
         noteId: identifier,
-      },
-      courseId,
+      }
     },
     include,
   })
@@ -83,11 +91,11 @@ async function findLessonByFlexibleId(identifier: string, courseId: string, incl
   return null
 }
 
-async function resolveLesson(rawId: string, courseId: string, include: Prisma.LessonInclude) {
+async function resolveLesson(rawId: string, include: Prisma.LessonInclude) {
   const candidates = collectCandidateIdentifiers(rawId)
 
   for (const candidate of candidates) {
-    const lesson = await findLessonByFlexibleId(candidate, courseId, include)
+    const lesson = await findLessonByFlexibleId(candidate, include)
     if (lesson) {
       return lesson
     }
@@ -101,9 +109,9 @@ export async function GET(
   { params }: RouteParams
 ) {
   try {
-    const { id: courseId, lessonId } = await params
+    const { id } = await params
 
-    const lesson = await resolveLesson(lessonId, courseId, lessonInclude)
+    const lesson = await resolveLesson(id, lessonInclude)
 
     if (!lesson) {
       return NextResponse.json(
@@ -112,28 +120,18 @@ export async function GET(
       )
     }
 
-    if (lesson.courseId !== courseId) {
-      return NextResponse.json(
-        { error: 'Lesson does not belong to this course' },
-        { status: 404 }
-      )
-    }
-
     return NextResponse.json({
-      success: true,
-      data: {
-        lesson: {
-          id: lesson.id,
-          courseId: lesson.courseId,
-          resourceId: lesson.resourceId,
-          draftId: lesson.draftId,
-          index: lesson.index,
-          createdAt: lesson.createdAt,
-          updatedAt: lesson.updatedAt
-        },
-        course: lesson.course,
-        resource: lesson.resource
-      }
+      lesson: {
+        id: lesson.id,
+        courseId: lesson.courseId,
+        resourceId: lesson.resourceId,
+        draftId: lesson.draftId,
+        index: lesson.index,
+        createdAt: lesson.createdAt,
+        updatedAt: lesson.updatedAt,
+      },
+      course: lesson.course,
+      resource: lesson.resource,
     })
   } catch (error) {
     console.error('Failed to fetch lesson:', error)

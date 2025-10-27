@@ -1,6 +1,6 @@
 'use client'
 
-import React, { Suspense, useEffect, useState } from 'react'
+import React, { Suspense, useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,34 @@ import { Progress } from '@/components/ui/progress'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
 import { getEstimatedReadingTime, formatContentForDisplay, extractVideoBodyMarkdown } from '@/lib/content-utils'
+import { parseCourseEvent, parseEvent } from '@/data/types'
+import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
+import { VideoPlayer } from '@/components/ui/video-player'
+import { ZapThreads } from '@/components/ui/zap-threads'
+import { InteractionMetrics } from '@/components/ui/interaction-metrics'
+import { useCourseQuery } from '@/hooks/useCoursesQuery'
+import { useLessonsQuery, useLessonQuery } from '@/hooks/useLessonsQuery'
+import { 
+  ArrowLeft, 
+  ArrowRight, 
+  Clock, 
+  User, 
+  Calendar, 
+  PlayCircle, 
+  BookOpen, 
+  Video, 
+  FileText,
+  RotateCcw,
+  Eye
+} from 'lucide-react'
+import Link from 'next/link'
+import { LessonWithResource } from '@/hooks/useLessonsQuery'
+import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
+import { useInteractions } from '@/hooks/useInteractions'
+import { encodePublicKey } from 'snstr'
+import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
+import { getRelays } from '@/lib/nostr-relays'
+import { ViewsText } from '@/components/ui/views-text'
 
 function resolveLessonVideoUrl(
   parsedVideoUrl: string | undefined,
@@ -33,35 +61,6 @@ function resolveLessonVideoUrl(
 
   return legacyMatch[0].replace(/[.,;)]+$/, '')
 }
-import { parseCourseEvent, parseEvent } from '@/data/types'
-import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
-import { VideoPlayer } from '@/components/ui/video-player'
-import { ZapThreads } from '@/components/ui/zap-threads'
-import { InteractionMetrics } from '@/components/ui/interaction-metrics'
-import { useCourseQuery } from '@/hooks/useCoursesQuery'
-import { useLessonsQuery, useLessonQuery } from '@/hooks/useLessonsQuery'
-import { 
-  ArrowLeft, 
-  ArrowRight, 
-  Clock, 
-  User, 
-  Calendar, 
-  PlayCircle, 
-  BookOpen, 
-  Video, 
-  FileText,
-  RotateCcw,
-  Eye
-} from 'lucide-react'
-import Link from 'next/link'
-import { Lesson } from '@/data/types'
-import { LessonWithResource } from '@/hooks/useLessonsQuery'
-import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
-import { useInteractions } from '@/hooks/useInteractions'
-import { encodePublicKey } from 'snstr'
-import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
-import { getRelays } from '@/lib/nostr-relays'
-import { ViewsText } from '@/components/ui/views-text'
 
 interface LessonDetailsPageProps {
   params: Promise<{
@@ -116,7 +115,7 @@ function LessonNavigation({
 }: { 
   courseId: string
   currentLessonIndex: number
-  lessons: Lesson[]
+  lessons: LessonWithResource[]
 }) {
   const prevLesson = currentLessonIndex > 0 ? lessons[currentLessonIndex - 1] : null
   const nextLesson = currentLessonIndex < lessons.length - 1 ? lessons[currentLessonIndex + 1] : null
@@ -206,7 +205,7 @@ function LessonMetadata({
   const readingTime = content?.isMarkdown ? getEstimatedReadingTime(content.content) : null
   
   // Get real interaction data for the lesson resource if available
-  const lessonEventId = lesson.resourceId ? `lesson-${lesson.resourceId}` : undefined
+  const lessonEventId = lesson.resource?.id ? `lesson-${lesson.resource.id}` : undefined
   const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
     eventId: lessonEventId,
     realtime: false,
@@ -287,21 +286,39 @@ function LessonContent({
   const { course: courseData, isLoading: courseLoading } = useCourseQuery(resolvedCourseId)
   const { lessons: lessonsData, isLoading: lessonsDataLoading } = useLessonsQuery(resolvedCourseId)
 
+  const lessonDisplays = useMemo(() => lessonsData || [], [lessonsData])
+
+  const fallbackLesson = useMemo(() => {
+    return lessonDisplays.find(lesson => 
+      lesson.id === resolvedLessonId || lesson.resource?.id === resolvedLessonId
+    ) || null
+  }, [lessonDisplays, resolvedLessonId])
+
+  const lesson = lessonData ?? fallbackLesson
+
   const loading = lessonLoading || courseLoading || lessonsDataLoading
 
   if (loading) {
     return <LessonContentSkeleton />
   }
-  
-  if (lessonError || !lessonData) {
+
+  if (!lesson) {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">Lesson not found</p>
       </div>
     )
   }
-  
-  if (!lessonData.resource) {
+
+  if (lessonError && !lessonData) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">Lesson not found</p>
+      </div>
+    )
+  }
+
+  if (!lesson.resource) {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground">Lesson content not available</p>
@@ -320,20 +337,20 @@ function LessonContent({
   let resourceImage = ''
   let resourceTopics: string[] = []
   let resourceAdditionalLinks: string[] = []
-  let resourceVideoUrl: string | undefined = lessonData.resource.videoUrl || undefined
+  let resourceVideoUrl: string | undefined = lesson.resource.videoUrl || undefined
 
   let courseTitle = 'Unknown Course'
   let courseCategory = 'general'
   let courseInstructorPubkey = ''
 
   // Start with database data
-  resourceIsPremium = (lessonData.resource.price ?? 0) > 0
-  resourceAuthorPubkey = lessonData.resource.userId
+  resourceIsPremium = (lesson.resource.price ?? 0) > 0
+  resourceAuthorPubkey = lesson.resource.userId
 
   // Parse resource Nostr data if available
-  if (lessonData.resource.note) {
+  if (lesson.resource.note) {
     try {
-      const parsedResource = parseEvent(lessonData.resource.note)
+      const parsedResource = parseEvent(lesson.resource.note)
       resourceTitle = parsedResource.title || resourceTitle
       resourceDescription = parsedResource.summary || resourceDescription
       resourceType = parsedResource.type || resourceType
@@ -367,7 +384,7 @@ function LessonContent({
 
   // Create mock resource content for now - in future this should come from the Nostr event content
   const mockResourceContent = {
-    content: lessonData.resource.note?.content || 'No content available',
+    content: lesson.resource.note?.content || 'No content available',
     isMarkdown: true,
     type: resourceType as 'video' | 'document',
     hasVideo: resourceType === 'video',
@@ -391,9 +408,10 @@ function LessonContent({
   const videoBodyMarkdown = content.type === 'video' ? extractVideoBodyMarkdown(content.content) : ''
   
   // Use enhanced lesson displays from useLessonsQuery hook
-  const lessonDisplays = lessonsData || []
-  
-  const currentLessonIndex = lessonDisplays.findIndex(l => l.id === resolvedLessonId)
+  const currentLessonIndex = lessonDisplays.findIndex(l => 
+    l.id === lesson.id || l.resource?.id === resolvedLessonId
+  )
+  const safeLessonIndex = currentLessonIndex >= 0 ? currentLessonIndex : 0
   
   const getContentTypeIcon = (type: string) => {
     switch (type) {
@@ -462,7 +480,7 @@ function LessonContent({
             instructorPubkey={resourceAuthorPubkey} 
             instructorName={resourceAuthor}
             content={content} 
-            lesson={lessonData}
+            lesson={lesson}
             duration="30 min"
           />
         </div>
@@ -475,16 +493,16 @@ function LessonContent({
             <div className="flex items-center space-x-4">
               <LessonNavigation 
                 courseId={resolvedCourseId} 
-                currentLessonIndex={currentLessonIndex} 
+                currentLessonIndex={safeLessonIndex} 
                 lessons={lessonDisplays}
               />
             </div>
             <div className="flex items-center space-x-4">
               <div className="text-sm text-muted-foreground">
-                Lesson {currentLessonIndex + 1} of {lessonDisplays.length}
+                Lesson {safeLessonIndex + 1} of {lessonDisplays.length}
               </div>
               <div className="w-32">
-                <Progress value={((currentLessonIndex + 1) / lessonDisplays.length) * 100} className="h-2" />
+                <Progress value={((safeLessonIndex + 1) / Math.max(lessonDisplays.length, 1)) * 100} className="h-2" />
               </div>
             </div>
           </div>
@@ -522,18 +540,20 @@ function LessonContent({
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {lessonDisplays.map((l, index) => (
+                {lessonDisplays.map((l, index) => {
+                  const isActiveLesson = l.id === lesson.id || l.resource?.id === resolvedLessonId
+                  return (
                   <div
                     key={l.id}
                     className={`flex items-center space-x-3 p-2 rounded-lg transition-colors cursor-pointer ${
-                      l.id === resolvedLessonId 
+                      isActiveLesson 
                         ? 'bg-primary/10 border border-primary/20' 
                         : 'hover:bg-muted/50'
                     }`}
                   >
                     <div className="flex-shrink-0">
                       <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${
-                        l.id === resolvedLessonId 
+                        isActiveLesson 
                           ? 'bg-primary text-primary-foreground' 
                           : 'bg-muted text-muted-foreground'
                       }`}>
@@ -544,7 +564,7 @@ function LessonContent({
                       <Link 
                         href={`/courses/${resolvedCourseId}/lessons/${l.id}/details`}
                         className={`block text-sm truncate ${
-                          l.id === resolvedLessonId 
+                          isActiveLesson 
                             ? 'font-semibold' 
                             : 'hover:underline'
                         }`}
@@ -553,7 +573,7 @@ function LessonContent({
                       </Link>
                     </div>
                   </div>
-                ))}
+                )})}
               </div>
             </CardContent>
           </Card>
@@ -590,13 +610,13 @@ function LessonContent({
       )}
       
       {/* Comments Section */}
-      {lessonData.resource?.note && (
+      {lesson.resource?.note && (
         <div data-comments-section>
           <ZapThreads
             eventDetails={{
-              identifier: lessonData.resource.id,
-              pubkey: lessonData.resource.note.pubkey,
-              kind: lessonData.resource.note.kind,
+              identifier: lesson.resource.id,
+              pubkey: lesson.resource.note.pubkey,
+              kind: lesson.resource.note.kind,
               relays: getRelays('default')
             }}
             title="Comments"

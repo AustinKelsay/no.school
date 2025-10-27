@@ -8,13 +8,16 @@ import { useSession } from 'next-auth/react'
 export interface DraftLesson {
   id: string
   courseDraftId: string
-  resourceId?: string
-  draftId?: string
+  resourceId?: string | null
+  draftId?: string | null
   index: number
   resource?: {
     id: string
-    title?: string
-    price?: number
+    title?: string | null
+    price?: number | null
+    noteId?: string | null
+    videoId?: string | null
+    videoUrl?: string | null
     note?: {
       id: string
       content: string
@@ -23,15 +26,24 @@ export interface DraftLesson {
       created_at: number
       pubkey: string
       sig: string
+    } | null
+    user?: {
+      id: string
+      username?: string | null
+      pubkey?: string | null
     }
   }
   draft?: {
     id: string
     title: string
     summary: string
+    content: string
     type: string
-    price?: number
-    image?: string
+    price?: number | null
+    image?: string | null
+    topics: string[]
+    additionalLinks?: string[]
+    videoUrl?: string | null
   }
 }
 
@@ -46,6 +58,12 @@ export interface CourseDraft {
   updatedAt: string
   userId: string
   draftLessons: DraftLesson[]
+  user?: {
+    id: string
+    username?: string | null
+    email?: string | null
+    pubkey?: string | null
+  }
 }
 
 export interface CourseDraftQueryResult {
