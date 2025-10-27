@@ -35,9 +35,17 @@ export interface DocumentsQueryResult {
 // Query keys factory for better cache management
 export const documentsQueryKeys = {
   all: ['documents'] as const,
-  lists: () => [...documentsQueryKeys.all, 'list'] as const,
-  list: (filters: string) => [...documentsQueryKeys.lists(), { filters }] as const,
-  listPaginated: (page: number, pageSize: number) => [...documentsQueryKeys.lists(), { page, pageSize }] as const,
+  lists: () => ['documents', 'list'] as const,
+  list: (includeLessonResources = false) => (
+    includeLessonResources
+      ? [...documentsQueryKeys.lists(), { includeLessonResources: true }] as const
+      : documentsQueryKeys.lists()
+  ),
+  listPaginated: (page: number, pageSize: number, includeLessonResources = false) => (
+    includeLessonResources
+      ? [...documentsQueryKeys.lists(), { page, pageSize, includeLessonResources: true }] as const
+      : [...documentsQueryKeys.lists(), { page, pageSize }] as const
+  ),
   details: () => [...documentsQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...documentsQueryKeys.details(), id] as const,
   notes: () => [...documentsQueryKeys.all, 'notes'] as const,
@@ -45,7 +53,15 @@ export const documentsQueryKeys = {
 }
 
 // Options for the hook
-export interface UseDocumentsQueryOptions extends PaginationOptions {
+interface DocumentPaginationOptions extends PaginationOptions {
+  /**
+   * When true, include resources that already belong to a course lesson.
+   * Defaults to false so public listings only show standalone resources.
+   */
+  includeLessonResources?: boolean
+}
+
+export interface UseDocumentsQueryOptions extends DocumentPaginationOptions {
   enabled?: boolean
   staleTime?: number
   gcTime?: number
@@ -60,7 +76,7 @@ export interface UseDocumentsQueryOptions extends PaginationOptions {
  * Fetch document resources using unified resource notes fetching
  * Now leverages shared caching and deduplication via useResourceNotes
  */
-export async function fetchDocumentResources(options?: PaginationOptions): Promise<{ 
+export async function fetchDocumentResources(options?: DocumentPaginationOptions): Promise<{ 
   resources: Resource[], 
   pagination?: {
     page: number
@@ -75,6 +91,9 @@ export async function fetchDocumentResources(options?: PaginationOptions): Promi
   const queryParams = new URLSearchParams()
   if (options?.page) queryParams.append('page', options.page.toString())
   if (options?.pageSize) queryParams.append('pageSize', options.pageSize.toString())
+  if (options?.includeLessonResources) {
+    queryParams.append('includeLessonResources', 'true')
+  }
   
   const response = await fetch(`/api/resources/list${queryParams.toString() ? `?${queryParams}` : ''}`)
   if (!response.ok) {
@@ -107,14 +126,15 @@ export function useDocumentsQuery(options: UseDocumentsQueryOptions = {}): Docum
     select,
     page,
     pageSize,
+    includeLessonResources = false,
   } = options
 
   // First, fetch all resources (without notes)
   const resourcesQuery = useQuery({
     queryKey: page !== undefined || pageSize !== undefined 
-      ? documentsQueryKeys.listPaginated(page || 1, pageSize || 50)
-      : documentsQueryKeys.lists(),
-    queryFn: () => fetchDocumentResources({ page, pageSize }),
+      ? documentsQueryKeys.listPaginated(page || 1, pageSize || 50, includeLessonResources)
+      : documentsQueryKeys.list(includeLessonResources),
+    queryFn: () => fetchDocumentResources({ page, pageSize, includeLessonResources }),
     enabled,
     staleTime,
     gcTime,
@@ -175,6 +195,3 @@ export function useDocumentsQuery(options: UseDocumentsQueryOptions = {}): Docum
     },
   }
 }
-
-
-

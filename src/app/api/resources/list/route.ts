@@ -6,39 +6,54 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams
     const page = searchParams.get('page')
     const pageSize = searchParams.get('pageSize')
+    // Optional flag that allows consumers (e.g. lesson selector) to include
+    // resources that are already attached to a course lesson. Defaults to false
+    // to preserve the original standalone library behaviour.
+    const includeLessonResourcesParam = searchParams.get('includeLessonResources')
+    const includeLessonResources = includeLessonResourcesParam === 'true' || includeLessonResourcesParam === '1'
 
-    if (page || pageSize) {
-      const result = await ResourceAdapter.findAllPaginated({
-        page: page ? parseInt(page) : undefined,
-        pageSize: pageSize ? parseInt(pageSize) : undefined
-      })
-      
-      // Filter out lessons at the resource level
-      const resourcesWithoutLessons = await Promise.all(
-        result.data.map(async (resource) => {
-          const isLesson = await ResourceAdapter.isLesson(resource.id)
-          return isLesson ? null : resource
-        })
+    const parseOptionalPositiveInt = (value: string | null) => {
+      if (value === null) return undefined
+      const parsed = Number.parseInt(value, 10)
+      if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed <= 0) {
+        return null
+      }
+      return parsed
+    }
+
+    const parsedPage = parseOptionalPositiveInt(page)
+    if (parsedPage === null) {
+      return NextResponse.json(
+        { error: 'Invalid page parameter: must be a positive integer.' },
+        { status: 400 }
       )
-      
+    }
+
+    const parsedPageSize = parseOptionalPositiveInt(pageSize)
+    if (parsedPageSize === null) {
+      return NextResponse.json(
+        { error: 'Invalid pageSize parameter: must be a positive integer.' },
+        { status: 400 }
+      )
+    }
+
+    if (parsedPage !== undefined || parsedPageSize !== undefined) {
+      const result = await ResourceAdapter.findAllPaginated({
+        page: parsedPage,
+        pageSize: parsedPageSize,
+        includeLessonResources,
+      })
+
       return NextResponse.json({
-        data: resourcesWithoutLessons.filter(r => r !== null),
-        pagination: result.pagination
+        data: result.data,
+        pagination: result.pagination,
       })
     }
 
-    const resources = await ResourceAdapter.findAll()
-    
-    // Filter out lessons
-    const resourcesWithoutLessons = await Promise.all(
-      resources.map(async (resource) => {
-        const isLesson = await ResourceAdapter.isLesson(resource.id)
-        return isLesson ? null : resource
-      })
-    )
+    const resources = await ResourceAdapter.findAll({ includeLessonResources })
 
-    return NextResponse.json({ 
-      resources: resourcesWithoutLessons.filter(r => r !== null) 
+    return NextResponse.json({
+      resources,
     })
   } catch (error) {
     console.error('Failed to fetch resources:', error)
