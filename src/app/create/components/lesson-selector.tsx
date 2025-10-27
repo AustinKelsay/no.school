@@ -53,8 +53,12 @@ export default function LessonSelector({ onAddLessons, existingLessons }: Lesson
   const [selectedLessons, setSelectedLessons] = useState<LessonData[]>([])
   
   // Fetch published resources
-  const { documents, isLoading: isLoadingDocs } = useDocumentsQuery()
-  const { videos, isLoading: isLoadingVideos } = useVideosQuery()
+  const { documents, isLoading: isLoadingDocs } = useDocumentsQuery({
+    includeLessonResources: true,
+  })
+  const { videos, isLoading: isLoadingVideos } = useVideosQuery({
+    includeLessonResources: true,
+  })
   const { drafts, isLoading: isLoadingDrafts } = useDraftsQuery()
   
   // Combine and filter published resources

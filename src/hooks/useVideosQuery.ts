@@ -35,9 +35,17 @@ export interface VideosQueryResult {
 // Query keys factory for better cache management
 export const videosQueryKeys = {
   all: ['videos'] as const,
-  lists: () => [...videosQueryKeys.all, 'list'] as const,
-  list: (filters: string) => [...videosQueryKeys.lists(), { filters }] as const,
-  listPaginated: (page: number, pageSize: number) => [...videosQueryKeys.lists(), { page, pageSize }] as const,
+  lists: () => ['videos', 'list'] as const,
+  list: (includeLessonResources = false) => (
+    includeLessonResources
+      ? [...videosQueryKeys.lists(), { includeLessonResources: true }] as const
+      : videosQueryKeys.lists()
+  ),
+  listPaginated: (page: number, pageSize: number, includeLessonResources = false) => (
+    includeLessonResources
+      ? [...videosQueryKeys.lists(), { page, pageSize, includeLessonResources: true }] as const
+      : [...videosQueryKeys.lists(), { page, pageSize }] as const
+  ),
   details: () => [...videosQueryKeys.all, 'detail'] as const,
   detail: (id: string) => [...videosQueryKeys.details(), id] as const,
   notes: () => [...videosQueryKeys.all, 'notes'] as const,
@@ -45,7 +53,15 @@ export const videosQueryKeys = {
 }
 
 // Options for the hook
-export interface UseVideosQueryOptions {
+interface VideoPaginationOptions extends PaginationOptions {
+  /**
+   * When true, include resources that already belong to a course lesson.
+   * Defaults to false so public listings only show standalone resources.
+   */
+  includeLessonResources?: boolean
+}
+
+export interface UseVideosQueryOptions extends VideoPaginationOptions {
   // Pagination options
   page?: number
   pageSize?: number
@@ -64,7 +80,7 @@ export interface UseVideosQueryOptions {
  * Fetch video resources using unified resource notes fetching
  * Now leverages shared caching and deduplication via useResourceNotes
  */
-export async function fetchVideoResources(options?: PaginationOptions): Promise<{ 
+export async function fetchVideoResources(options?: VideoPaginationOptions): Promise<{ 
   resources: Resource[], 
   pagination?: {
     page: number
@@ -79,6 +95,9 @@ export async function fetchVideoResources(options?: PaginationOptions): Promise<
   const queryParams = new URLSearchParams()
   if (options?.page) queryParams.append('page', options.page.toString())
   if (options?.pageSize) queryParams.append('pageSize', options.pageSize.toString())
+  if (options?.includeLessonResources) {
+    queryParams.append('includeLessonResources', 'true')
+  }
   
   const response = await fetch(`/api/resources/list${queryParams.toString() ? `?${queryParams}` : ''}`)
   if (!response.ok) {
@@ -111,14 +130,15 @@ export function useVideosQuery(options: UseVideosQueryOptions = {}): VideosQuery
     select,
     page,
     pageSize,
+    includeLessonResources = false,
   } = options
 
   // First, fetch all resources (without notes)
   const resourcesQuery = useQuery({
     queryKey: page !== undefined || pageSize !== undefined 
-      ? videosQueryKeys.listPaginated(page || 1, pageSize || 50)
-      : videosQueryKeys.lists(),
-    queryFn: () => fetchVideoResources({ page, pageSize }),
+      ? videosQueryKeys.listPaginated(page || 1, pageSize || 50, includeLessonResources)
+      : videosQueryKeys.list(includeLessonResources),
+    queryFn: () => fetchVideoResources({ page, pageSize, includeLessonResources }),
     enabled,
     staleTime,
     gcTime,
@@ -179,6 +199,3 @@ export function useVideosQuery(options: UseVideosQueryOptions = {}): VideosQuery
     },
   }
 }
-
-
-
