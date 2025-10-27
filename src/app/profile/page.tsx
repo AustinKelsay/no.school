@@ -17,12 +17,12 @@ import { ProfileDisplay } from './components/profile-display'
 import { EnhancedProfileDisplay } from './components/enhanced-profile-display'
 import { ProfileEditForms } from './components/profile-edit-forms'
 import { SimpleSettings } from './components/simple-settings'
+import { AdminContentManager } from './components/admin-content-manager'
 import { MainLayout } from '@/components/layout'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { User, Settings, FileText, BarChart3, Link2 } from 'lucide-react'
 import { getAdminInfo } from '@/lib/admin-utils'
-import DraftsClient from '@/app/drafts/drafts-client'
 import { LinkedAccountsManager } from '@/components/account/linked-accounts'
 import { ProfileTabs } from './components/profile-tabs'
 
@@ -101,7 +101,7 @@ export default async function ProfilePage() {
             {hasAdminOrModerator && (
               <>
                 <TabsContent value="content" className="space-y-6">
-                  <DraftsClient />
+                  <AdminContentManager userId={session.user.id} />
                 </TabsContent>
 
                 {adminInfo.permissions.viewAnalytics && (
