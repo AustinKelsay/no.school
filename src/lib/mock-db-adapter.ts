@@ -273,12 +273,22 @@ export class CourseAdapter {
 // ============================================================================
 
 export class ResourceAdapter {
-  static async findAll(): Promise<Resource[]> {
+  static async findAll(options?: { includeLessonResources?: boolean }): Promise<Resource[]> {
     await new Promise(resolve => setTimeout(resolve, 30))
-    return [...resourcesInMemory]
+    const includeLessonResources = options?.includeLessonResources ?? false
+
+    const data = includeLessonResources
+      ? resourcesInMemory
+      : resourcesInMemory.filter(resource =>
+          !lessonsInMemory.some(
+            lesson => lesson.resourceId === resource.id && lesson.courseId !== undefined && lesson.courseId !== null
+          )
+        )
+
+    return [...data]
   }
 
-  static async findAllPaginated(options?: PaginationOptions): Promise<{
+  static async findAllPaginated(options?: PaginationOptions & { includeLessonResources?: boolean }): Promise<{
     data: Resource[]
     pagination: {
       page: number
@@ -293,12 +303,22 @@ export class ResourceAdapter {
     
     const page = options?.page || 1
     const pageSize = options?.pageSize || 50
-    const totalItems = resourcesInMemory.length
+    const includeLessonResources = options?.includeLessonResources ?? false
+
+    const filteredResources = includeLessonResources
+      ? resourcesInMemory
+      : resourcesInMemory.filter(resource =>
+          !lessonsInMemory.some(
+            lesson => lesson.resourceId === resource.id && lesson.courseId !== undefined && lesson.courseId !== null
+          )
+        )
+
+    const totalItems = filteredResources.length
     const totalPages = Math.ceil(totalItems / pageSize)
     
     const startIndex = (page - 1) * pageSize
     const endIndex = startIndex + pageSize
-    const data = resourcesInMemory.slice(startIndex, endIndex)
+    const data = filteredResources.slice(startIndex, endIndex)
     
     return {
       data,

@@ -8,6 +8,7 @@ import { Course, Resource, Lesson } from '@/data/types'
 import { NostrEvent } from 'snstr'
 import { parseCourseEvent, parseEvent } from '@/data/types'
 import { NostrFetchService } from '@/lib/nostr-fetch-service'
+import type { Prisma } from '@prisma/client'
 
 // Helper functions to transform Prisma data to match TypeScript interfaces
 function transformResource(resource: any): Resource {
@@ -235,14 +236,26 @@ export class CourseAdapter {
 // ============================================================================
 
 export class ResourceAdapter {
-  static async findAll(): Promise<Resource[]> {
+  static async findAll(options?: { includeLessonResources?: boolean }): Promise<Resource[]> {
+    const includeLessonResources = options?.includeLessonResources ?? false
+    const where: Prisma.ResourceWhereInput | undefined = includeLessonResources
+      ? undefined
+      : {
+          lessons: {
+            none: {
+              courseId: { not: null }
+            }
+          }
+        }
+
     const resources = await prisma.resource.findMany({
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      ...(where ? { where } : {})
     })
     return resources.map(transformResource)
   }
 
-  static async findAllPaginated(options?: PaginationOptions): Promise<{
+  static async findAllPaginated(options?: PaginationOptions & { includeLessonResources?: boolean }): Promise<{
     data: Resource[]
     pagination: {
       page: number
@@ -255,15 +268,32 @@ export class ResourceAdapter {
   }> {
     const page = options?.page || 1
     const pageSize = options?.pageSize || 50
+    const includeLessonResources = options?.includeLessonResources ?? false
     const skip = (page - 1) * pageSize
+    const where: Prisma.ResourceWhereInput | undefined = includeLessonResources
+      ? undefined
+      : {
+          lessons: {
+            none: {
+              courseId: { not: null }
+            }
+          }
+        }
+
+    const findManyArgs: Prisma.ResourceFindManyArgs = {
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: 'desc' },
+      ...(where ? { where } : {})
+    }
+
+    const countArgs: Prisma.ResourceCountArgs = {
+      ...(where ? { where } : {})
+    }
 
     const [resources, totalItems] = await Promise.all([
-      prisma.resource.findMany({
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' }
-      }),
-      prisma.resource.count()
+      prisma.resource.findMany(findManyArgs),
+      prisma.resource.count(countArgs)
     ])
 
     const totalPages = Math.ceil(totalItems / pageSize)

@@ -12,37 +12,48 @@ export async function GET(request: NextRequest) {
     const includeLessonResourcesParam = searchParams.get('includeLessonResources')
     const includeLessonResources = includeLessonResourcesParam === 'true' || includeLessonResourcesParam === '1'
 
-    async function maybeFilterLessonResources<T extends { id: string }>(resources: T[]) {
-      if (includeLessonResources) {
-        return resources
+    const parseOptionalPositiveInt = (value: string | null) => {
+      if (value === null) return undefined
+      const parsed = Number.parseInt(value, 10)
+      if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed <= 0) {
+        return null
       }
-
-      const filtered = await Promise.all(
-        resources.map(async (resource) => {
-          const isLesson = await ResourceAdapter.isLesson(resource.id)
-          return isLesson ? null : resource
-        })
-      )
-
-      return filtered.filter((resource): resource is T => resource !== null)
+      return parsed
     }
 
-    if (page || pageSize) {
+    const parsedPage = parseOptionalPositiveInt(page)
+    if (parsedPage === null) {
+      return NextResponse.json(
+        { error: 'Invalid page parameter: must be a positive integer.' },
+        { status: 400 }
+      )
+    }
+
+    const parsedPageSize = parseOptionalPositiveInt(pageSize)
+    if (parsedPageSize === null) {
+      return NextResponse.json(
+        { error: 'Invalid pageSize parameter: must be a positive integer.' },
+        { status: 400 }
+      )
+    }
+
+    if (parsedPage !== undefined || parsedPageSize !== undefined) {
       const result = await ResourceAdapter.findAllPaginated({
-        page: page ? parseInt(page) : undefined,
-        pageSize: pageSize ? parseInt(pageSize) : undefined,
+        page: parsedPage,
+        pageSize: parsedPageSize,
+        includeLessonResources,
       })
 
       return NextResponse.json({
-        data: await maybeFilterLessonResources(result.data),
+        data: result.data,
         pagination: result.pagination,
       })
     }
 
-    const resources = await ResourceAdapter.findAll()
+    const resources = await ResourceAdapter.findAll({ includeLessonResources })
 
     return NextResponse.json({
-      resources: await maybeFilterLessonResources(resources),
+      resources,
     })
   } catch (error) {
     console.error('Failed to fetch resources:', error)
