@@ -68,7 +68,7 @@ model User {
   - `github`: redirects to `/api/account/link-oauth`.
   - Buttons disable when the provider is already the active session provider to avoid redundant linking.
 - `ProfileTabs` (`src/app/profile/components/profile-tabs.tsx`) watches `?tab=accounts` query params to raise OAuth error toasts (and the GitHub success toast) before cleaning the URL.
-- Both `/profile` and `/settings` screens render the manager, so linking works in either location.
+- The `/profile` screen renders the manager under both the `accounts` and `settings` tabs (e.g. `/profile?tab=accounts`), so linking works from a single consolidated location.
 
 ## Primary Provider & Profile Source Rules
 - `session.provider` is populated inside `NextAuth` (`src/lib/auth.ts`) so the client can disable relinking the current method.
