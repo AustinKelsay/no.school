@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { usePublishedContentQuery } from '@/hooks/usePublishedContentQuery'
 import { useResourceNotes } from '@/hooks/useResourceNotes'
 import { useCourseNotes } from '@/hooks/useCourseNotes'
@@ -19,6 +20,8 @@ import {
   createCourseDisplay,
   type Resource,
   type Course,
+  type ParsedResourceEvent,
+  type ParsedCourseEvent,
 } from '@/data/types'
 import DraftsClient from '@/app/drafts/drafts-client'
 import { getNoteImage } from '@/lib/note-image'
@@ -28,11 +31,19 @@ import {
   ExternalLink,
   FileText,
   Filter,
+  Edit,
   Loader2,
   RefreshCw,
   Search,
+  Trash2,
   Video as VideoIcon,
 } from 'lucide-react'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { EditPublishedResourceDialog, type ResourceEditData } from './edit-published-resource-dialog'
+import { EditPublishedCourseDialog, type CourseEditData } from './edit-published-course-dialog'
+import { useDeleteResourceMutation, useDeleteCourseMutation } from '@/hooks/usePublishedContentMutations'
+import { extractVideoBodyMarkdown } from '@/lib/content-utils'
+import type { NostrEvent } from 'snstr'
 
 type AdminContentManagerProps = {
   userId: string
@@ -40,7 +51,7 @@ type AdminContentManagerProps = {
 
 type PublishedItemType = 'course' | 'video' | 'document'
 
-type PublishedItem = {
+type PublishedItemBase = {
   id: string
   type: PublishedItemType
   title: string
@@ -56,6 +67,27 @@ type PublishedItem = {
   noteError?: string
   image?: string
   displayNoteId?: string
+  note?: NostrEvent
+}
+
+type PublishedResourceItem = PublishedItemBase & {
+  type: 'video' | 'document'
+  entityKind: 'resource'
+  record: Resource
+  parsedResource?: ParsedResourceEvent
+}
+
+type PublishedCourseItem = PublishedItemBase & {
+  type: 'course'
+  entityKind: 'course'
+  record: Course
+  parsedCourse?: ParsedCourseEvent
+}
+
+type PublishedItem = PublishedResourceItem | PublishedCourseItem
+
+function isResourceItem(item: PublishedItem): item is PublishedResourceItem {
+  return item.entityKind === 'resource'
 }
 
 const EMPTY_RESOURCES: Resource[] = []
@@ -137,6 +169,10 @@ function buildResourceItems(
       noteError: noteResult?.noteError,
       image,
       displayNoteId: formatNoteIdentifier(note, resource.noteId || note?.id),
+      entityKind: 'resource',
+      record: resource,
+      note,
+      parsedResource: parsed,
     }
   })
 }
@@ -168,8 +204,104 @@ function buildCourseItems(
       noteError: noteResult?.noteError,
       image,
       displayNoteId: formatNoteIdentifier(note, course.noteId || note?.id),
+      entityKind: 'course',
+      record: course,
+      note,
+      parsedCourse: parsed,
     }
   })
+}
+
+function buildResourceEditData(item: PublishedResourceItem): ResourceEditData {
+  const parsed = item.parsedResource
+  const topics = Array.from(
+    new Set(
+      (parsed?.topics ?? item.topics ?? [])
+        .map(topic => topic.trim())
+        .filter(Boolean)
+    )
+  ).filter(topic => {
+    const lower = topic.toLowerCase()
+    return lower !== 'video' && lower !== 'document'
+  })
+
+  const additionalLinks = Array.from(
+    new Set((parsed?.additionalLinks ?? []).map(link => link.trim()).filter(Boolean))
+  )
+
+  const content =
+    item.type === 'video'
+      ? extractVideoBodyMarkdown(parsed?.content ?? '')
+      : parsed?.content ?? ''
+
+  const videoUrl =
+    item.type === 'video'
+      ? parsed?.videoUrl || item.record.videoUrl || undefined
+      : undefined
+
+  const image = parsed?.image || item.image
+  const title = parsed?.title || item.title
+  const summary = parsed?.summary || item.summary
+
+  return {
+    id: item.id,
+    title,
+    summary,
+    content: content ?? '',
+    price: item.price,
+    image: image ?? undefined,
+    topics,
+    additionalLinks,
+    type: item.type,
+    videoUrl,
+    pubkey: item.note?.pubkey ?? parsed?.pubkey ?? undefined,
+  }
+}
+
+function buildCourseEditData(item: PublishedCourseItem): CourseEditData {
+  const parsed = item.parsedCourse
+  const topics = Array.from(
+    new Set(
+      (parsed?.topics ?? item.topics ?? [])
+        .map(topic => topic.trim())
+        .filter(Boolean)
+    )
+  ).filter(topic => topic.toLowerCase() !== 'course')
+
+  const image = parsed?.image || item.image
+  const title = parsed?.title || item.title
+  const summary = parsed?.description || item.summary
+  const lessonCount =
+    item.note?.tags?.reduce((count, tag) => (tag[0] === 'a' ? count + 1 : count), 0) ?? undefined
+  const lessonReferences =
+    item.note?.tags
+      ?.map(tag => {
+        if (tag[0] !== 'a' || !tag[1]) {
+          return null
+        }
+        const parts = tag[1].split(':')
+        if (parts.length < 3) {
+          return null
+        }
+        const [, pubkey, identifier] = parts
+        if (!pubkey || !identifier) {
+          return null
+        }
+        return { resourceId: identifier, pubkey }
+      })
+      .filter(Boolean) ?? undefined
+
+  return {
+    id: item.id,
+    title,
+    summary,
+    image: image ?? undefined,
+    price: item.price,
+    topics,
+    lessonCount,
+    pubkey: item.note?.pubkey ?? parsed?.pubkey ?? undefined,
+    lessonReferences: lessonReferences as Array<{ resourceId: string; pubkey: string }> | undefined,
+  }
 }
 
 function PublishedContentView() {
@@ -238,6 +370,48 @@ function PublishedContentView() {
     refetchPublished()
     resourceNotes.refetch()
     courseNotes.refetch()
+  }
+
+  const [resourceEditData, setResourceEditData] = useState<ResourceEditData | null>(null)
+  const [isResourceDialogOpen, setResourceDialogOpen] = useState(false)
+  const [courseEditData, setCourseEditData] = useState<CourseEditData | null>(null)
+  const [isCourseDialogOpen, setCourseDialogOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<PublishedItem | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const deleteResourceMutation = useDeleteResourceMutation()
+  const deleteCourseMutation = useDeleteCourseMutation()
+  const isDeleting = deleteResourceMutation.isPending || deleteCourseMutation.isPending
+  const pendingDeleteIsResource = deleteTarget ? isResourceItem(deleteTarget) : false
+  const pendingDeleteLabel = deleteTarget?.title ?? 'this item'
+
+  const openEditorForItem = (item: PublishedItem) => {
+    if (isResourceItem(item)) {
+      setResourceEditData(buildResourceEditData(item))
+      setResourceDialogOpen(true)
+      return
+    }
+
+    setCourseEditData(buildCourseEditData(item))
+    setCourseDialogOpen(true)
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+
+    setDeleteError(null)
+    try {
+      if (isResourceItem(deleteTarget)) {
+        await deleteResourceMutation.mutateAsync({ id: deleteTarget.id })
+      } else {
+        await deleteCourseMutation.mutateAsync({ id: deleteTarget.id })
+      }
+      setDeleteTarget(null)
+      refetchAll()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete content'
+      setDeleteError(message)
+    }
   }
 
   if (combinedLoading) {
@@ -466,6 +640,26 @@ function PublishedContentView() {
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditorForItem(item)}
+                        >
+                          <Edit className="mr-2 h-4 w-4" />
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                          onClick={() => {
+                            setDeleteTarget(item)
+                            setDeleteError(null)
+                          }}
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </Button>
                         <Button asChild size="sm">
                           <Link href={item.href}>
                             <ExternalLink className="mr-2 h-4 w-4" />
@@ -479,8 +673,74 @@ function PublishedContentView() {
               })}
             </div>
           )}
-        </CardContent>
+    </CardContent>
       </Card>
+
+      <EditPublishedResourceDialog
+        open={isResourceDialogOpen}
+        onOpenChange={open => {
+          setResourceDialogOpen(open)
+          if (!open) {
+            setResourceEditData(null)
+          }
+        }}
+        data={resourceEditData ?? undefined}
+        onSuccess={refetchAll}
+      />
+
+      <EditPublishedCourseDialog
+        open={isCourseDialogOpen}
+        onOpenChange={open => {
+          setCourseDialogOpen(open)
+          if (!open) {
+            setCourseEditData(null)
+          }
+        }}
+        data={courseEditData ?? undefined}
+        onSuccess={refetchAll}
+      />
+
+      <AlertDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={open => {
+          if (!open) {
+            setDeleteTarget(null)
+            setDeleteError(null)
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {pendingDeleteIsResource ? 'Delete published content?' : 'Delete published course?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDeleteLabel} will be removed from our database so it no longer appears on the
+              platform. The underlying Nostr event remains on relays, but users will no longer see it
+              listed here.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteError ? (
+            <Alert className="border-destructive">
+              <AlertDescription className="text-destructive">{deleteError}</AlertDescription>
+            </Alert>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={event => {
+                event.preventDefault()
+                handleDelete()
+              }}
+              disabled={isDeleting}
+            >
+              {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
