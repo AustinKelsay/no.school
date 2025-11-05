@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "postinstall": "node -e \"if(process.env.NODE_ENV==='production')require('child_process').execSync('prisma generate',{stdio:'inherit'})\"",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts"

@@ -188,9 +188,9 @@ function buildCourseItems(
     const display = parsed ? createCourseDisplay(course, parsed) : undefined
     const image = resolveImage(display?.image, parsed?.image, getNoteImage(note))
 
-    return {
+    const courseItem: PublishedCourseItem = {
       id: course.id,
-      type: 'course' as PublishedItemType,
+      type: 'course',
       title: display?.title || parsed?.title || course.noteId || 'Untitled course',
       summary: display?.description || parsed?.description || 'No description available.',
       price: course.price,
@@ -209,6 +209,8 @@ function buildCourseItems(
       note,
       parsedCourse: parsed,
     }
+
+    return courseItem
   })
 }
 
