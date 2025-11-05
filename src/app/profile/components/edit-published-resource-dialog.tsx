@@ -75,69 +75,59 @@ export function EditPublishedResourceDialog({
     return formState.additionalLinks.map(link => link.trim()).filter(Boolean)
   }, [formState])
 
-  const attemptNip07Republish = async (): Promise<boolean> => {
-    if (!formState) return false
-
+  const requestNip07Signature = async (
+    resource: ResourceEditData,
+    payload: {
+      title: string
+      summary: string
+      content: string
+      price: number
+      image?: string
+      topics: string[]
+      additionalLinks: string[]
+      type: 'document' | 'video'
+      videoUrl?: string
+    }
+  ): Promise<{ event: NostrEvent | null; error?: string }> => {
     if (!hasNip07Support()) {
-      setError('Nostr extension not available for signing.')
-      return false
+      return { event: null, error: 'Nostr extension not available for signing.' }
+    }
+
+    const nostr = (window as any).nostr
+    if (!nostr?.getPublicKey || !nostr?.signEvent) {
+      return { event: null, error: 'Nostr extension not available for signing.' }
     }
 
     try {
-      const pubkey = await (window as any).nostr.getPublicKey()
+      const pubkey = await nostr.getPublicKey()
       if (!pubkey) {
-        setError('Unable to retrieve pubkey from Nostr extension.')
-        return false
+        return { event: null, error: 'Unable to retrieve pubkey from Nostr extension.' }
       }
 
-      if (formState.pubkey && formState.pubkey !== pubkey) {
-        setError('Active Nostr key does not match the original publisher.')
-        return false
+      if (resource.pubkey && resource.pubkey !== pubkey) {
+        return { event: null, error: 'Active Nostr key does not match the original publisher.' }
       }
 
       const draftLike = {
-        id: formState.id,
+        id: resource.id,
         userId: '',
-        type: formState.type,
-        title: formState.title.trim(),
-        summary: formState.summary.trim(),
-        content: formState.content,
-        image: formState.image?.trim() || undefined,
-        price: Number.isFinite(formState.price) ? formState.price : 0,
-        topics: displayTopics,
-        additionalLinks: displayLinks,
-        videoUrl:
-          formState.type === 'video' ? formState.videoUrl?.trim() || undefined : undefined,
+        type: payload.type,
+        title: payload.title,
+        summary: payload.summary,
+        content: payload.content,
+        image: payload.image,
+        price: payload.price,
+        topics: payload.topics,
+        additionalLinks: payload.additionalLinks,
+        videoUrl: payload.type === 'video' ? payload.videoUrl : undefined,
       }
 
       const unsignedEvent = createUnsignedResourceEvent(draftLike as any, pubkey)
-      const signedEvent: NostrEvent = await (window as any).nostr.signEvent(unsignedEvent)
-
-      await mutation.mutateAsync({
-        id: formState.id,
-        data: {
-          title: formState.title.trim(),
-          summary: formState.summary.trim(),
-          content: formState.content,
-          price: Number.isFinite(formState.price) ? formState.price : 0,
-          image: formState.image?.trim() || undefined,
-          topics: displayTopics,
-          additionalLinks: displayLinks,
-          type: formState.type,
-          videoUrl:
-            formState.type === 'video' ? formState.videoUrl?.trim() || undefined : undefined,
-          signedEvent,
-        },
-      })
-
-      onSuccess?.()
-      onOpenChange(false)
-      return true
-    } catch (signError) {
-      const message =
-        signError instanceof Error ? signError.message : 'Failed to sign event with Nostr'
-      setError(message)
-      return false
+      const signedEvent: NostrEvent = await nostr.signEvent(unsignedEvent)
+      return { event: signedEvent }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to sign event with Nostr'
+      return { event: null, error: message }
     }
   }
 
@@ -217,19 +207,24 @@ export function EditPublishedResourceDialog({
     setError(null)
 
     try {
+      const payload = {
+        title: formState.title.trim(),
+        summary: formState.summary.trim(),
+        content: formState.content,
+        price: Number.isFinite(formState.price) ? formState.price : 0,
+        image: formState.image?.trim() || undefined,
+        topics: displayTopics,
+        additionalLinks: displayLinks,
+        type: formState.type,
+        videoUrl: isVideo ? formState.videoUrl?.trim() || undefined : undefined,
+      }
+
+      const { event: preSignedEvent } = await requestNip07Signature(formState, payload)
+      const requestData = preSignedEvent ? { ...payload, signedEvent: preSignedEvent } : payload
+
       await mutation.mutateAsync({
         id: formState.id,
-        data: {
-          title: formState.title.trim(),
-          summary: formState.summary.trim(),
-          content: formState.content,
-          price: Number.isFinite(formState.price) ? formState.price : 0,
-          image: formState.image?.trim() || undefined,
-          topics: displayTopics,
-          additionalLinks: displayLinks,
-          type: formState.type,
-          videoUrl: isVideo ? formState.videoUrl?.trim() || undefined : undefined,
-        },
+        data: requestData,
       })
 
       onSuccess?.()
@@ -238,13 +233,42 @@ export function EditPublishedResourceDialog({
       if (err instanceof Error) {
         const code = (err as Error & { code?: string }).code
         if (code === 'PRIVKEY_REQUIRED') {
-          setError(null)
-          const succeeded = await attemptNip07Republish()
-          if (succeeded) {
-            return
+          const payload = {
+            title: formState.title.trim(),
+            summary: formState.summary.trim(),
+            content: formState.content,
+            price: Number.isFinite(formState.price) ? formState.price : 0,
+            image: formState.image?.trim() || undefined,
+            topics: displayTopics,
+            additionalLinks: displayLinks,
+            type: formState.type,
+            videoUrl: isVideo ? formState.videoUrl?.trim() || undefined : undefined,
           }
+
+          const { event, error: signingError } = await requestNip07Signature(formState, payload)
+
+          if (event) {
+            try {
+              await mutation.mutateAsync({
+                id: formState.id,
+                data: { ...payload, signedEvent: event },
+              })
+              onSuccess?.()
+              onOpenChange(false)
+              return
+            } catch (retryError) {
+              const retryMessage =
+                retryError instanceof Error
+                  ? retryError.message
+                  : 'Failed to update resource'
+              setError(retryMessage)
+              return
+            }
+          }
+
+          const fallbackMessage = `${err.message}. Provide a freshly signed Nostr event or the owner's private key to continue.`
           setError(
-            `${err.message}. Provide a freshly signed Nostr event or the owner's private key to continue.`
+            signingError ? `${signingError} Provide a freshly signed Nostr event or the owner's private key to continue.` : fallbackMessage
           )
         } else {
           setError(err.message)

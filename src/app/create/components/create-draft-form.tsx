@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -54,6 +55,7 @@ interface FormData {
 export default function CreateDraftForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
   const draftId = searchParams.get('draft')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -262,6 +264,8 @@ export default function CreateDraftForm() {
         type: 'success', 
         text: draftId ? 'Draft updated successfully! Redirecting...' : 'Draft created successfully! Redirecting...' 
       })
+
+      queryClient.invalidateQueries({ queryKey: ['drafts'] })
       
       setTimeout(() => {
         router.push(`/drafts/resources/${result.data.id}`)

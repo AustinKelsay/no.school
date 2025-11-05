@@ -173,6 +173,16 @@ export function EditPublishedCourseDialog({
 
     setError(null)
 
+    let attemptedNip07 = false
+
+    if (hasNip07Support() && (formState.lessonReferences?.length ?? 0) > 0) {
+      attemptedNip07 = true
+      const succeeded = await attemptNip07Republish()
+      if (succeeded) {
+        return
+      }
+    }
+
     try {
       await mutation.mutateAsync({
         id: formState.id,
@@ -190,7 +200,7 @@ export function EditPublishedCourseDialog({
     } catch (err) {
       if (err instanceof Error) {
         const code = (err as Error & { code?: string }).code
-        if (code === 'PRIVKEY_REQUIRED') {
+        if (code === 'PRIVKEY_REQUIRED' && !attemptedNip07) {
           setError(null)
           const succeeded = await attemptNip07Republish()
           if (succeeded) {

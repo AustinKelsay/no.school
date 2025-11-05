@@ -13,7 +13,8 @@ import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { preserveLineBreaks } from '@/lib/text-utils'
-import { useCourseDraftQuery, useDeleteCourseDraft } from '@/hooks/useCourseDraftQuery'
+import { cn } from '@/lib/utils'
+import { useCourseDraftQuery, useDeleteCourseDraft, type DraftLesson } from '@/hooks/useCourseDraftQuery'
 import { useResourceNotes } from '@/hooks/useResourceNotes'
 import {
   resolveDraftLesson,
@@ -33,6 +34,8 @@ import {
   DollarSign,
   Loader2,
   AlertCircle,
+  CheckCircle2,
+  Pencil,
 } from 'lucide-react'
 
 interface CourseDraftPageClientProps {
@@ -46,15 +49,21 @@ interface DraftCourseLessonDisplay extends ResolvedDraftLesson {
 /**
  * Draft course lessons component
  */
-function DraftCourseLessons({ 
-  lessons, 
+function DraftCourseLessons({
+  lessons,
   courseId,
   isSyncing,
-}: { 
+  rawLessons,
+}: {
   lessons: DraftCourseLessonDisplay[]
-  courseId: string 
+  courseId: string
   isSyncing: boolean
+  rawLessons: DraftLesson[]
 }) {
+  const rawLessonMap = useMemo(() => {
+    return new Map(rawLessons.map(lesson => [lesson.id, lesson]))
+  }, [rawLessons])
+
   if (!lessons || lessons.length === 0) {
     return (
       <div className="space-y-6">
@@ -108,10 +117,34 @@ function DraftCourseLessons({
         </CardHeader>
         <CardContent className="pt-0 sm:pt-6">
           <div className="space-y-3 sm:space-y-4">
-            {lessons.map((lesson, index) => {
+            {lessons.map(lesson => {
+              const rawLesson = rawLessonMap.get(lesson.id)
               const isPremium = (lesson.price || 0) > 0
-              const contentType = lesson.type || 'document'
-              
+              const contentType = lesson.type || rawLesson?.draft?.type || 'document'
+              const isPublished = lesson.status === 'published'
+              const StatusIcon = isPublished ? CheckCircle2 : Pencil
+              const statusLabel = isPublished ? 'Published lesson' : 'Draft lesson'
+              const statusBadgeVariant = (isPublished ? 'outline' : 'draft-outline') as const
+              const statusBadgeClassName = isPublished
+                ? 'bg-primary/15 text-primary border-primary/40 shadow-sm'
+                : undefined
+
+              const fallbackTitle =
+                rawLesson?.draft?.title?.trim() ||
+                rawLesson?.resource?.title?.trim() ||
+                `Lesson ${lesson.index + 1}`
+              const normalizedTitle = lesson.title?.trim()
+              const displayTitle =
+                normalizedTitle && normalizedTitle !== `Lesson ${lesson.index + 1}`
+                  ? lesson.title
+                  : fallbackTitle
+
+              const fallbackSummary =
+                lesson.summary && lesson.summary.trim().length > 0
+                  ? lesson.summary
+                  : rawLesson?.draft?.summary || ''
+              const displayImage = lesson.image || rawLesson?.draft?.image || null
+
               return (
                 <div key={lesson.id} className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-3 sm:p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                   <div className="flex items-center space-x-3 sm:space-x-4 flex-1 min-w-0">
@@ -122,10 +155,10 @@ function DraftCourseLessons({
                     
                     {/* Lesson Thumbnail */}
                     <div className="relative w-16 h-12 bg-muted rounded-md flex-shrink-0 overflow-hidden">
-                      {lesson.image ? (
+                      {displayImage ? (
                         <OptimizedImage
-                          src={lesson.image}
-                          alt={lesson.title}
+                          src={displayImage}
+                          alt={displayTitle}
                           fill
                           className="object-cover"
                           sizes="64px"
@@ -143,13 +176,13 @@ function DraftCourseLessons({
                     
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium line-clamp-1 text-sm sm:text-base">
-                        {lesson.title || `Lesson ${lesson.index + 1}`}
+                        {displayTitle}
                       </h4>
-                      {lesson.summary && (
+                      {fallbackSummary ? (
                         <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                          {lesson.summary}
+                          {fallbackSummary}
                         </p>
-                      )}
+                      ) : null}
                       {lesson.noteError && (
                         <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
                           <AlertCircle className="h-3 w-3" />
@@ -162,8 +195,12 @@ function DraftCourseLessons({
                             {contentType}
                           </Badge>
                         )}
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {lesson.status === 'published' ? 'Published lesson' : 'Draft lesson'}
+                        <Badge
+                          variant={statusBadgeVariant}
+                          className={cn('text-xs capitalize gap-1', statusBadgeClassName)}
+                        >
+                          <StatusIcon className="h-3 w-3" />
+                          {statusLabel}
                         </Badge>
                         {isPremium ? (
                           <Badge variant="secondary" className="text-xs">
@@ -175,7 +212,9 @@ function DraftCourseLessons({
                             Free
                           </Badge>
                         )}
-                        <DraftBadge variant="outline" className="text-xs flex-shrink-0" />
+                        {!isPublished ? (
+                          <DraftBadge variant="outline" className="text-xs flex-shrink-0" />
+                        ) : null}
                       </div>
                     </div>
                   </div>
@@ -515,6 +554,7 @@ export function CourseDraftPageClient({ courseId }: CourseDraftPageClientProps) 
                 lessons={resolvedLessons}
                 courseId={courseId}
                 isSyncing={resourceNotesQuery.isLoading}
+                rawLessons={draftLessons}
               />
             </div>
 

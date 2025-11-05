@@ -219,7 +219,13 @@ export class CourseDraftService {
           include: {
             resource: {
               include: {
-                user: true
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    pubkey: true
+                  }
+                }
               }
             },
             draft: true
@@ -235,6 +241,76 @@ export class CourseDraftService {
         }
       }
     })
+  }
+
+  static async syncPublishedLessons(courseDraftId: string) {
+    const lessonsWithResources = await prisma.draftLesson.findMany({
+      where: {
+        courseDraftId,
+        resourceId: { not: null },
+      },
+      select: {
+        resourceId: true,
+      },
+    })
+
+    const assignedResourceIds = new Set<string>(
+      lessonsWithResources
+        .map((lesson) => lesson.resourceId)
+        .filter((resourceId): resourceId is string => Boolean(resourceId))
+    )
+    const skippedDuplicates: string[] = []
+
+    const lessonsNeedingSync = await prisma.draftLesson.findMany({
+      where: {
+        courseDraftId,
+        resourceId: null,
+        draftId: { not: null },
+      },
+      select: {
+        id: true,
+        draftId: true,
+      },
+    })
+
+    if (!lessonsNeedingSync.length) {
+      return
+    }
+
+    for (const lesson of lessonsNeedingSync) {
+      if (!lesson.draftId) {
+        continue
+      }
+
+      const resource = await prisma.resource.findUnique({
+        where: { id: lesson.draftId },
+        select: { id: true },
+      })
+
+      if (resource) {
+        if (assignedResourceIds.has(resource.id)) {
+          skippedDuplicates.push(lesson.id)
+          continue
+        }
+
+        await prisma.draftLesson.update({
+          where: { id: lesson.id },
+          data: {
+            resourceId: resource.id,
+            draftId: null,
+          },
+        })
+
+        assignedResourceIds.add(resource.id)
+      }
+    }
+
+    if (skippedDuplicates.length > 0) {
+      console.warn(
+        `[CourseDraftService.syncPublishedLessons] Skipped syncing duplicate lessons for courseDraftId=${courseDraftId}. Affected draft lesson IDs:`,
+        skippedDuplicates
+      )
+    }
   }
 
   /**

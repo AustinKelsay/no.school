@@ -339,7 +339,22 @@ export function usePublishCourse(courseDraftId: string) {
           headers: { 'Content-Type': 'application/json' }
         })
         if (!validateResponse.ok) {
-          throw new Error('Course validation failed')
+          let errorMessage = 'Course validation failed'
+          try {
+            const errorBody = await validateResponse.json()
+            if (Array.isArray((errorBody as { details?: unknown }).details)) {
+              const details = (errorBody as { details?: string[] }).details
+              if (details && details.length) {
+                errorMessage = `Course validation failed: ${details.join(', ')}`
+              }
+            } else if (typeof (errorBody as { error?: unknown }).error === 'string') {
+              errorMessage = (errorBody as { error?: string }).error!
+            }
+          } catch {
+            // Ignore JSON parsing issues; keep default error message
+          }
+          publishStatus.updateStep('validate', 'error', undefined, errorMessage)
+          throw new Error(errorMessage)
         }
         publishStatus.updateStep('validate', 'completed', 'Course structure validated')
 

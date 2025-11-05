@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { PublishService, type PublishCourseResult } from '@/lib/publish-service'
+import { CourseDraftService } from '@/lib/draft-service'
 import { z } from 'zod'
 import { getRelays } from '@/lib/nostr-relays'
 import { prisma } from '@/lib/prisma'
@@ -113,6 +114,8 @@ export async function POST(
           { status: 403 }
         )
       }
+
+      await CourseDraftService.syncPublishedLessons(courseDraftId)
 
       // Extract note ID from the event
       const dTag = signedEvent.tags.find((tag: string[]) => tag[0] === 'd')
@@ -309,8 +312,25 @@ export async function GET(
 
     const { id: courseDraftId } = paramsResult.data
 
-    // Validate the course draft
-    const validation = await PublishService.validateCourseDraft(courseDraftId)
+    let courseDraft = await CourseDraftService.findById(courseDraftId)
+    if (!courseDraft) {
+      return NextResponse.json(
+        { error: 'Course draft not found' },
+        { status: 404 }
+      )
+    }
+
+    if (courseDraft.userId !== session.user.id) {
+      return NextResponse.json(
+        { error: 'Access denied' },
+        { status: 403 }
+      )
+    }
+
+    await CourseDraftService.syncPublishedLessons(courseDraftId)
+    courseDraft = await CourseDraftService.findById(courseDraftId) ?? courseDraft
+
+    const validation = PublishService.validateCourseDraftData(courseDraft)
 
     return NextResponse.json({
       success: true,
