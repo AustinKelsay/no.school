@@ -42,7 +42,7 @@ const flattenText = (node: React.ReactNode): string => {
   if (Array.isArray(node)) {
     return node.map(flattenText).join('')
   }
-  if (React.isValidElement(node)) {
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
     return flattenText(node.props?.children)
   }
   return ''

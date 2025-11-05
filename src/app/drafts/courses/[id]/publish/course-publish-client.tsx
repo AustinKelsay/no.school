@@ -443,8 +443,27 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
     queryClient.invalidateQueries({ queryKey: ['courses', 'detail', publishedId] })
     queryClient.invalidateQueries({ queryKey: ['drafts', 'courses', courseId] })
 
+    /**
+     * Polls for draft deletion with a maximum retry limit.
+     * After maxAttempts (30 seconds), redirects to the published course anyway.
+     */
+    let attempts = 0
+    const maxAttempts = 30 // 30 attempts = 30 seconds (1 second intervals)
+
     const pollForDeletion = async () => {
       if (cancelled) {
+        return
+      }
+
+      attempts++
+
+      // If we've exceeded max attempts, redirect anyway
+      if (attempts > maxAttempts) {
+        console.warn(
+          `Draft deletion polling reached max attempts (${maxAttempts}). ` +
+          `Redirecting to published course anyway.`
+        )
+        router.replace(`/courses/${publishedId}`)
         return
       }
 
@@ -456,9 +475,10 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
         }
       } catch (pollError) {
         console.error('Failed to poll draft status:', pollError)
+        // Continue polling on error unless we've hit max attempts
       }
 
-      if (!cancelled) {
+      if (!cancelled && attempts <= maxAttempts) {
         timeoutId = setTimeout(pollForDeletion, 1000)
       }
     }
