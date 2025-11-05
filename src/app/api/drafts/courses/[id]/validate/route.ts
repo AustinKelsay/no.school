@@ -59,7 +59,14 @@ export async function POST(
     }
 
     await CourseDraftService.syncPublishedLessons(id)
-    courseDraft = await CourseDraftService.findById(id) ?? courseDraft
+    const refreshedCourseDraft = await CourseDraftService.findById(id)
+    if (!refreshedCourseDraft) {
+      return NextResponse.json(
+        { error: 'Course draft not found' },
+        { status: 404 }
+      )
+    }
+    courseDraft = refreshedCourseDraft
 
     const validation = PublishService.validateCourseDraftData(courseDraft)
 

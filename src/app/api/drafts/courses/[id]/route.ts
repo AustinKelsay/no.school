@@ -66,7 +66,14 @@ export async function GET(
     }
 
     await CourseDraftService.syncPublishedLessons(id)
-    courseDraft = await CourseDraftService.findById(id) ?? courseDraft
+    const syncedCourseDraft = await CourseDraftService.findById(id)
+    if (!syncedCourseDraft) {
+      return NextResponse.json(
+        { error: 'Course draft not found' },
+        { status: 404 }
+      )
+    }
+    courseDraft = syncedCourseDraft
 
     return NextResponse.json({
       success: true,

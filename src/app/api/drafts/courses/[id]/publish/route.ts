@@ -328,7 +328,15 @@ export async function GET(
     }
 
     await CourseDraftService.syncPublishedLessons(courseDraftId)
-    courseDraft = await CourseDraftService.findById(courseDraftId) ?? courseDraft
+    // Re-fetch the course draft after syncPublishedLessons modifies the database
+    const refreshedCourseDraft = await CourseDraftService.findById(courseDraftId)
+    if (!refreshedCourseDraft) {
+      return NextResponse.json(
+        { error: 'Course draft not found' },
+        { status: 404 }
+      )
+    }
+    courseDraft = refreshedCourseDraft
 
     const validation = PublishService.validateCourseDraftData(courseDraft)
 

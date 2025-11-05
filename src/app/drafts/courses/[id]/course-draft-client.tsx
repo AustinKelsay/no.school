@@ -124,7 +124,8 @@ function DraftCourseLessons({
               const isPublished = lesson.status === 'published'
               const StatusIcon = isPublished ? CheckCircle2 : Pencil
               const statusLabel = isPublished ? 'Published lesson' : 'Draft lesson'
-              const statusBadgeVariant = (isPublished ? 'outline' : 'draft-outline') as const
+              const statusBadgeVariant: React.ComponentProps<typeof Badge>['variant'] =
+                isPublished ? 'outline' : 'draft-outline'
               const statusBadgeClassName = isPublished
                 ? 'bg-primary/15 text-primary border-primary/40 shadow-sm'
                 : undefined
