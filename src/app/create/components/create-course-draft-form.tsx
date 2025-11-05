@@ -114,7 +114,7 @@ export default function CreateCourseDraftForm() {
         data?.type ||
         lesson.draft?.type ||
         (lesson.resource?.videoUrl ? 'video' : undefined),
-      price: data?.price ?? lesson.draft?.price ?? lesson.resource?.price,
+      price: data?.price ?? lesson.draft?.price ?? (lesson.resource?.price ?? undefined),
       image: data?.image ?? lesson.draft?.image ?? undefined,
       summary: data?.summary || lesson.draft?.summary || undefined
     }
