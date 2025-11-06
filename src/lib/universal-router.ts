@@ -9,7 +9,7 @@
  * This allows content to be accessed via any valid identifier format.
  */
 
-import { Prefix } from "snstr"
+import { Prefix, type AddressData, type EventData, type ProfileData } from "snstr"
 import { isNip19String, tryDecodeNip19Entity, type SafeDecodedEntity } from "@/lib/nip19-utils"
 
 export interface UniversalIdResult {
@@ -56,21 +56,21 @@ function extractContentType(id: string, decodedData?: SafeDecodedEntity["data"])
   
   // Check decoded NIP-19 data
   if (decodedData && typeof decodedData === 'object') {
-    const data = decodedData as Record<string, unknown>
-    
-    // For nevent and naddr, check the kind
-    if (typeof data.kind === 'number') {
+    // Type guard for EventData
+    if ('kind' in decodedData && typeof decodedData.kind === 'number') {
+      const eventData = decodedData as EventData
       // NIP-51 course lists
-      if (data.kind === 30004) return 'course'
+      if (eventData.kind === 30004) return 'course'
       // NIP-23 free content or NIP-99 paid content
-      if (data.kind === 30023 || data.kind === 30402) return 'resource'
+      if (eventData.kind === 30023 || eventData.kind === 30402) return 'resource'
     }
     
-    // For naddr, check the identifier pattern
-    if (typeof data.identifier === 'string') {
-      if (data.identifier.startsWith('course-')) return 'course'
-      if (data.identifier.startsWith('resource-')) return 'resource'
-      if (data.identifier.startsWith('lesson-')) return 'lesson'
+    // Type guard for AddressData
+    if ('identifier' in decodedData && typeof decodedData.identifier === 'string') {
+      const addressData = decodedData as AddressData
+      if (addressData.identifier.startsWith('course-')) return 'course'
+      if (addressData.identifier.startsWith('resource-')) return 'resource'
+      if (addressData.identifier.startsWith('lesson-')) return 'lesson'
     }
   }
   
@@ -234,10 +234,21 @@ export function extractAllIds(id: string): string[] {
   
   // Add additional IDs from decoded data
   if (result.decodedData && typeof result.decodedData === 'object' && result.decodedData !== null) {
-    const data = result.decodedData as Record<string, unknown>
-    if (typeof data.id === 'string') ids.push(data.id)
-    if (typeof data.pubkey === 'string') ids.push(data.pubkey)
-    if (typeof data.identifier === 'string') ids.push(data.identifier)
+    // Type guard for EventData
+    if ('id' in result.decodedData) {
+      const eventData = result.decodedData as EventData
+      if (eventData.id) ids.push(eventData.id)
+    }
+    // Type guard for ProfileData or AddressData (both have pubkey)
+    if ('pubkey' in result.decodedData) {
+      const profileOrAddress = result.decodedData as ProfileData | AddressData
+      if (profileOrAddress.pubkey) ids.push(profileOrAddress.pubkey)
+    }
+    // Type guard for AddressData (has identifier)
+    if ('identifier' in result.decodedData) {
+      const addressData = result.decodedData as AddressData
+      if (addressData.identifier) ids.push(addressData.identifier)
+    }
   }
   
   // Remove duplicates

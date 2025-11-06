@@ -85,12 +85,27 @@ export type CourseDraftWithIncludes = Prisma.CourseDraftGetPayload<{
       orderBy: {
         index: 'asc'
       }
+      include: {
+        resource: {
+          include: {
+            user: {
+              select: {
+                id: true
+                username: true
+                pubkey: true
+              }
+            }
+          }
+        }
+        draft: true
+      }
     }
     user: {
       select: {
         id: true
         username: true
         email: true
+        pubkey: true
       }
     }
   }
@@ -140,13 +155,28 @@ export class CourseDraftService {
         draftLessons: {
           orderBy: {
             index: 'asc'
+          },
+          include: {
+            resource: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    pubkey: true
+                  }
+                }
+              }
+            },
+            draft: true
           }
         },
         user: {
           select: {
             id: true,
             username: true,
-            email: true
+            email: true,
+            pubkey: true
           }
         }
       }
@@ -178,13 +208,28 @@ export class CourseDraftService {
           draftLessons: {
             orderBy: {
               index: 'asc'
+            },
+            include: {
+              resource: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      username: true,
+                      pubkey: true
+                    }
+                  }
+                }
+              },
+              draft: true
             }
           },
           user: {
             select: {
               id: true,
               username: true,
-              email: true
+              email: true,
+              pubkey: true
             }
           }
         }
@@ -331,13 +376,28 @@ export class CourseDraftService {
         draftLessons: {
           orderBy: {
             index: 'asc'
+          },
+          include: {
+            resource: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    pubkey: true
+                  }
+                }
+              }
+            },
+            draft: true
           }
         },
         user: {
           select: {
             id: true,
             username: true,
-            email: true
+            email: true,
+            pubkey: true
           }
         }
       }

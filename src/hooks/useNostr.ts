@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { DEFAULT_RELAYS, useSnstrContext } from "@/contexts/snstr-context";
-import { Filter, NostrEvent, Prefix, decodePublicKey, decodeProfile, filterProfile } from "snstr";
+import { Filter, NostrEvent, Prefix, decodePublicKey, decodeProfile } from "snstr";
 import { tryDecodeNip19Entity } from "@/lib/nip19-utils";
 
 /**
@@ -60,7 +60,7 @@ export function useNostr() {
 
     // If it starts with nprofile, decode it and extract pubkey
     if (pubkeyInput.startsWith('nprofile1')) {
-      const profileData = filterProfile(decodeProfile(pubkeyInput as `${string}1${string}`));
+      const profileData = decodeProfile(pubkeyInput as `${string}1${string}`);
       return profileData.pubkey;
     }
 
