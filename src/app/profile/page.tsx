@@ -114,7 +114,7 @@ export default async function ProfilePage() {
             {hasAdminOrModerator && (
               <>
                 <TabsContent value="content" className="space-y-6">
-                  <AdminContentManager userId={session.user.id} />
+                  <AdminContentManager />
                 </TabsContent>
 
                 {adminInfo.permissions.viewAnalytics && (

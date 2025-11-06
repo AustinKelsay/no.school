@@ -45,10 +45,6 @@ import { useDeleteResourceMutation, useDeleteCourseMutation } from '@/hooks/useP
 import { extractVideoBodyMarkdown } from '@/lib/content-utils'
 import type { NostrEvent } from 'snstr'
 
-type AdminContentManagerProps = {
-  userId: string
-}
-
 type PublishedItemType = 'course' | 'video' | 'document'
 
 type PublishedItemBase = {
@@ -747,7 +743,7 @@ function PublishedContentView() {
   )
 }
 
-export function AdminContentManager({ userId: _userId }: AdminContentManagerProps) {
+export function AdminContentManager() {
   const [activeTab, setActiveTab] = useState<'drafts' | 'published'>('drafts')
 
   return (
