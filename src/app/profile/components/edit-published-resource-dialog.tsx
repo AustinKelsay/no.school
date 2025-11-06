@@ -211,7 +211,10 @@ export function EditPublishedResourceDialog({
         title: formState.title.trim(),
         summary: formState.summary.trim(),
         content: formState.content,
-        price: Number.isFinite(formState.price) ? formState.price : 0,
+        price:
+          Number.isFinite(formState.price) && formState.price >= 0
+            ? formState.price
+            : 0,
         image: formState.image?.trim() || undefined,
         topics: displayTopics,
         additionalLinks: displayLinks,
@@ -237,7 +240,10 @@ export function EditPublishedResourceDialog({
             title: formState.title.trim(),
             summary: formState.summary.trim(),
             content: formState.content,
-            price: Number.isFinite(formState.price) ? formState.price : 0,
+            price:
+              Number.isFinite(formState.price) && formState.price >= 0
+                ? formState.price
+                : 0,
             image: formState.image?.trim() || undefined,
             topics: displayTopics,
             additionalLinks: displayLinks,
@@ -333,14 +339,18 @@ export function EditPublishedResourceDialog({
                     id="resource-price"
                     type="number"
                     min={0}
-                    value={Number.isFinite(formState.price) ? formState.price : 0}
-                    onChange={event =>
-                      setFormState(prev =>
-                        prev
-                          ? { ...prev, price: Number.parseInt(event.target.value, 10) || 0 }
-                          : prev
-                      )
+                    value={
+                      Number.isFinite(formState.price) && formState.price >= 0
+                        ? formState.price
+                        : 0
                     }
+                    onChange={event => {
+                      const parsed = Number.parseInt(event.target.value, 10)
+                      const nextPrice = Number.isNaN(parsed) ? 0 : Math.max(0, parsed)
+                      setFormState(prev =>
+                        prev ? { ...prev, price: nextPrice } : prev
+                      )
+                    }}
                   />
                 </div>
 

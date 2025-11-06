@@ -18,10 +18,24 @@ function extractImageFromTags(tags?: string[][]): string | undefined {
   const imetaTag = tags.find(tag => tag[0] === "imeta")
   if (imetaTag) {
     for (const entry of imetaTag.slice(1)) {
-      const [key, ...rest] = entry.split(" ")
-      if (key === "url" && rest.length > 0) {
-        const url = rest.join(" ").trim()
-        if (url) return url
+      const trimmedEntry = entry?.trim()
+      if (!trimmedEntry) continue
+
+      let key: string | undefined
+      let value = ""
+
+      if (trimmedEntry.includes("=")) {
+        const [rawKey, ...rest] = trimmedEntry.split("=")
+        key = rawKey?.trim()
+        value = rest.join("=").trim()
+      } else {
+        const [rawKey, ...rest] = trimmedEntry.split(/\s+/)
+        key = rawKey?.trim()
+        value = rest.join(" ").trim()
+      }
+
+      if (key === "url" && value) {
+        return value
       }
     }
   }

@@ -327,7 +327,9 @@ export class CourseDraftService {
         continue
       }
 
-      const resource = await prisma.resource.findUnique({
+      // Find the published Resource where the Resource ID equals the draft ID
+      // (when a Draft is published, the Resource uses the Draft's ID)
+      const resource = await prisma.resource.findFirst({
         where: { id: lesson.draftId },
         select: { id: true },
       })

@@ -87,6 +87,7 @@ export default function ContentPage() {
   const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set(['all']))
   const [noteImageCache, setNoteImageCache] = useState<Record<string, string>>({})
   const attemptedNoteIds = useRef<Set<string>>(new Set())
+  const inFlightNoteIds = useRef<Set<string>>(new Set())
   
   // Fetch data from all hooks
   const { courses, isLoading: coursesLoading } = useCoursesQuery()
@@ -108,8 +109,8 @@ export default function ContentPage() {
       if (getNoteImage(normalizedNote)) return
       if (noteImageCache[noteId]) return
       if (attemptedNoteIds.current.has(noteId)) return
-
-      attemptedNoteIds.current.add(noteId)
+      if (inFlightNoteIds.current.has(noteId)) return
+      inFlightNoteIds.current.add(noteId)
       noteIdsToFetch.push(noteId)
     }
 
@@ -124,16 +125,17 @@ export default function ContentPage() {
     let isCancelled = false
 
     const fetchImages = async () => {
+      let results: Array<{ noteId: string; image?: string; didFetch: boolean }> = []
       try {
-        const results = await Promise.all(
+        results = await Promise.all(
           noteIdsToFetch.map(async (noteId) => {
             try {
               const event = await fetchEventForIdentifier(noteId)
               const image = getNoteImage(event ?? undefined)
-              return { noteId, image }
+              return { noteId, image, didFetch: true }
             } catch (error) {
               console.error(`Failed to fetch note ${noteId} for image`, error)
-              return { noteId, image: undefined }
+              return { noteId, image: undefined, didFetch: false }
             }
           })
         )
@@ -142,17 +144,26 @@ export default function ContentPage() {
 
         setNoteImageCache(prev => {
           const next = { ...prev }
-          let changed = false
-          results.forEach(({ noteId, image }) => {
+          let cacheChanged = false
+
+          results.forEach(({ noteId, image, didFetch }) => {
+            if (didFetch) {
+              attemptedNoteIds.current.add(noteId)
+            }
             if (image && !next[noteId]) {
               next[noteId] = image
-              changed = true
+              cacheChanged = true
             }
           })
-          return changed ? next : prev
+
+          return cacheChanged ? next : prev
         })
       } catch (error) {
         console.error('Failed to fetch note images', error)
+      } finally {
+        results.forEach(({ noteId }) => {
+          inFlightNoteIds.current.delete(noteId)
+        })
       }
     }
 

@@ -35,7 +35,7 @@ export const courseNotesQueryKeys = {
   batch: (courseIds: string[]) => [
     ...courseNotesQueryKeys.all,
     'batch',
-    courseIds.sort().join(','),
+    [...courseIds].sort().join(','),
   ] as const,
 }
 

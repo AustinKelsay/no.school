@@ -457,8 +457,8 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
 
       attempts++
 
-      // If we've exceeded max attempts, redirect anyway
-      if (attempts > maxAttempts) {
+      // If we've reached max attempts, redirect anyway
+      if (attempts >= maxAttempts) {
         console.warn(
           `Draft deletion polling reached max attempts (${maxAttempts}). ` +
           `Redirecting to published course anyway.`
@@ -478,7 +478,7 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
         // Continue polling on error unless we've hit max attempts
       }
 
-      if (!cancelled && attempts <= maxAttempts) {
+      if (!cancelled && attempts < maxAttempts) {
         timeoutId = setTimeout(pollForDeletion, 1000)
       }
     }

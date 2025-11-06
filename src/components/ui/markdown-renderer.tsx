@@ -206,27 +206,35 @@ const MarkdownComponents = {
   ),
   
   // Custom code renderers
-  code: ({ inline, className, children, ...props }: React.HTMLAttributes<HTMLElement> & { inline?: boolean }) => {
+  code: ({ inline, node, className, children, ...props }: React.HTMLAttributes<HTMLElement> & { inline?: boolean; node?: unknown }) => {
+    // Destructure non-DOM props to prevent React warnings
+    const { dataIndex, dataSourcePos, index, parent, sourcePosition, ...domProps } = props as Record<string, unknown>
+    
     if (inline) {
       return (
-        <InlineCode className={className} {...props}>
+        <InlineCode className={className} {...(domProps as React.HTMLAttributes<HTMLElement>)}>
           {children}
         </InlineCode>
       )
     }
     
     return (
-      <code className={cn('font-mono', className)} {...props}>
+      <code className={cn('font-mono', className)} {...(domProps as React.HTMLAttributes<HTMLElement>)}>
         {children}
       </code>
     )
   },
   
-  pre: ({ children, className, ...props }: React.HTMLAttributes<HTMLPreElement>) => (
-    <CodeBlock className={className} {...props}>
-      {children}
-    </CodeBlock>
-  ),
+  pre: ({ children, className, node, ...props }: React.HTMLAttributes<HTMLPreElement> & { node?: unknown }) => {
+    // Destructure non-DOM props to prevent React warnings
+    const { dataIndex, dataSourcePos, index, parent, sourcePosition, inline, ...domProps } = props as Record<string, unknown>
+    
+    return (
+      <CodeBlock className={className} {...(domProps as React.HTMLAttributes<HTMLPreElement>)}>
+        {children}
+      </CodeBlock>
+    )
+  },
   
   // Custom list renderers with task list support
   ul: ({ children, ...props }: React.HTMLAttributes<HTMLUListElement>) => {

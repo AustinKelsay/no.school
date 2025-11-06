@@ -5,7 +5,10 @@ import {
   createResourceEvent,
   extractNoteId,
   isNip07User,
+  type CourseEventDraftInput,
+  type ResourceEventDraftInput,
 } from '@/lib/nostr-events'
+import { parseCourseEvent, parseEvent } from '@/data/types'
 import type { Course, Resource } from '@prisma/client'
 import { RelayPool, type NostrEvent } from 'snstr'
 
@@ -159,15 +162,57 @@ export class RepublishService {
         throw new RepublishError('Signed event must be signed by resource owner', 'INVALID_PUBKEY')
       }
 
+      const parsedEvent = parseEvent(signedEvent)
+      const eventPriceString = parsedEvent.price?.trim() ?? ''
+      const eventPrice = eventPriceString ? Number(eventPriceString) : 0
+
+      if (Number.isNaN(eventPrice)) {
+        throw new RepublishError('Signed event price is invalid', 'INVALID_PRICE', {
+          price: parsedEvent.price,
+        })
+      }
+
+      const payloadPrice = typeof payload.price === 'number' ? payload.price : 0
+      if (payloadPrice !== eventPrice) {
+        throw new RepublishError('Payload price does not match signed event', 'PRICE_MISMATCH', {
+          payloadPrice,
+          eventPrice,
+        })
+      }
+
+      if (payload.type !== parsedEvent.type) {
+        throw new RepublishError('Payload type does not match signed event', 'TYPE_MISMATCH', {
+          payloadType: payload.type,
+          eventType: parsedEvent.type,
+        })
+      }
+
+      const eventIsVideo = parsedEvent.type === 'video'
+      const eventVideoUrl = eventIsVideo ? (parsedEvent.videoUrl?.trim() || null) : null
+      const payloadVideoUrl = payload.type === 'video' ? (payload.videoUrl?.trim() || null) : null
+
+      if (payloadVideoUrl && payloadVideoUrl !== eventVideoUrl) {
+        throw new RepublishError('Payload video URL does not match signed event', 'VIDEO_URL_MISMATCH', {
+          payloadVideoUrl,
+          eventVideoUrl,
+        })
+      }
+
+      if (!eventIsVideo && payloadVideoUrl) {
+        throw new RepublishError('Signed event is not a video but payload provided video URL', 'VIDEO_TYPE_MISMATCH', {
+          payloadVideoUrl,
+        })
+      }
+
       const publishedRelays = await publishToRelays(selectedRelays, signedEvent)
 
       await prisma.$transaction(async tx => {
         await tx.resource.update({
           where: { id: resourceId },
           data: {
-            price: payload.price,
+            price: eventPrice,
             noteId: signedEvent.id,
-            videoUrl: payload.type === 'video' ? payload.videoUrl ?? null : null,
+            videoUrl: eventVideoUrl,
           },
         })
       })
@@ -194,7 +239,7 @@ export class RepublishService {
       throw new RepublishError('Private key unavailable for server-side signing', 'PRIVKEY_REQUIRED')
     }
 
-    const draftLike = {
+    const draftLike: ResourceEventDraftInput = {
       id: resourceId,
       userId: resource.userId,
       type: payload.type,
@@ -205,10 +250,10 @@ export class RepublishService {
       price: payload.price,
       topics: payload.topics,
       additionalLinks: payload.additionalLinks,
-      videoUrl: payload.type === 'video' ? payload.videoUrl : undefined,
+      videoUrl: payload.type === 'video' ? payload.videoUrl ?? null : undefined,
     }
 
-    const event = createResourceEvent(draftLike as any, signingPrivkey)
+    const event = createResourceEvent(draftLike, signingPrivkey)
     const noteId = extractNoteId(event)
 
     if (!noteId || noteId !== resourceId) {
@@ -309,13 +354,31 @@ export class RepublishService {
         throw new RepublishError('Signed event must be signed by course owner', 'INVALID_PUBKEY')
       }
 
+      const parsedCourse = parseCourseEvent(signedEvent)
+      const coursePriceString = parsedCourse.price?.trim() ?? ''
+      const coursePrice = coursePriceString ? Number(coursePriceString) : 0
+
+      if (Number.isNaN(coursePrice)) {
+        throw new RepublishError('Signed event price is invalid', 'INVALID_PRICE', {
+          price: parsedCourse.price,
+        })
+      }
+
+      const payloadPrice = typeof payload.price === 'number' ? payload.price : 0
+      if (payloadPrice !== coursePrice) {
+        throw new RepublishError('Payload price does not match signed event', 'PRICE_MISMATCH', {
+          payloadPrice,
+          eventPrice: coursePrice,
+        })
+      }
+
       const publishedRelays = await publishToRelays(selectedRelays, signedEvent)
 
       await prisma.$transaction(async tx => {
         await tx.course.update({
           where: { id: courseId },
           data: {
-            price: payload.price,
+            price: coursePrice,
             noteId: signedEvent.id,
           },
         })
@@ -343,7 +406,7 @@ export class RepublishService {
       throw new RepublishError('Private key unavailable for server-side signing', 'PRIVKEY_REQUIRED')
     }
 
-    const draftLike = {
+    const draftLike: CourseEventDraftInput = {
       id: courseId,
       userId: course.userId,
       title: payload.title,
@@ -353,7 +416,7 @@ export class RepublishService {
       topics: payload.topics,
     }
 
-    const event = createCourseEvent(draftLike as any, lessonReferences, signingPrivkey)
+    const event = createCourseEvent(draftLike, lessonReferences, signingPrivkey)
     const noteId = extractNoteId(event)
 
     if (!noteId || noteId !== courseId) {
