@@ -53,6 +53,13 @@ const republishSchema = z
     message: 'Provide either privkey or signedEvent, not both',
     path: ['signedEvent'],
   })
+  .refine(
+    data => data.type !== 'video' || (data.videoUrl && data.videoUrl.trim().length > 0),
+    {
+      message: 'Video URL is required and must be a valid URL when type is video',
+      path: ['videoUrl'],
+    }
+  )
 
 type RouteParams = {
   params: Promise<{ id: string }>
@@ -119,7 +126,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       topics: sanitizedTopics,
       additionalLinks: sanitizedLinks,
       type,
-      videoUrl: type === 'video' ? videoUrl : undefined,
+      videoUrl: type === 'video' ? videoUrl! : undefined,
       signedEvent,
       privkey,
       relays,

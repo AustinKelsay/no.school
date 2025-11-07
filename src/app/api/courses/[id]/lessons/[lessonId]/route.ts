@@ -31,6 +31,10 @@ function collectCandidateIdentifiers(rawId: string): string[] {
     candidates.add(trimmed)
   }
 
+  if (!universal) {
+    return Array.from(candidates)
+  }
+
   if (universal.resolvedId) {
     candidates.add(universal.resolvedId)
   }

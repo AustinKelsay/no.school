@@ -80,7 +80,7 @@ function extractContentType(id: string, decodedData?: SafeDecodedEntity["data"])
 /**
  * Resolves a universal ID to a format usable for data queries
  */
-export function resolveUniversalId(id: string): UniversalIdResult {
+export function resolveUniversalId(id: string): UniversalIdResult | null {
   const originalId = id.trim()
   
   // Handle database IDs
@@ -108,6 +108,11 @@ export function resolveUniversalId(id: string): UniversalIdResult {
     const decoded = tryDecodeNip19Entity(originalId)
 
     if (decoded) {
+      if (decoded.type === Prefix.PrivateKey) {
+        console.warn('Ignored unsupported nsec identifier in resolveUniversalId')
+        return null
+      }
+
       const { resolvedId, idType } = determineResolvedId(originalId, decoded)
       const decodedData = decoded.data
 
@@ -133,7 +138,6 @@ export function resolveUniversalId(id: string): UniversalIdResult {
 function determineResolvedId(originalId: string, decoded: SafeDecodedEntity): { resolvedId: string; idType: UniversalIdResult["idType"] } {
   switch (decoded.type) {
     case Prefix.PublicKey:
-    case Prefix.PrivateKey:
       return { resolvedId: decoded.data, idType: decoded.type }
     case Prefix.Note:
       return { resolvedId: decoded.data, idType: decoded.type }
@@ -165,7 +169,10 @@ function determineResolvedId(originalId: string, decoded: SafeDecodedEntity): { 
 /**
  * Determines the appropriate route path based on content type and ID
  */
-export function getRoutePath(result: UniversalIdResult): string {
+export function getRoutePath(result: UniversalIdResult | null): string {
+  if (!result) {
+    return '/content'
+  }
   const { contentType, resolvedId } = result
   
   switch (contentType) {
@@ -194,14 +201,21 @@ export function getUniversalRoute(id: string): string {
  * Hook-friendly version for use in React components
  */
 export function useUniversalRouter(id: string) {
-  const result = resolveUniversalId(id)
-  const route = getRoutePath(result)
+  const resolvedResult = resolveUniversalId(id)
+  const fallbackResult: UniversalIdResult = {
+    resolvedId: id,
+    idType: 'database',
+    originalId: id,
+    contentType: extractContentType(id)
+  }
+  const result = resolvedResult ?? fallbackResult
+  const route = getRoutePath(resolvedResult)
   
   return {
     ...result,
     route,
-    isValidId: result.idType !== 'database' || isDatabaseId(id),
-    canRoute: result.contentType !== 'unknown'
+    isValidId: Boolean(resolvedResult) && (resolvedResult.idType !== 'database' || isDatabaseId(id)),
+    canRoute: Boolean(resolvedResult) && resolvedResult.contentType !== 'unknown'
   }
 }
 
@@ -211,7 +225,7 @@ export function useUniversalRouter(id: string) {
 export function isValidUniversalId(id: string): boolean {
   try {
     const result = resolveUniversalId(id)
-    return result.idType !== 'database' || isDatabaseId(id)
+    return Boolean(result && (result.idType !== 'database' || isDatabaseId(id)))
   } catch {
     return false
   }
@@ -222,6 +236,9 @@ export function isValidUniversalId(id: string): boolean {
  */
 export function normalizeId(id: string): string {
   const result = resolveUniversalId(id)
+  if (!result) {
+    return id.trim()
+  }
   return result.resolvedId
 }
 
@@ -230,6 +247,11 @@ export function normalizeId(id: string): string {
  */
 export function extractAllIds(id: string): string[] {
   const result = resolveUniversalId(id)
+  const trimmed = id.trim()
+  if (!result) {
+    return trimmed ? [trimmed] : []
+  }
+
   const ids = [result.resolvedId, result.originalId]
   
   // Add additional IDs from decoded data

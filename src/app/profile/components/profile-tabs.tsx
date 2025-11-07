@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
-import { useToast } from '@/hooks/use-toast'
 import { Tabs } from '@/components/ui/tabs'
+import { useToast } from '@/hooks/use-toast'
 
 interface ProfileTabsProps {
   children: ReactNode

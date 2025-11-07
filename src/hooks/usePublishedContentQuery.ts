@@ -59,6 +59,13 @@ export const publishedContentQueryKeys = {
   ] as const,
 }
 
+/**
+ * Fetches published content from the API.
+ * This function runs in the browser and uses standard fetch options.
+ *
+ * @param params - Optional parameters to filter the content
+ * @returns The published content payload with resources, courses, and stats
+ */
 export async function fetchPublishedContent(
   params?: FetchPublishedContentParams
 ): Promise<PublishedContentPayload> {
@@ -71,7 +78,7 @@ export async function fetchPublishedContent(
   }
 
   const url = `/api/profile/content${queryParams.toString() ? `?${queryParams}` : ''}`
-  const response = await fetch(url, { cache: 'no-store' })
+  const response = await fetch(url)
 
   if (!response.ok) {
     const errorBody = await response.json().catch(() => ({}))

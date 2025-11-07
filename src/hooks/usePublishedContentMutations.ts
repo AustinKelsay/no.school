@@ -93,7 +93,13 @@ async function deleteResource({ id }: DeletePayload) {
     const errorBody = await response.json().catch(() => ({}))
     const message =
       typeof errorBody.error === 'string' ? errorBody.error : 'Failed to delete resource'
-    throw new Error(message)
+    const error = new Error(message) as Error & { code?: string }
+    // Extract error code from nested path or direct property, matching republish mutations
+    const extractedCode = errorBody.error?.code ?? errorBody.code
+    if (typeof extractedCode === 'string') {
+      error.code = extractedCode
+    }
+    throw error
   }
 
   return response.json()
@@ -108,7 +114,13 @@ async function deleteCourse({ id }: DeletePayload) {
     const errorBody = await response.json().catch(() => ({}))
     const message =
       typeof errorBody.error === 'string' ? errorBody.error : 'Failed to delete course'
-    throw new Error(message)
+    const error = new Error(message) as Error & { code?: string }
+    // Extract error code from nested path or direct property, matching republish mutations
+    const extractedCode = errorBody.error?.code ?? errorBody.code
+    if (typeof extractedCode === 'string') {
+      error.code = extractedCode
+    }
+    throw error
   }
 
   return response.json()

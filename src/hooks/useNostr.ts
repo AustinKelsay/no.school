@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { DEFAULT_RELAYS, useSnstrContext } from "@/contexts/snstr-context";
-import { Filter, NostrEvent, Prefix, decodePublicKey, decodeProfile } from "snstr";
+import { Filter, NostrEvent, Prefix } from "snstr";
 import { tryDecodeNip19Entity } from "@/lib/nip19-utils";
 
 /**
@@ -53,18 +53,7 @@ export function useNostr() {
       return pubkeyInput.toLowerCase();
     }
 
-    // If it starts with npub, decode it
-    if (pubkeyInput.startsWith('npub1')) {
-      return decodePublicKey(pubkeyInput as `${string}1${string}`);
-    }
-
-    // If it starts with nprofile, decode it and extract pubkey
-    if (pubkeyInput.startsWith('nprofile1')) {
-      const profileData = decodeProfile(pubkeyInput as `${string}1${string}`);
-      return profileData.pubkey;
-    }
-
-    // Try generic decode as fallback
+    // Try generic decode for all NIP-19 formats (npub, nprofile, etc.)
     const decoded = tryDecodeNip19Entity(pubkeyInput);
     if (decoded?.type === Prefix.PublicKey) {
       return decoded.data;

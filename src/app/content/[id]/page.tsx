@@ -134,30 +134,40 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
         
         // Resolve the universal ID to determine how to fetch the content
         const resolved = resolveUniversalId(resourceId)
+        if (!resolved) {
+          setIdResult(null)
+          setError('Unsupported identifier')
+          setLoading(false)
+          return
+        }
         setIdResult(resolved)
         
         let nostrEvent: NostrEvent | null = null
         
         // Fetch based on ID type
         if (resolved.idType === 'nevent' && resolved.decodedData) {
-          // Runtime check: ensure decodedData is non-null and has 'id' property
           if (
-            resolved.decodedData !== null &&
             typeof resolved.decodedData === 'object' &&
-            'id' in resolved.decodedData
+            'id' in resolved.decodedData &&
+            typeof resolved.decodedData.id === 'string'
           ) {
             const data = resolved.decodedData as EventData
             nostrEvent = await fetchSingleEvent({
               ids: [data.id]
             })
+          } else {
+            console.error('Invalid nevent decoded data', resolved.decodedData)
+            setError('Invalid identifier metadata')
+            setLoading(false)
+            return
           }
         } else if (resolved.idType === 'naddr' && resolved.decodedData) {
-          // Runtime check: ensure decodedData is non-null and has both 'identifier' and 'kind' properties
           if (
-            resolved.decodedData !== null &&
             typeof resolved.decodedData === 'object' &&
             'identifier' in resolved.decodedData &&
-            'kind' in resolved.decodedData
+            'kind' in resolved.decodedData &&
+            typeof resolved.decodedData.identifier === 'string' &&
+            typeof resolved.decodedData.kind === 'number'
           ) {
             const data = resolved.decodedData as AddressData
             nostrEvent = await fetchSingleEvent({
@@ -165,6 +175,11 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
               '#d': [data.identifier],
               authors: data.pubkey ? [data.pubkey] : undefined
             })
+          } else {
+            console.error('Invalid naddr decoded data', resolved.decodedData)
+            setError('Invalid identifier metadata')
+            setLoading(false)
+            return
           }
         } else if (resolved.idType === 'note' || resolved.idType === 'hex') {
           // Direct event ID

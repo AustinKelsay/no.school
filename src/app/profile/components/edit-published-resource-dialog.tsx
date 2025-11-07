@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, Plus, X } from 'lucide-react'
 import { useRepublishResourceMutation } from '@/hooks/usePublishedContentMutations'
-import { createUnsignedResourceEvent } from '@/lib/nostr-events'
+import { createUnsignedResourceEvent, type ResourceEventDraftInput } from '@/lib/nostr-events'
 import { hasNip07Support, type NostrEvent } from 'snstr'
 
 export type ResourceEditData = {
@@ -108,21 +108,21 @@ export function EditPublishedResourceDialog({
         return { event: null, error: 'Active Nostr key does not match the original publisher.' }
       }
 
-      const draftLike = {
+      const draftLike: ResourceEventDraftInput = {
         id: resource.id,
         userId: '',
         type: payload.type,
         title: payload.title,
         summary: payload.summary,
         content: payload.content,
-        image: payload.image,
+        image: payload.image ?? null,
         price: payload.price,
         topics: payload.topics,
         additionalLinks: payload.additionalLinks,
-        videoUrl: payload.type === 'video' ? payload.videoUrl : undefined,
+        videoUrl: payload.type === 'video' ? payload.videoUrl ?? null : null,
       }
 
-      const unsignedEvent = createUnsignedResourceEvent(draftLike as any, pubkey)
+      const unsignedEvent = createUnsignedResourceEvent(draftLike, pubkey)
       const signedEvent: NostrEvent = await nostr.signEvent(unsignedEvent)
       return { event: signedEvent }
     } catch (err) {
@@ -185,6 +185,31 @@ export function EditPublishedResourceDialog({
     )
   }
 
+  /**
+   * Builds the payload object from form state with proper normalization.
+   * Trims title and summary, normalizes price, and conditionally includes videoUrl.
+   */
+  const buildPayload = () => {
+    if (!formState) {
+      throw new Error("Form state is required to build payload")
+    }
+
+    return {
+      title: formState.title.trim(),
+      summary: formState.summary.trim(),
+      content: formState.content,
+      price:
+        Number.isFinite(formState.price) && formState.price >= 0
+          ? formState.price
+          : 0,
+      image: formState.image?.trim() || undefined,
+      topics: displayTopics,
+      additionalLinks: displayLinks,
+      type: formState.type,
+      videoUrl: isVideo ? formState.videoUrl?.trim() || undefined : undefined,
+    }
+  }
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!formState) return
@@ -207,20 +232,7 @@ export function EditPublishedResourceDialog({
     setError(null)
 
     try {
-      const payload = {
-        title: formState.title.trim(),
-        summary: formState.summary.trim(),
-        content: formState.content,
-        price:
-          Number.isFinite(formState.price) && formState.price >= 0
-            ? formState.price
-            : 0,
-        image: formState.image?.trim() || undefined,
-        topics: displayTopics,
-        additionalLinks: displayLinks,
-        type: formState.type,
-        videoUrl: isVideo ? formState.videoUrl?.trim() || undefined : undefined,
-      }
+      const payload = buildPayload()
 
       const { event: preSignedEvent } = await requestNip07Signature(formState, payload)
       const requestData = preSignedEvent ? { ...payload, signedEvent: preSignedEvent } : payload
@@ -236,20 +248,7 @@ export function EditPublishedResourceDialog({
       if (err instanceof Error) {
         const code = (err as Error & { code?: string }).code
         if (code === 'PRIVKEY_REQUIRED') {
-          const payload = {
-            title: formState.title.trim(),
-            summary: formState.summary.trim(),
-            content: formState.content,
-            price:
-              Number.isFinite(formState.price) && formState.price >= 0
-                ? formState.price
-                : 0,
-            image: formState.image?.trim() || undefined,
-            topics: displayTopics,
-            additionalLinks: displayLinks,
-            type: formState.type,
-            videoUrl: isVideo ? formState.videoUrl?.trim() || undefined : undefined,
-          }
+          const payload = buildPayload()
 
           const { event, error: signingError } = await requestNip07Signature(formState, payload)
 

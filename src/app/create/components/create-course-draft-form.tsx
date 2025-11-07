@@ -146,15 +146,16 @@ export default function CreateCourseDraftForm() {
         })
         
         // Load lessons
-        if (draft.draftLessons && draft.draftLessons.length > 0) {
-          const loadedLessons: LessonData[] = draft.draftLessons.map((lesson: {
+        const draftLessons = draft.draftLessons || []
+        if (draftLessons.length > 0) {
+          const loadedLessons: LessonData[] = draftLessons.map((lesson: {
             id: string
             resourceId?: string
             draftId?: string
             resource?: { title: string; price: number }
             draft?: { title: string; type: string; price: number }
           }) => {
-            const draftLesson = draft.draftLessons.find((item: DraftLessonType) => item.id === lesson.id)
+            const draftLesson = draftLessons.find((item: DraftLessonType) => item.id === lesson.id)
             if (draftLesson) {
               return createLessonData(draft, draftLesson)
             }

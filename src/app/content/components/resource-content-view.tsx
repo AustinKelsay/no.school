@@ -296,6 +296,12 @@ export function ResourceContentView({
         let nostrEvent: NostrEvent | null = null
         const resolved = resolveUniversalId(resourceId)
 
+        if (!resolved) {
+          setError('Unsupported identifier')
+          setLoading(false)
+          return
+        }
+
         if (resolved.idType === 'nevent' && resolved.decodedData && typeof resolved.decodedData === 'object') {
           if ('id' in resolved.decodedData) {
             const eventData = resolved.decodedData as EventData
@@ -383,7 +389,8 @@ export function ResourceContentView({
   const category = parsedEvent.topics?.[0] || 'general'
   const type = parsedEvent.type || 'document'
   const additionalLinks = parsedEvent.additionalLinks || []
-  const difficulty = 'intermediate'
+  const difficultyTag = event.tags?.find?.((tag) => Array.isArray(tag) && tag[0] === 'difficulty')?.[1]
+  const difficulty = difficultyTag || ''
   // Check parsedEvent.isPremium (boolean) and also check raw event tags for string 'true'
   const isPremiumFromParsed = parsedEvent.isPremium === true
   const isPremiumFromTags = event.tags?.some(
@@ -430,9 +437,11 @@ export function ResourceContentView({
               <Badge variant="outline" className="capitalize">
                 {type}
               </Badge>
-              <Badge variant="outline" className="capitalize">
-                {difficulty}
-              </Badge>
+              {difficulty && (
+                <Badge variant="outline" className="capitalize">
+                  {difficulty}
+                </Badge>
+              )}
               {isPremium && (
                 <Badge variant="outline" className="border-amber-500 text-amber-600">
                   Premium

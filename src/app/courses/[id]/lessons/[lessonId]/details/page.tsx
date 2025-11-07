@@ -33,7 +33,7 @@ import { LessonWithResource } from '@/hooks/useLessonsQuery'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { useInteractions } from '@/hooks/useInteractions'
 import { encodePublicKey } from 'snstr'
-import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
+import { resolveUniversalId } from '@/lib/universal-router'
 import { getRelays } from '@/lib/nostr-relays'
 import { ViewsText } from '@/components/ui/views-text'
 
@@ -270,16 +270,10 @@ function LessonContent({
   courseId: string
   lessonId: string 
 }) {
-  // Resolve universal IDs for both course and lesson
-  const resolvedCourseId = React.useMemo(() => {
-    const resolved = resolveUniversalId(courseId)
-    return resolved.resolvedId
-  }, [courseId])
-  
-  const resolvedLessonId = React.useMemo(() => {
-    const resolved = resolveUniversalId(lessonId)
-    return resolved.resolvedId
-  }, [lessonId])
+  const resolvedCourse = React.useMemo(() => resolveUniversalId(courseId), [courseId])
+  const resolvedLesson = React.useMemo(() => resolveUniversalId(lessonId), [lessonId])
+  const resolvedCourseId = resolvedCourse?.resolvedId ?? ''
+  const resolvedLessonId = resolvedLesson?.resolvedId ?? ''
   
   // Use the new hooks to fetch lesson and course data with Nostr integration
   const { lesson: lessonData, isLoading: lessonLoading, isError: lessonError } = useLessonQuery(resolvedLessonId)
@@ -297,6 +291,14 @@ function LessonContent({
   const lesson = lessonData ?? fallbackLesson
 
   const loading = lessonLoading || courseLoading || lessonsDataLoading
+
+  if (!resolvedCourse || !resolvedLesson) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-muted-foreground">Unsupported identifier</p>
+      </div>
+    )
+  }
 
   if (loading) {
     return <LessonContentSkeleton />

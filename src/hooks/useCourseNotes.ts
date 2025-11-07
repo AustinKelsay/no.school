@@ -39,11 +39,11 @@ export interface UseCourseNotesOptions {
 }
 
 export const courseNotesQueryKeys = {
-  all: ['course-notes'] as const,
+  all: ["course-notes"] as const,
   batch: (courseIds: string[]) => [
     ...courseNotesQueryKeys.all,
-    'batch',
-    [...courseIds].sort().join(','),
+    "batch",
+    [...courseIds].sort().join(","),
   ] as const,
 }
 
@@ -62,13 +62,13 @@ async function fetchCourseNotesBatch(
   try {
     const notes = await relayPool.querySync(
       relays,
-      { '#d': validIds, kinds: [30004] },
+      { "#d": validIds, kinds: [30004] },
       { timeout: 5000 }
     )
 
     const notesMap = new Map<string, NostrEvent>()
     notes.forEach(note => {
-      const dTag = note.tags.find(tag => tag[0] === 'd')
+      const dTag = note.tags.find(tag => tag[0] === "d")
       if (dTag && dTag[1]) {
         notesMap.set(dTag[1], note)
       }
@@ -78,12 +78,12 @@ async function fetchCourseNotesBatch(
       const note = notesMap.get(id)
       results.set(id, {
         note,
-        noteError: note ? undefined : 'Note not found',
+        noteError: note ? undefined : "Note not found",
       })
     })
   } catch (error) {
     const errorMessage =
-      error instanceof Error ? error.message : 'Failed to fetch course notes'
+      error instanceof Error ? error.message : "Failed to fetch course notes"
     validIds.forEach(id => {
       results.set(id, {
         noteError: errorMessage,

@@ -338,7 +338,7 @@ export async function GET(
     }
     courseDraft = refreshedCourseDraft
 
-    const validation = PublishService.validateCourseDraftData(courseDraft)
+    const validation = await PublishService.validateCourseDraftData(courseDraft)
 
     return NextResponse.json({
       success: true,

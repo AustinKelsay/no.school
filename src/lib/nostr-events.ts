@@ -258,7 +258,7 @@ export function createCourseEvent(
  * Returns the event structure without id and signature
  */
 export function createUnsignedResourceEvent(
-  draft: Draft | DraftWithIncludes,
+  draft: Draft | DraftWithIncludes | ResourceEventDraftInput,
   pubkey: string
 ): Omit<NostrEvent, 'id' | 'sig'> {
   const isPaid = (draft.price || 0) > 0
