@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import React from 'react'
 import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -339,14 +339,21 @@ export function ResourceContentView({
     fetchEvent()
   }, [resourceId, fetchSingleEvent, initialEvent])
 
+  const isMissingResource = error === 'Resource not found'
+  const shouldSignalMissingResource =
+    !!onMissingResource && !loading && (isMissingResource || (!event && !error))
+
+  useEffect(() => {
+    if (shouldSignalMissingResource && onMissingResource) {
+      onMissingResource()
+    }
+  }, [shouldSignalMissingResource, onMissingResource])
+
   if (loading) {
     return <ContentSkeleton />
   }
 
-  const isMissingResource = error === 'Resource not found'
-
   if (isMissingResource && onMissingResource) {
-    onMissingResource()
     return null
   }
 
@@ -360,7 +367,6 @@ export function ResourceContentView({
 
   if (!event) {
     if (onMissingResource) {
-      onMissingResource()
       return null
     }
 

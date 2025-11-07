@@ -1,9 +1,9 @@
 'use client'
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState, useCallback } from 'react'
 import React from 'react'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
@@ -17,6 +17,11 @@ interface ResourceDetailsPageProps {
 }
 
 function ResourceDetailsContent({ resourceId }: { resourceId: string }) {
+  const router = useRouter()
+  const handleMissingResource = useCallback(() => {
+    router.replace('/404')
+  }, [router])
+
   return (
     <MainLayout>
       <Section spacing="lg">
@@ -36,7 +41,10 @@ function ResourceDetailsContent({ resourceId }: { resourceId: string }) {
           </div>
 
           <Suspense fallback={<ContentSkeleton />}>
-            <ResourceContentView resourceId={resourceId} onMissingResource={notFound} />
+            <ResourceContentView
+              resourceId={resourceId}
+              onMissingResource={handleMissingResource}
+            />
           </Suspense>
         </div>
       </Section>

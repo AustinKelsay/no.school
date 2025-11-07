@@ -1,8 +1,8 @@
 import type { Metadata } from "next"
 
+import { Gift, Mail, NotebookPen } from "lucide-react"
 import { MainLayout, Section } from "@/components/layout"
 import { ComingSoonPlaceholder } from "@/components/placeholders/coming-soon"
-import { Gift, Mail, NotebookPen } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Subscribe",

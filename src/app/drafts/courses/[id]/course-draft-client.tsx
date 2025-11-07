@@ -140,9 +140,10 @@ function DraftCourseLessons({
                   ? normalizedTitle
                   : fallbackTitle
 
+              const trimmedSummary = lesson.summary?.trim() ?? ''
               const fallbackSummary =
-                lesson.summary && lesson.summary.trim().length > 0
-                  ? lesson.summary
+                trimmedSummary.length > 0
+                  ? trimmedSummary
                   : rawLesson?.draft?.summary || ''
               const displayImage = lesson.image || rawLesson?.draft?.image || null
 

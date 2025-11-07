@@ -72,22 +72,55 @@ function extractImageFromContent(
 
   // Explicit image patterns (markdown images, HTML img tags, YouTube thumbnails)
   // These are always checked first and respected regardless of options
-  const markdownMatch = content.match(/!\[[^\]]*\]\(([^)]+)\)/i)
-  if (markdownMatch?.[1]) {
+  const markdownPattern = /!\[[^\]]*\]\(/gi
+  let markdownMatch: RegExpExecArray | null
+
+  while ((markdownMatch = markdownPattern.exec(content)) !== null) {
     // Extract URL from markdown image syntax, handling:
+    // - URLs with parentheses: url(with)parentheses.png
     // - Angle-bracketed URLs: <url>
     // - Titles with spaces: url "title"
     // - Titles without spaces: url"title"
-    const urlWithOptionalTitle = markdownMatch[1].trim()
+    const matchStart = markdownMatch.index ?? -1
+    const separatorIndex = matchStart + markdownMatch[0].length - 1 // Position of "("
+    
+    if (separatorIndex === -1) {
+      continue
+    }
+    
+    // Walk forward from the opening "(" to find the matching closing ")"
+    const remainingContent = content.slice(separatorIndex + 1)
+    let depth = 0
+    let closingIndex = -1
+
+    for (let i = 0; i < remainingContent.length; i++) {
+      const char = remainingContent[i]
+      if (char === "(") {
+        depth++
+      } else if (char === ")") {
+        if (depth === 0) {
+          closingIndex = i
+          break
+        }
+        depth--
+      }
+    }
+
+    if (closingIndex === -1) {
+      continue
+    }
+    
+    // Extract substring between "](" and the matching ")"
+    const urlWithOptionalTitle = remainingContent.slice(0, closingIndex).trim()
     if (!urlWithOptionalTitle) {
-      return undefined
+      continue
     }
 
     // Split on whitespace once to separate URL from title
     const [rawUrlPart] = urlWithOptionalTitle.split(/\s+/, 1)
     const urlPart = rawUrlPart?.trim() ?? ""
     if (!urlPart) {
-      return undefined
+      continue
     }
 
     let urlOnly = urlPart
@@ -106,7 +139,9 @@ function extractImageFromContent(
     // Strip title if glued to URL without space (e.g., url"title")
     urlOnly = urlOnly.replace(/["'][^"']*["']$/, "").trim()
     
-    return urlOnly || undefined
+    if (urlOnly) {
+      return urlOnly
+    }
   }
 
   const htmlImgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i)

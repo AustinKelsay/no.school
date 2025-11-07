@@ -30,14 +30,14 @@ interface ComingSoonPlaceholderProps {
  * Themed placeholder for upcoming product areas.
  * Keeps typography and spacing consistent with the global system.
  */
-export function ComingSoonPlaceholder({
+export const ComingSoonPlaceholder = ({
   badge = "Coming soon",
   title,
   description,
   highlights = [],
   primaryCta,
   secondaryCta
-}: ComingSoonPlaceholderProps) {
+}: ComingSoonPlaceholderProps) => {
   return (
     <div className="relative overflow-hidden rounded-3xl border bg-card/60 p-8 sm:p-10 shadow-lg">
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-primary/15 to-transparent" />
