@@ -214,8 +214,8 @@ export function useUniversalRouter(id: string) {
   return {
     ...result,
     route,
-    isValidId: Boolean(resolvedResult) && (resolvedResult.idType !== 'database' || isDatabaseId(id)),
-    canRoute: Boolean(resolvedResult) && resolvedResult.contentType !== 'unknown'
+    isValidId: resolvedResult !== null && (resolvedResult.idType !== 'database' || isDatabaseId(id)),
+    canRoute: resolvedResult !== null && resolvedResult.contentType !== 'unknown'
   }
 }
 

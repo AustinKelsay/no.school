@@ -43,7 +43,7 @@ export function isNip19String(value: string): value is Nip19String {
  * @returns The decoded and filtered entity data
  */
 export function decodeNip19Entity(value: Nip19String): SafeDecodedEntity {
-  const decoded = decode(value)
+  const decoded = decode(value as `${string}1${string}`)
 
   switch (decoded.type) {
     case Prefix.Profile:

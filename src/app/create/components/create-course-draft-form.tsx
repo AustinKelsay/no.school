@@ -146,29 +146,11 @@ export default function CreateCourseDraftForm() {
         })
         
         // Load lessons
-        const draftLessons = draft.draftLessons || []
+        const draftLessons: DraftLessonType[] = draft.draftLessons || []
         if (draftLessons.length > 0) {
-          const loadedLessons: LessonData[] = draftLessons.map((lesson: {
-            id: string
-            resourceId?: string
-            draftId?: string
-            resource?: { title: string; price: number }
-            draft?: { title: string; type: string; price: number }
-          }) => {
-            const draftLesson = draftLessons.find((item: DraftLessonType) => item.id === lesson.id)
-            if (draftLesson) {
-              return createLessonData(draft, draftLesson)
-            }
-            return {
-              id: lesson.id,
-              type: lesson.resourceId ? 'resource' : 'draft',
-              resourceId: lesson.resourceId,
-              draftId: lesson.draftId,
-              title: lesson.draft?.title || `Lesson`,
-              contentType: lesson.draft?.type,
-              price: lesson.resource?.price || lesson.draft?.price
-            }
-          })
+          const loadedLessons: LessonData[] = draftLessons.map((lesson: DraftLessonType) =>
+            createLessonData(draft, lesson)
+          )
           setLessons(loadedLessons)
         }
       } catch (err) {

@@ -144,22 +144,30 @@ function CoursePageContent({ courseId }: { courseId: string }) {
   const { course, errors, pricing } = useCopy()
   
   const resolved = React.useMemo(() => resolveUniversalId(courseId), [courseId])
-  const resolvedCourseId = resolved?.resolvedId ?? ''
+  const resolvedCourseId = resolved?.resolvedId
 
   // Use hooks to fetch course data and lessons with Nostr integration
-  const { course: courseData, isLoading: courseLoading, isError, error } = useCourseQuery(resolvedCourseId)
-  const { lessons: lessonsData, isLoading: lessonsLoading } = useLessonsQuery(resolvedCourseId)
+  // Must be called unconditionally at the top level, before any early returns
+  const { course: courseData, isLoading: courseLoading, isError, error } = useCourseQuery(
+    resolvedCourseId || '',
+    { enabled: !!resolvedCourseId }
+  )
+  const { lessons: lessonsData, isLoading: lessonsLoading } = useLessonsQuery(
+    resolvedCourseId || '',
+    { enabled: !!resolvedCourseId }
+  )
 
   // Get real interaction data if course has a Nostr event - call hook unconditionally at top level
   const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
     eventId: courseData?.note?.id,
     realtime: false,
-    staleTime: 5 * 60 * 1000
+    staleTime: 5 * 60 * 1000,
+    enabled: !!resolvedCourseId
   })
-
 
   const loading = courseLoading || lessonsLoading
 
+  // useEffect must be called unconditionally before any early returns
   useEffect(() => {
     if (!courseData) return
 
@@ -192,7 +200,8 @@ function CoursePageContent({ courseId }: { courseId: string }) {
     fetchInstructorProfile()
   }, [courseData, fetchProfile, normalizeKind0])
 
-  if (!resolved) {
+  // Early return check after all hooks (hooks must be called unconditionally)
+  if (!resolvedCourseId) {
     return (
       <MainLayout>
         <Section spacing="lg">

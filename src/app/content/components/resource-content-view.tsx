@@ -278,6 +278,7 @@ export function ResourceContentView({
   const [event, setEvent] = useState<NostrEvent | null>(initialEvent ?? null)
   const [loading, setLoading] = useState(!initialEvent)
   const [error, setError] = useState<string | null>(null)
+  const resolvedIdentifier = useMemo(() => resolveUniversalId(resourceId), [resourceId])
 
   useEffect(() => {
     if (initialEvent) {
@@ -294,7 +295,7 @@ export function ResourceContentView({
         setError(null)
 
         let nostrEvent: NostrEvent | null = null
-        const resolved = resolveUniversalId(resourceId)
+        const resolved = resolvedIdentifier
 
         if (!resolved) {
           setError('Unsupported identifier')
@@ -343,7 +344,7 @@ export function ResourceContentView({
     }
 
     fetchEvent()
-  }, [resourceId, fetchSingleEvent, initialEvent])
+  }, [resourceId, fetchSingleEvent, initialEvent, resolvedIdentifier])
 
   const isMissingResource = error === 'Resource not found'
   const shouldSignalMissingResource =
@@ -531,7 +532,7 @@ export function ResourceContentView({
       <div data-comments-section>
         <ZapThreads
           eventDetails={{
-            identifier: resourceId,
+            identifier: resolvedIdentifier?.resolvedId ?? resourceId,
             pubkey: event.pubkey,
             kind: event.kind,
             relays: getRelays('default')
