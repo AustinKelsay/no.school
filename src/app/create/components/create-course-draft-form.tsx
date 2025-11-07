@@ -190,10 +190,15 @@ export default function CreateCourseDraftForm() {
     }
 
     setLessons(prevLessons => {
+      const draftLessons = courseDraftData.draftLessons || []
+      if (draftLessons.length === 0) {
+        return prevLessons
+      }
+
       let hasChanges = false
 
       const updatedLessons = prevLessons.map(lesson => {
-        const draftLesson = courseDraftData.draftLessons.find(item => item.id === lesson.id)
+        const draftLesson = draftLessons.find(item => item.id === lesson.id)
         if (!draftLesson) {
           return lesson
         }

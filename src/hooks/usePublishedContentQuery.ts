@@ -4,6 +4,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
+import type { QueryObserverResult, RefetchOptions } from '@tanstack/react-query'
 import type { Course, Resource } from '@/data/types'
 
 export interface PublishedContentStats {
@@ -44,7 +45,9 @@ export interface PublishedContentQueryResult {
   isLoading: boolean
   isError: boolean
   error: Error | null
-  refetch: () => void
+  refetch: (
+    options?: RefetchOptions
+  ) => Promise<QueryObserverResult<PublishedContentPayload, Error>>
 }
 
 export const publishedContentQueryKeys = {

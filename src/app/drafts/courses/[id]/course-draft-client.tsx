@@ -137,7 +137,7 @@ function DraftCourseLessons({
               const normalizedTitle = lesson.title?.trim()
               const displayTitle =
                 normalizedTitle && normalizedTitle !== `Lesson ${lesson.index + 1}`
-                  ? lesson.title
+                  ? normalizedTitle
                   : fallbackTitle
 
               const fallbackSummary =

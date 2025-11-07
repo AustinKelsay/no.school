@@ -78,12 +78,19 @@ function extractImageFromContent(
     // - Angle-bracketed URLs: <url>
     // - Titles with spaces: url "title"
     // - Titles without spaces: url"title"
-    const urlWithOptionalTitle = markdownMatch[1]
-    
+    const urlWithOptionalTitle = markdownMatch[1].trim()
+    if (!urlWithOptionalTitle) {
+      return undefined
+    }
+
     // Split on whitespace once to separate URL from title
-    const [urlPart] = urlWithOptionalTitle.split(/\s+/, 1)
-    
-    let urlOnly = urlPart.trim()
+    const [rawUrlPart] = urlWithOptionalTitle.split(/\s+/, 1)
+    const urlPart = rawUrlPart?.trim() ?? ""
+    if (!urlPart) {
+      return undefined
+    }
+
+    let urlOnly = urlPart
     
     // Strip surrounding angle brackets if present (handles <url> and <url>"title")
     if (urlOnly.startsWith("<")) {
