@@ -87,6 +87,74 @@ export function ContentSkeleton() {
   )
 }
 
+function humanizeSeconds(totalSeconds: number): string | null {
+  if (!Number.isFinite(totalSeconds) || totalSeconds <= 0) {
+    return null
+  }
+
+  const roundedSeconds = Math.round(totalSeconds)
+  if (roundedSeconds < 60) {
+    return `${roundedSeconds}s`
+  }
+
+  const minutes = Math.floor(roundedSeconds / 60)
+  const seconds = roundedSeconds % 60
+  if (seconds === 0) {
+    return `${minutes} min`
+  }
+
+  return `${minutes}m ${seconds}s`
+}
+
+function formatDurationLabel(rawDuration?: string | number | null): string | null {
+  if (rawDuration === undefined || rawDuration === null) {
+    return null
+  }
+
+  if (typeof rawDuration === 'number') {
+    return humanizeSeconds(rawDuration)
+  }
+
+  const trimmed = rawDuration.trim()
+  if (!trimmed) {
+    return null
+  }
+
+  if (/^\d+(\.\d+)?$/.test(trimmed)) {
+    return humanizeSeconds(Number(trimmed))
+  }
+
+  const minuteMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*m(?:in|ins)?/i)
+  if (minuteMatch) {
+    const minutes = parseFloat(minuteMatch[1])
+    return minutes ? `${Math.round(minutes)} min` : null
+  }
+
+  const clockMatch = trimmed.match(/^(\d+):(\d{1,2})$/)
+  if (clockMatch) {
+    const minutes = Number(clockMatch[1])
+    const seconds = Number(clockMatch[2])
+    if (!Number.isNaN(minutes) && !Number.isNaN(seconds)) {
+      return seconds ? `${minutes}m ${seconds}s` : `${minutes} min`
+    }
+  }
+
+  return trimmed
+}
+
+function resolveVideoDurationLabel(
+  event: NostrEvent,
+  parsedEvent: ReturnType<typeof parseEvent>
+): string | null {
+  if (parsedEvent.type !== 'video') {
+    return null
+  }
+
+  const durationTag = event.tags?.find?.((tag) => tag[0] === 'duration')?.[1]
+  const rawVideoDuration = parsedEvent.duration || durationTag || null
+  return formatDurationLabel(rawVideoDuration)
+}
+
 interface ContentMetadataProps {
   event: NostrEvent
   parsedEvent: ReturnType<typeof parseEvent>
@@ -135,6 +203,8 @@ function ContentMetadata({ event, parsedEvent, resourceKey }: ContentMetadataPro
   const commentsCount = commentMetrics.totalComments
   const reactionsCount = interactions.likes
 
+  const videoDurationLabel = resolveVideoDurationLabel(event, parsedEvent)
+
   return (
     <div className="space-y-4">
       <div className="flex items-center flex-wrap gap-4 sm:gap-6 text-sm text-muted-foreground">
@@ -168,7 +238,7 @@ function ContentMetadata({ event, parsedEvent, resourceKey }: ContentMetadataPro
         {parsedEvent.type === 'video' && (
           <div className="flex items-center space-x-1">
             <Play className="h-4 w-4" />
-            <span>15 min</span>
+            <span>{videoDurationLabel ?? '—'}</span>
           </div>
         )}
       </div>
@@ -308,11 +378,17 @@ export function ResourceContentView({
   const type = parsedEvent.type || 'document'
   const additionalLinks = parsedEvent.additionalLinks || []
   const difficulty = 'intermediate'
+  // Check parsedEvent.isPremium (boolean) and also check raw event tags for string 'true'
+  const isPremiumFromParsed = parsedEvent.isPremium === true
+  const isPremiumFromTags = event.tags?.some(
+    (tag) => Array.isArray(tag) && tag.length >= 2 && tag[0] === 'isPremium' && tag[1] === 'true'
+  )
   const derivedPremiumFlag =
-    typeof parsedEvent.isPremium === 'boolean'
-      ? parsedEvent.isPremium
+    isPremiumFromParsed || isPremiumFromTags
+      ? true
       : Boolean(parsedEvent.price && parseFloat(parsedEvent.price) > 0)
   const isPremium = Boolean(derivedPremiumFlag)
+  const videoDurationLabel = resolveVideoDurationLabel(event, parsedEvent)
   const videoUrl = resolveVideoPlaybackUrl(parsedEvent.videoUrl, event.content, type)
   const videoBodyMarkdown = type === 'video' ? extractVideoBodyMarkdown(event.content) : ''
 
@@ -389,7 +465,12 @@ export function ResourceContentView({
         {type === 'video' ? (
           <Card>
             <CardContent className="pt-6 space-y-6">
-              <VideoPlayer url={videoUrl} content={event.content} title={title} duration="15 min" />
+              <VideoPlayer
+                url={videoUrl}
+                content={event.content}
+                title={title}
+                duration={videoDurationLabel ?? '—'}
+              />
               {videoBodyMarkdown && (
                 <div className="prose prose-lg max-w-none">
                   <MarkdownRenderer content={videoBodyMarkdown} />
