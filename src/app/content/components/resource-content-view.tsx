@@ -308,7 +308,11 @@ export function ResourceContentView({
   const type = parsedEvent.type || 'document'
   const additionalLinks = parsedEvent.additionalLinks || []
   const difficulty = 'intermediate'
-  const isPremium = false
+  const derivedPremiumFlag =
+    typeof parsedEvent.isPremium === 'boolean'
+      ? parsedEvent.isPremium
+      : Boolean(parsedEvent.price && parseFloat(parsedEvent.price) > 0)
+  const isPremium = Boolean(derivedPremiumFlag)
   const videoUrl = resolveVideoPlaybackUrl(parsedEvent.videoUrl, event.content, type)
   const videoBodyMarkdown = type === 'video' ? extractVideoBodyMarkdown(event.content) : ''
 
