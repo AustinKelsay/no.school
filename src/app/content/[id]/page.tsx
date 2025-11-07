@@ -245,10 +245,16 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
   const type = parsedEvent.type || 'document'
   const difficulty = 'intermediate' // Default since it's not in parseEvent
   // Views are tracked via /api/views and Vercel KV
-  const duration = type === 'video' ? '15 min' : undefined
+  const duration =
+    type === 'video'
+      ? parsedEvent.duration?.trim()
+        ? parsedEvent.duration.trim()
+        : undefined
+      : undefined
   const isCourseContent = idResult?.contentType === 'course' || event.kind === 30004
   const parsedPremiumFlag =
     parsedEvent.isPremium === true ||
+    parsedEvent.isPremium === 'true' ||
     (parsedEvent.price && Number(parsedEvent.price) > 0)
   const isPaidResource = Boolean(parsedPremiumFlag) || event.kind === 30402
   // Only courses and paid resources keep the preview wall; everything else opens directly.
