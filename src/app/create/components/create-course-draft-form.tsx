@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -26,6 +27,9 @@ import {
 } from 'lucide-react'
 import LessonSelector from './lesson-selector'
 import { OptimizedImage } from '@/components/ui/optimized-image'
+import { useResourceNotes, type ResourceNoteResult } from '@/hooks/useResourceNotes'
+import { resolveDraftLesson } from '@/lib/drafts/lesson-resolution'
+import type { CourseDraft as CourseDraftType, DraftLesson as DraftLessonType } from '@/hooks/useCourseDraftQuery'
 
 interface FormData {
   title: string
@@ -50,11 +54,13 @@ interface LessonData {
 export default function CreateCourseDraftForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const queryClient = useQueryClient()
   const draftId = searchParams.get('draft')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [courseDraftId, setCourseDraftId] = useState<string | null>(null)
+  const [courseDraftData, setCourseDraftData] = useState<CourseDraftType | null>(null)
   
   // Form state
   const [formData, setFormData] = useState<FormData>({
@@ -72,6 +78,48 @@ export default function CreateCourseDraftForm() {
   const [currentTopic, setCurrentTopic] = useState('')
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
 
+  const resourceIds = useMemo(() => {
+    const ids = new Set<string>()
+    lessons.forEach(lesson => {
+      if (lesson.resourceId) {
+        ids.add(lesson.resourceId)
+      }
+    })
+    return Array.from(ids)
+  }, [lessons])
+
+  const { notes: resourceNotes } = useResourceNotes(resourceIds, {
+    enabled: resourceIds.length > 0
+  })
+
+  const createLessonData = useCallback((
+    draft: CourseDraftType,
+    lesson: DraftLessonType,
+    notesMap?: Map<string, ResourceNoteResult>
+  ): LessonData => {
+    const noteKey = lesson.resourceId ?? lesson.resource?.id ?? undefined
+    const noteResult = noteKey && notesMap ? notesMap.get(noteKey) : undefined
+    const { data } = resolveDraftLesson(draft, lesson, noteResult)
+
+    return {
+      id: lesson.id,
+      type: lesson.resourceId ? 'resource' : 'draft',
+      resourceId: lesson.resourceId ?? lesson.resource?.id ?? undefined,
+      draftId: lesson.draftId ?? lesson.draft?.id ?? undefined,
+      title:
+        data?.title ||
+        lesson.draft?.title ||
+        (lesson.resourceId ? `Lesson ${lesson.index + 1}` : 'Untitled lesson'),
+      contentType:
+        data?.type ||
+        lesson.draft?.type ||
+        (lesson.resource?.videoUrl ? 'video' : undefined),
+      price: data?.price ?? lesson.draft?.price ?? (lesson.resource?.price ?? undefined),
+      image: data?.image ?? lesson.draft?.image ?? undefined,
+      summary: data?.summary || lesson.draft?.summary || undefined
+    }
+  }, [])
+
   // Load draft data if editing
   useEffect(() => {
     const loadDraft = async () => {
@@ -88,6 +136,7 @@ export default function CreateCourseDraftForm() {
         
         const draft = result.data
         setCourseDraftId(draft.id)
+        setCourseDraftData(draft)
         setFormData({
           title: draft.title,
           summary: draft.summary,
@@ -104,15 +153,21 @@ export default function CreateCourseDraftForm() {
             draftId?: string
             resource?: { title: string; price: number }
             draft?: { title: string; type: string; price: number }
-          }) => ({
-            id: lesson.id,
-            type: lesson.resourceId ? 'resource' : 'draft',
-            resourceId: lesson.resourceId,
-            draftId: lesson.draftId,
-            title: lesson.resource?.title || lesson.draft?.title || 'Unknown',
-            contentType: lesson.draft?.type,
-            price: lesson.resource?.price || lesson.draft?.price
-          }))
+          }) => {
+            const draftLesson = draft.draftLessons.find((item: DraftLessonType) => item.id === lesson.id)
+            if (draftLesson) {
+              return createLessonData(draft, draftLesson)
+            }
+            return {
+              id: lesson.id,
+              type: lesson.resourceId ? 'resource' : 'draft',
+              resourceId: lesson.resourceId,
+              draftId: lesson.draftId,
+              title: lesson.draft?.title || `Lesson`,
+              contentType: lesson.draft?.type,
+              price: lesson.resource?.price || lesson.draft?.price
+            }
+          })
           setLessons(loadedLessons)
         }
       } catch (err) {
@@ -127,7 +182,49 @@ export default function CreateCourseDraftForm() {
     }
     
     loadDraft()
-  }, [draftId])
+  }, [draftId, createLessonData])
+
+  useEffect(() => {
+    if (!courseDraftData) {
+      return
+    }
+
+    setLessons(prevLessons => {
+      let hasChanges = false
+
+      const updatedLessons = prevLessons.map(lesson => {
+        const draftLesson = courseDraftData.draftLessons.find(item => item.id === lesson.id)
+        if (!draftLesson) {
+          return lesson
+        }
+
+        const updatedLesson = createLessonData(courseDraftData, draftLesson, resourceNotes)
+
+        const shouldUpdate =
+          lesson.title !== updatedLesson.title ||
+          lesson.summary !== updatedLesson.summary ||
+          lesson.contentType !== updatedLesson.contentType ||
+          (lesson.price ?? 0) !== (updatedLesson.price ?? 0) ||
+          lesson.image !== updatedLesson.image
+
+        if (shouldUpdate) {
+          hasChanges = true
+          return {
+            ...lesson,
+            title: updatedLesson.title,
+            summary: updatedLesson.summary,
+            contentType: updatedLesson.contentType,
+            price: updatedLesson.price,
+            image: updatedLesson.image,
+          }
+        }
+
+        return lesson
+      })
+
+      return hasChanges ? updatedLessons : prevLessons
+    })
+  }, [courseDraftData, resourceNotes, createLessonData])
 
   const validateForm = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {}
@@ -285,6 +382,8 @@ export default function CreateCourseDraftForm() {
         type: 'success', 
         text: draftId ? 'Course draft updated successfully! Redirecting...' : 'Course draft created successfully! Redirecting...' 
       })
+
+      queryClient.invalidateQueries({ queryKey: ['drafts'] })
       
       setTimeout(() => {
         router.push(`/drafts/courses/${savedCourseDraftId}`)

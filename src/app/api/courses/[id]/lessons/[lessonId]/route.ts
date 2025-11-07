@@ -36,8 +36,9 @@ function collectCandidateIdentifiers(rawId: string): string[] {
   }
 
   const decoded = universal.decodedData
-  if (decoded && typeof decoded === 'object') {
-    const data = decoded as Record<string, unknown>
+  if (decoded && typeof decoded === 'object' && decoded !== null) {
+    // Use type assertion for dynamic property access
+    const data = decoded as unknown as Record<string, unknown>
     const possibleKeys = ['identifier', 'id', 'resource', 'event', 'd']
     for (const key of possibleKeys) {
       const value = data[key]

@@ -11,7 +11,7 @@ import { Section } from '@/components/layout/section'
 import { parseEvent } from '@/data/types'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { MarkdownRenderer } from '@/components/ui/markdown-renderer'
-import { encodePublicKey } from 'snstr'
+import { encodePublicKey, type AddressData, type EventData } from 'snstr'
 import { ResourceActions } from '@/components/ui/resource-actions'
 import { ZapThreads } from '@/components/ui/zap-threads'
 import { InteractionMetrics } from '@/components/ui/interaction-metrics'
@@ -225,21 +225,23 @@ function ResourceContent({ resourceId }: { resourceId: string }) {
         
         // Fetch based on ID type
         if (resolved.idType === 'nevent' && resolved.decodedData && typeof resolved.decodedData === 'object' && resolved.decodedData !== null) {
-          const data = resolved.decodedData as Record<string, unknown>
-          if (typeof data.id === 'string') {
+          // Type guard for EventData
+          if ('id' in resolved.decodedData) {
+            const eventData = resolved.decodedData as EventData
             // Direct event ID from nevent
             nostrEvent = await fetchSingleEvent({
-              ids: [data.id]
+              ids: [eventData.id]
             })
           }
         } else if (resolved.idType === 'naddr' && resolved.decodedData && typeof resolved.decodedData === 'object' && resolved.decodedData !== null) {
-          const data = resolved.decodedData as Record<string, unknown>
-          if (typeof data.identifier === 'string') {
+          // Type guard for AddressData
+          if ('identifier' in resolved.decodedData && 'kind' in resolved.decodedData) {
+            const addressData = resolved.decodedData as AddressData
             // Addressable event by identifier
             nostrEvent = await fetchSingleEvent({
-              kinds: [30023, 30402, 30403], // Long-form content, paid content, and drafts
-              '#d': [data.identifier],
-              authors: typeof data.author === 'string' ? [data.author] : undefined
+              kinds: [addressData.kind],
+              '#d': [addressData.identifier],
+              authors: addressData.pubkey ? [addressData.pubkey] : undefined
             })
           }
         } else if (resolved.idType === 'note' || resolved.idType === 'hex') {

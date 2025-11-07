@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { DEFAULT_RELAYS, useSnstrContext } from "@/contexts/snstr-context";
-import { Filter, NostrEvent, decodePublicKey, decodeProfile, decode } from "snstr";
+import { Filter, NostrEvent, Prefix, decodePublicKey, decodeProfile } from "snstr";
+import { tryDecodeNip19Entity } from "@/lib/nip19-utils";
 
 /**
  * Normalized profile data extracted from a kind 0 event
@@ -64,16 +65,12 @@ export function useNostr() {
     }
 
     // Try generic decode as fallback
-    try {
-      const decoded = decode(pubkeyInput as `${string}1${string}`);
-      if (decoded.type === 'npub') {
-        return decoded.data;
-      }
-      if (decoded.type === 'nprofile') {
-        return decoded.data.pubkey;
-      }
-    } catch (error) {
-      // If all else fails, assume it's already hex
+    const decoded = tryDecodeNip19Entity(pubkeyInput);
+    if (decoded?.type === Prefix.PublicKey) {
+      return decoded.data;
+    }
+    if (decoded?.type === Prefix.Profile) {
+      return decoded.data.pubkey;
     }
 
     return pubkeyInput;

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import React from 'react'
 import { notFound, useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -13,7 +13,6 @@ import { MainLayout } from '@/components/layout/main-layout'
 import { Section } from '@/components/layout/section'
 import { useCourseDraftQuery, type CourseDraft } from '@/hooks/useCourseDraftQuery'
 import { usePublishCourse } from '@/hooks/usePublishDraft'
-import { parseEvent, type NostrEvent } from '@/data/types'
 import { useQueryClient } from '@tanstack/react-query'
 import { 
   ArrowLeft,
@@ -27,10 +26,12 @@ import {
   Clock,
   Zap,
   GraduationCap,
-  FileText,
-  Video,
-  DollarSign
+  CheckCircle2,
+  Pencil
 } from 'lucide-react'
+import { useResourceNotes } from '@/hooks/useResourceNotes'
+import { resolveDraftLesson, type ResolvedDraftLesson } from '@/lib/drafts/lesson-resolution'
+import { cn } from '@/lib/utils'
 
 interface CoursePublishPageClientProps {
   courseId: string
@@ -193,9 +194,9 @@ function PublishStatus({
 /**
  * Course summary component
  */
-function CourseSummary({ draftData }: { draftData: CourseDraft }) {
+function CourseSummary({ draftData, lessons }: { draftData: CourseDraft; lessons: ResolvedDraftLesson[] }) {
   const isPremium = (draftData.price ?? 0) > 0
-  const lessonCount = draftData.draftLessons.length
+  const lessonCount = lessons.length
   const estimatedDuration = lessonCount * 30 // 30 minutes per lesson
 
   const formatDuration = (minutes: number): string => {
@@ -260,43 +261,36 @@ function CourseSummary({ draftData }: { draftData: CourseDraft }) {
         <div className="pt-4 border-t">
           <h4 className="font-medium text-sm mb-3">Lessons to be published</h4>
           <div className="space-y-2">
-            {draftData.draftLessons.map((lesson, index) => {
-              // Get lesson data from resource or draft
-              let lessonTitle = 'Untitled Lesson'
-              let lessonPrice = 0
-              
-              if (lesson.resource) {
-                lessonTitle = lesson.resource.title || 'Untitled Resource'
-                lessonPrice = lesson.resource.price || 0
-                // Parse resource note if available
-                if (lesson.resource.note) {
-                  // Add missing sig property for parseEvent
-                  const noteWithSig = {
-                    ...lesson.resource.note,
-                    sig: ''
-                  } as NostrEvent
-                  const parsedNote = parseEvent(noteWithSig)
-                  lessonTitle = parsedNote.title || lessonTitle
-                }
-              } else if (lesson.draft) {
-                lessonTitle = lesson.draft.title
-                lessonPrice = lesson.draft.price || 0
-              }
-              
-              const isPremium = lessonPrice > 0
-              
+            {lessons.map(lesson => {
+              const durationLabel = '30 min'
+              const StatusIcon = lesson.status === 'published' ? CheckCircle2 : Pencil
+              const statusLabel = lesson.status === 'published' ? 'Published lesson' : 'Draft lesson'
+              const statusClass =
+                lesson.status === 'published'
+                  ? 'bg-primary/15 text-primary border-primary/40 shadow-sm'
+                  : 'bg-warning/15 text-warning-foreground border-warning/40 shadow-sm'
+
               return (
                 <div key={lesson.id} className="flex items-center space-x-3 p-2 bg-muted/50 rounded-lg">
                   <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center text-xs font-medium">
-                    {index + 1}
+                    {lesson.index + 1}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{lessonTitle}</p>
-                    <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                      <Clock className="h-3 w-3" />
-                      <span>30 min</span>
+                    <p className="text-sm font-medium truncate">{lesson.title}</p>
+                    <div className="flex items-center flex-wrap gap-2 text-xs text-muted-foreground">
+                      <span className="inline-flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {durationLabel}
+                      </span>
                       <Badge variant="outline" className="text-xs">
-                        {isPremium ? 'Premium' : 'Free'}
+                        {lesson.isPremium ? 'Premium' : 'Free'}
+                      </Badge>
+                      <Badge
+                        variant="outline"
+                        className={cn('text-xs capitalize gap-1', statusClass)}
+                      >
+                        <StatusIcon className="h-3 w-3" />
+                        {statusLabel}
                       </Badge>
                     </div>
                   </div>
@@ -393,25 +387,111 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
   const { publish, publishStatus, isSuccess, data: publishResult, isPending } = publishMutation
   const isPublishing = isPending || publishStatus.isPublishing
   const [publishedCourseId, setPublishedCourseId] = useState<string>()
+  const resourceIds = useMemo(() => {
+    if (!draftData) return []
+    return draftData.draftLessons
+      .map(lesson => lesson.resourceId ?? lesson.resource?.id ?? null)
+      .filter((id): id is string => Boolean(id))
+  }, [draftData])
+  const resourceNotes = useResourceNotes(resourceIds, { enabled: resourceIds.length > 0 })
+  const resolvedLessons = useMemo(() => {
+    if (!draftData) return []
+    return [...draftData.draftLessons]
+      .sort((a, b) => a.index - b.index)
+      .map(lesson => {
+        const resourceId = lesson.resourceId ?? lesson.resource?.id ?? ''
+        const noteResult = resourceId ? resourceNotes.notes.get(resourceId) : undefined
+        const { data } = resolveDraftLesson(draftData, lesson, noteResult)
+        if (data) {
+          return data
+        }
+        const fallbackPrice = lesson.draft?.price ?? lesson.resource?.price ?? 0
+        return {
+          id: lesson.id,
+          index: lesson.index,
+          title: lesson.draft?.title || `Lesson ${lesson.index + 1}`,
+          summary: lesson.draft?.summary,
+          content: lesson.draft?.content,
+          type: lesson.draft?.type || (lesson.resource?.videoUrl ? 'video' : 'document'),
+          isPremium: fallbackPrice > 0,
+          status: resourceId ? 'published' : 'draft',
+          price: fallbackPrice,
+          author: draftData.user?.username ?? undefined,
+          authorPubkey: draftData.user?.pubkey ?? undefined,
+          videoUrl: lesson.draft?.videoUrl ?? lesson.resource?.videoUrl ?? undefined,
+          topics: lesson.draft?.topics ?? [],
+          image: lesson.draft?.image ?? undefined,
+          draftId: lesson.draftId ?? null,
+          resourceId: resourceId || null,
+        } satisfies ResolvedDraftLesson
+      })
+  }, [draftData, resourceNotes.notes])
 
   // Update published course ID when publish succeeds and redirect
   useEffect(() => {
-    if (isSuccess && publishResult?.course?.id) {
-      setPublishedCourseId(publishResult.course.id)
-      // Invalidate course queries to ensure fresh data
-      queryClient.invalidateQueries({ queryKey: ['courses'] })
-      queryClient.invalidateQueries({ queryKey: ['courses', 'detail', publishResult.course.id] })
-      
-      // Redirect to the published course page after a longer delay to allow for:
-      // 1. Database transaction to complete
-      // 2. Cache invalidation to propagate
-      // 3. Nostr events to propagate to relays
-      setTimeout(() => {
-        // Use replace instead of push to prevent back button issues
-        router.replace(`/courses/${publishResult.course.id}`)
-      }, 3500) // 3.5 second delay to ensure data is available
+    if (!isSuccess || !publishResult?.course?.id) {
+      return
     }
-  }, [isSuccess, publishResult, router, queryClient])
+
+    const publishedId = publishResult.course.id
+    let cancelled = false
+    let timeoutId: ReturnType<typeof setTimeout> | undefined
+
+    setPublishedCourseId(publishedId)
+    // Invalidate course queries to ensure fresh data
+    queryClient.invalidateQueries({ queryKey: ['courses'] })
+    queryClient.invalidateQueries({ queryKey: ['courses', 'detail', publishedId] })
+    queryClient.invalidateQueries({ queryKey: ['drafts', 'courses', courseId] })
+
+    /**
+     * Polls for draft deletion with a maximum retry limit.
+     * After maxAttempts (30 seconds), redirects to the published course anyway.
+     */
+    let attempts = 0
+    const maxAttempts = 30 // 30 attempts = 30 seconds (1 second intervals)
+
+    const pollForDeletion = async () => {
+      if (cancelled) {
+        return
+      }
+
+      attempts++
+
+      // If we've reached max attempts, redirect anyway
+      if (attempts >= maxAttempts) {
+        console.warn(
+          `Draft deletion polling reached max attempts (${maxAttempts}). ` +
+          `Redirecting to published course anyway.`
+        )
+        router.replace(`/courses/${publishedId}`)
+        return
+      }
+
+      try {
+        const response = await fetch(`/api/drafts/courses/${courseId}`)
+        if (response.status === 404) {
+          router.replace(`/courses/${publishedId}`)
+          return
+        }
+      } catch (pollError) {
+        console.error('Failed to poll draft status:', pollError)
+        // Continue polling on error unless we've hit max attempts
+      }
+
+      if (!cancelled && attempts < maxAttempts) {
+        timeoutId = setTimeout(pollForDeletion, 1000)
+      }
+    }
+
+    pollForDeletion()
+
+    return () => {
+      cancelled = true
+      if (timeoutId) {
+        clearTimeout(timeoutId)
+      }
+    }
+  }, [isSuccess, publishResult, router, queryClient, courseId])
 
   const handleStartPublish = async () => {
     // Log session info for debugging
@@ -534,7 +614,7 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
             </div>
 
             <div className="space-y-6">
-              <CourseSummary draftData={draftData} />
+              <CourseSummary draftData={draftData} lessons={resolvedLessons} />
               
               <PublishActions 
                 courseId={courseId}

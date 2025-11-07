@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MainLayout } from "@/components/layout/main-layout"
@@ -24,11 +24,70 @@ import {
   Loader2
 } from "lucide-react"
 import { useCopy, getCopy } from "@/lib/copy"
+import { NostrFetchService } from "@/lib/nostr-fetch-service"
+import { getNoteImage } from "@/lib/note-image"
+import { Prefix, type NostrEvent } from "snstr"
+import { isNip19String, tryDecodeNip19Entity } from "@/lib/nip19-utils"
 
+const HEX_EVENT_ID_REGEX = /^[0-9a-f]{64}$/i
+
+async function fetchEventForIdentifier(identifier: string): Promise<NostrEvent | null> {
+  const trimmed = identifier?.trim()
+  if (!trimmed) return null
+
+  const fetchById = async (eventId: string, relays?: string[]) => {
+    if (relays && relays.length > 0) {
+      return (await NostrFetchService.fetchEventById(eventId, undefined, relays)) ?? null
+    }
+    return (await NostrFetchService.fetchEventById(eventId)) ?? null
+  }
+
+  if (HEX_EVENT_ID_REGEX.test(trimmed)) {
+    return fetchById(trimmed.toLowerCase())
+  }
+
+  if (isNip19String(trimmed)) {
+    const decoded = tryDecodeNip19Entity(trimmed)
+    if (!decoded) {
+      return fetchById(trimmed)
+    }
+
+    if (decoded.type === Prefix.Note) {
+      return fetchById(decoded.data.toLowerCase())
+    }
+
+    if (decoded.type === Prefix.Event) {
+      return fetchById(decoded.data.id.toLowerCase(), decoded.data.relays)
+    }
+
+    if (decoded.type === Prefix.Address) {
+      const { identifier: dTag, kind, pubkey, relays } = decoded.data
+      const events = relays && relays.length > 0
+        ? await NostrFetchService.fetchEventsByDTags(
+            [dTag],
+            [kind],
+            pubkey,
+            undefined,
+            relays
+          )
+        : await NostrFetchService.fetchEventsByDTags(
+            [dTag],
+            [kind],
+            pubkey
+          )
+      return events.get(dTag) ?? null
+    }
+  }
+
+  return fetchById(trimmed)
+}
 
 export default function ContentPage() {
   const { contentLibrary, loading: loadingCopy, pricing } = useCopy()
   const [selectedFilters, setSelectedFilters] = useState<Set<string>>(new Set(['all']))
+  const [noteImageCache, setNoteImageCache] = useState<Record<string, string>>({})
+  const attemptedNoteIds = useRef<Set<string>>(new Set())
+  const inFlightNoteIds = useRef<Set<string>>(new Set())
   
   // Fetch data from all hooks
   const { courses, isLoading: coursesLoading } = useCoursesQuery()
@@ -37,6 +96,83 @@ export default function ContentPage() {
   
   // Combine loading states
   const loading = coursesLoading || videosLoading || documentsLoading
+  
+  useEffect(() => {
+    const noteIdsToFetch: string[] = []
+
+    const considerNote = (
+      note?: { tags?: string[][]; content?: string } | null,
+      noteId?: string | null
+    ) => {
+      if (!noteId) return
+      const normalizedNote = note ?? undefined
+      if (getNoteImage(normalizedNote)) return
+      if (noteImageCache[noteId]) return
+      if (attemptedNoteIds.current.has(noteId)) return
+      if (inFlightNoteIds.current.has(noteId)) return
+      inFlightNoteIds.current.add(noteId)
+      noteIdsToFetch.push(noteId)
+    }
+
+    courses?.forEach(course => considerNote(course.note, course.noteId))
+    videos?.forEach(video => considerNote(video.note, video.noteId))
+    documents?.forEach(document => considerNote(document.note, document.noteId))
+
+    if (noteIdsToFetch.length === 0) {
+      return
+    }
+
+    let isCancelled = false
+
+    const fetchImages = async () => {
+      let results: Array<{ noteId: string; image?: string; didFetch: boolean }> = []
+      try {
+        results = await Promise.all(
+          noteIdsToFetch.map(async (noteId) => {
+            try {
+              const event = await fetchEventForIdentifier(noteId)
+              const image = getNoteImage(event ?? undefined)
+              return { noteId, image, didFetch: true }
+            } catch (error) {
+              console.error(`Failed to fetch note ${noteId} for image`, error)
+              return { noteId, image: undefined, didFetch: false }
+            }
+          })
+        )
+
+        if (isCancelled) return
+
+        setNoteImageCache(prev => {
+          const next = { ...prev }
+          let cacheChanged = false
+
+          results.forEach(({ noteId, image, didFetch }) => {
+            if (didFetch) {
+              attemptedNoteIds.current.add(noteId)
+            }
+            if (image && !next[noteId]) {
+              next[noteId] = image
+              cacheChanged = true
+            }
+          })
+
+          return cacheChanged ? next : prev
+        })
+      } catch (error) {
+        console.error('Failed to fetch note images', error)
+      } finally {
+        results.forEach(({ noteId }) => {
+          inFlightNoteIds.current.delete(noteId)
+        })
+      }
+    }
+
+    fetchImages()
+
+    return () => {
+      isCancelled = true
+    }
+  }, [courses, videos, documents, noteImageCache])
   
   // Transform data to ContentItem format
   const contentItems = useMemo(() => {
@@ -52,7 +188,7 @@ export default function ContentPage() {
           description: course.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
           category: course.price > 0 ? pricing.premium : pricing.free,
           difficulty: 'beginner' as const,
-          image: course.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
+          image: getNoteImage(course.note) ?? (course.noteId ? noteImageCache[course.noteId] : undefined),
           tags: course.note?.tags.filter(tag => tag[0] === "t") || [],
           instructor: course.userId,
           instructorPubkey: course.note?.pubkey || '',
@@ -84,7 +220,7 @@ export default function ContentPage() {
                       video.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
           category: video.price > 0 ? pricing.premium : pricing.free,
           difficulty: 'beginner' as const,
-          image: video.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
+          image: getNoteImage(video.note, video.videoId ? `https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg` : undefined) ?? (video.noteId ? noteImageCache[video.noteId] : undefined),
           tags: video.note?.tags.filter(tag => tag[0] === "t") || [],
           instructor: video.userId,
           instructorPubkey: video.note?.pubkey || '',
@@ -116,7 +252,7 @@ export default function ContentPage() {
                       document.note?.tags.find(tag => tag[0] === "about")?.[1] || '',
           category: document.price > 0 ? pricing.premium : pricing.free,
           difficulty: 'beginner' as const,
-          image: document.note?.tags.find(tag => tag[0] === "image")?.[1] || '',
+          image: getNoteImage(document.note) ?? (document.noteId ? noteImageCache[document.noteId] : undefined),
           tags: document.note?.tags.filter(tag => tag[0] === "t") || [],
           instructor: document.userId,
           instructorPubkey: document.note?.pubkey || '',
@@ -135,7 +271,7 @@ export default function ContentPage() {
     }
     
     return allItems
-  }, [courses, videos, documents, pricing.free, pricing.premium])
+  }, [courses, videos, documents, pricing.free, pricing.premium, noteImageCache])
 
   // Filter content based on selected filters
   const filteredContent = useMemo(() => {

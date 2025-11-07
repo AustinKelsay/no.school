@@ -1,13 +1,16 @@
 # syntax=docker/dockerfile:1
 
 # Use the official Node.js runtime as the base image
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
+
+# Upgrade npm to match local environment (npm 11)
+RUN npm install -g npm@11.6.2
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
@@ -17,10 +20,15 @@ RUN npm ci
 FROM base AS development
 WORKDIR /app
 RUN apk add --no-cache openssl postgresql-client
+# Copy dependencies from deps stage for faster builds
+COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json* ./
-RUN npm install
-COPY . .
+# Copy only necessary files for Prisma generation (before full copy)
+COPY prisma ./prisma
+# Generate Prisma client (will be cached unless schema changes)
 RUN npx prisma generate
+# Copy rest of the application
+COPY . .
 EXPOSE 3000
 CMD ["npm", "run", "dev"]
 

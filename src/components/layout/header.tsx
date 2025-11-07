@@ -14,7 +14,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
-import { Menu, Search, Zap, Settings, Moon, Type, Check, User, LogOut, UserCircle } from "lucide-react"
+import { Menu, Search, Zap, Settings, Moon, Type, Check, LogOut, UserCircle, Plus } from "lucide-react"
 import { Container } from "./container"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ThemeSelector } from "@/components/theme-selector"
@@ -29,6 +29,7 @@ import { availableFonts, ThemeName } from "@/lib/theme-config"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { useSession, signOut } from "next-auth/react"
+import { useAdminInfo } from "@/hooks/useAdmin"
 
 /**
  * Header component for the main navigation
@@ -41,7 +42,12 @@ export function Header() {
   const { fontOverride, setFontOverride, themeConfig, currentTheme, setCurrentTheme, availableThemes } = useThemeColor()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
+  const { adminInfo } = useAdminInfo()
+  const canCreateContent =
+    Boolean(adminInfo?.isAdmin) ||
+    Boolean(adminInfo?.permissions?.createCourse) ||
+    Boolean(adminInfo?.permissions?.createResource)
 
   function handleThemeSelect(themeName: ThemeName) {
     setCurrentTheme(themeName)
@@ -236,11 +242,19 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/settings" className="flex items-center">
+                  <Link href="/profile?tab=settings" className="flex items-center">
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
+                {canCreateContent && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/create" className="flex items-center">
+                      <Plus className="mr-2 h-4 w-4" />
+                      <span>Create</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => signOut()} className="flex items-center">
                   <LogOut className="mr-2 h-4 w-4" />

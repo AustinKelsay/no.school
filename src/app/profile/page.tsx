@@ -13,16 +13,15 @@
 import { redirect } from 'next/navigation'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { ProfileDisplay } from './components/profile-display'
 import { EnhancedProfileDisplay } from './components/enhanced-profile-display'
-import { ProfileEditForms } from './components/profile-edit-forms'
 import { SimpleSettings } from './components/simple-settings'
+import { AdminContentManager } from './components/admin-content-manager'
 import { MainLayout } from '@/components/layout'
+import { Container } from '@/components/layout/container'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { User, Settings, FileText, BarChart3, Link2 } from 'lucide-react'
 import { getAdminInfo } from '@/lib/admin-utils'
-import DraftsClient from '@/app/drafts/drafts-client'
 import { LinkedAccountsManager } from '@/components/account/linked-accounts'
 import { ProfileTabs } from './components/profile-tabs'
 
@@ -42,49 +41,63 @@ export default async function ProfilePage() {
   const isAdmin = adminInfo.isAdmin
   const isModerator = adminInfo.isModerator
   const hasAdminOrModerator = isAdmin || isModerator
+  const allowedTabs = ['profile', 'settings', 'accounts']
+
+  if (hasAdminOrModerator) {
+    allowedTabs.push('content')
+    if (adminInfo.permissions.viewAnalytics) {
+      allowedTabs.push('analytics')
+    }
+  }
+
+  const triggerResponsiveClasses = 'h-11 sm:h-12 min-w-[8rem] flex-1 sm:flex-none'
 
   return (
     <MainLayout>
-      <div className="container mx-auto py-8">
-        <div className="space-y-6">
+      <Container className="py-10 sm:py-12">
+        <div className="flex flex-col gap-8">
           {/* Page Header */}
-          <div className="space-y-2">
-            <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
-            <p className="text-muted-foreground">
-              Manage your profile information and preferences
-            </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Profile</h1>
+              <p className="text-muted-foreground text-base">
+                Manage your profile information and preferences
+              </p>
+            </div>
           </div>
-          
+
           {/* Tabbed Profile Content */}
-          <ProfileTabs defaultTab="profile" hasAdminOrModerator={hasAdminOrModerator}>
-            <TabsList className={`grid w-full ${hasAdminOrModerator ? 'grid-cols-3 lg:grid-cols-5' : 'grid-cols-3'}`}>
-              <TabsTrigger value="profile" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
-                Profile
-              </TabsTrigger>
-              <TabsTrigger value="settings" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
-                Settings
-              </TabsTrigger>
-              <TabsTrigger value="accounts" className="flex items-center gap-2">
-                <Link2 className="h-4 w-4" />
-                Accounts
-              </TabsTrigger>
-              {hasAdminOrModerator && (
-                <>
-                  <TabsTrigger value="content" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Content
-                  </TabsTrigger>
-                  {adminInfo.permissions.viewAnalytics && (
-                    <TabsTrigger value="analytics" className="flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" />
-                      Analytics
+          <ProfileTabs defaultTab="profile" allowedTabs={allowedTabs}>
+            <div className="overflow-x-auto pb-2 sm:overflow-visible sm:pb-0">
+              <TabsList className="inline-flex min-w-full flex-nowrap gap-2 rounded-xl border border-border bg-card/60 p-1.5 shadow-sm backdrop-blur-sm !h-auto sm:min-w-0 sm:flex-wrap sm:justify-start">
+                <TabsTrigger value="profile" className={`${triggerResponsiveClasses} flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 text-sm font-medium transition-all data-[state=active]:border-primary/40 data-[state=active]:bg-primary/10 data-[state=active]:text-primary sm:text-base sm:justify-start`}>
+                  <User className="h-4 w-4" />
+                  Profile
+                </TabsTrigger>
+                <TabsTrigger value="settings" className={`${triggerResponsiveClasses} flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 text-sm font-medium transition-all data-[state=active]:border-primary/40 data-[state=active]:bg-primary/10 data-[state=active]:text-primary sm:text-base sm:justify-start`}>
+                  <Settings className="h-4 w-4" />
+                  Settings
+                </TabsTrigger>
+                <TabsTrigger value="accounts" className={`${triggerResponsiveClasses} flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 text-sm font-medium transition-all data-[state=active]:border-primary/40 data-[state=active]:bg-primary/10 data-[state=active]:text-primary sm:text-base sm:justify-start`}>
+                  <Link2 className="h-4 w-4" />
+                  Accounts
+                </TabsTrigger>
+                {hasAdminOrModerator && (
+                  <>
+                    <TabsTrigger value="content" className={`${triggerResponsiveClasses} flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 text-sm font-medium transition-all data-[state=active]:border-primary/40 data-[state=active]:bg-primary/10 data-[state=active]:text-primary sm:text-base sm:justify-start`}>
+                      <FileText className="h-4 w-4" />
+                      Content
                     </TabsTrigger>
-                  )}
-                </>
-              )}
-            </TabsList>
+                    {adminInfo.permissions.viewAnalytics && (
+                      <TabsTrigger value="analytics" className={`${triggerResponsiveClasses} flex items-center justify-center gap-2 rounded-lg border border-transparent px-4 text-sm font-medium transition-all data-[state=active]:border-primary/40 data-[state=active]:bg-primary/10 data-[state=active]:text-primary sm:text-base sm:justify-start`}>
+                        <BarChart3 className="h-4 w-4" />
+                        Analytics
+                      </TabsTrigger>
+                    )}
+                  </>
+                )}
+              </TabsList>
+            </div>
 
             <TabsContent value="profile" className="space-y-6">
               <EnhancedProfileDisplay session={session} />
@@ -101,7 +114,7 @@ export default async function ProfilePage() {
             {hasAdminOrModerator && (
               <>
                 <TabsContent value="content" className="space-y-6">
-                  <DraftsClient />
+                  <AdminContentManager />
                 </TabsContent>
 
                 {adminInfo.permissions.viewAnalytics && (
@@ -148,7 +161,7 @@ export default async function ProfilePage() {
             )}
           </ProfileTabs>
         </div>
-      </div>
+      </Container>
     </MainLayout>
   )
 }

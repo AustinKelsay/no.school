@@ -6,7 +6,7 @@ The Next.js App Router, API routes, and layout logic live in `src/app`. Shared b
 ## Build, Test, and Development Commands
 - `npm run dev` boots Next.js 15 with Turbopack; make sure Postgres is running locally or via `docker compose up db`.
 - `npm run build` runs Prisma generate and produces the production bundle; follow with `npm run start` to serve it.
-- `npm run lint` enforces the flat Next.js ESLint rules—resolve warnings before review.
+- `npm run lint` runs ESLint CLI with Next.js configuration—resolve warnings before review.
 - `npm run db:push` applies schema changes to your database, and `npm run db:seed` refreshes fixtures.
 - `docker compose up app` orchestrates the stack and waits for Prisma to finish syncing.
 

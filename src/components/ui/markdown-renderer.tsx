@@ -11,11 +11,11 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import rehypeHighlight from 'rehype-highlight'
 import rehypeRaw from 'rehype-raw'
-import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { ExternalLink, Copy, Check } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 // Import highlight.js theme for syntax highlighting
 import 'highlight.js/styles/github-dark.css'
@@ -25,26 +25,43 @@ interface MarkdownRendererProps {
   className?: string
 }
 
-interface CodeBlockProps {
-  inline?: boolean
-  className?: string
-  children?: React.ReactNode
-}
-
 interface TaskListItemProps {
   checked?: boolean
   children?: React.ReactNode
 }
 
+const BLOCK_LANGUAGE_FALLBACK = 'text'
+
+const flattenText = (node: React.ReactNode): string => {
+  if (node === null || node === undefined) {
+    return ''
+  }
+  if (typeof node === 'string' || typeof node === 'number') {
+    return String(node)
+  }
+  if (Array.isArray(node)) {
+    return node.map(flattenText).join('')
+  }
+  if (React.isValidElement<{ children?: React.ReactNode }>(node)) {
+    return flattenText(node.props?.children)
+  }
+  return ''
+}
+
 /**
  * Enhanced code block component with copy functionality and line numbers
  */
-const CodeBlock = memo(function CodeBlock({ inline, className, children, ...props }: CodeBlockProps & React.HTMLAttributes<HTMLElement>) {
+const CodeBlock = memo(function CodeBlock({ className, children, ...props }: React.HTMLAttributes<HTMLPreElement>) {
   const [copied, setCopied] = useState(false)
+  const codeContent = useMemo(() => flattenText(children).replace(/\n$/, ''), [children])
+  const lines = useMemo(() => codeContent.split('\n'), [codeContent])
+  const hasMultipleLines = lines.length > 1
+  const childArray = React.Children.toArray(children)
+  const codeElement = childArray.find((child) => React.isValidElement(child)) as React.ReactElement<React.HTMLAttributes<HTMLElement>> | undefined
   
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(String(children))
+      await navigator.clipboard.writeText(codeContent)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
@@ -52,26 +69,25 @@ const CodeBlock = memo(function CodeBlock({ inline, className, children, ...prop
     }
   }
   
-  const language = className?.replace(/^(hljs\s+|language-)/, '').trim() || 'text'
-  const codeContent = String(children).replace(/\n$/, '')
-  
-  if (inline) {
-    return (
-      <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground border" {...props}>
-        {children}
-      </code>
-    )
-  }
-  
-  // Add line numbers for multi-line code blocks
-  const lines = codeContent.split('\n')
-  const hasMultipleLines = lines.length > 1
-  
+  const resolvedLanguage =
+    (typeof className === 'string' && className.match(/language-([\w-]+)/)?.[1]) ||
+    (typeof codeElement?.props?.className === 'string' && codeElement.props.className.match(/language-([\w-]+)/)?.[1]) ||
+    (typeof className === 'string' && className.replace(/^(hljs\s+)/, '').trim()) ||
+    BLOCK_LANGUAGE_FALLBACK
+  const languageLabel = (resolvedLanguage || BLOCK_LANGUAGE_FALLBACK).toLowerCase()
+
+  const highlightedCode = codeElement
+    ? React.cloneElement(codeElement, {
+        ...codeElement.props,
+        className: cn('font-mono flex-1 min-w-0', codeElement.props.className),
+      })
+    : <code className="font-mono">{children}</code>
+
   return (
     <div className="relative mb-4 group w-full">
       <div className="flex items-center justify-between bg-muted border rounded-t-lg px-3 sm:px-4 py-2">
         <Badge variant="secondary" className="text-xs font-mono">
-          {language}
+          {languageLabel}
         </Badge>
         <Button
           variant="ghost"
@@ -84,7 +100,10 @@ const CodeBlock = memo(function CodeBlock({ inline, className, children, ...prop
         </Button>
       </div>
       <div className="bg-[#0d1117] border border-t-0 rounded-b-lg overflow-hidden w-full">
-        <pre className="p-3 sm:p-4 overflow-x-auto text-xs sm:text-sm leading-relaxed">
+        <pre
+          className={cn('p-3 sm:p-4 overflow-x-auto text-xs sm:text-sm leading-relaxed', className)}
+          {...props}
+        >
           {hasMultipleLines ? (
             <div className="flex min-w-0">
               <div className="select-none pr-2 sm:pr-4 text-gray-500 font-mono text-right min-w-[1.5rem] sm:min-w-[2rem] flex-shrink-0">
@@ -92,18 +111,30 @@ const CodeBlock = memo(function CodeBlock({ inline, className, children, ...prop
                   <div key={i} className="text-xs sm:text-sm">{i + 1}</div>
                 ))}
               </div>
-              <code className={`font-mono flex-1 min-w-0 ${className || ''}`} {...props}>
-                {children}
-              </code>
+              <div className="flex-1 min-w-0">
+                {highlightedCode}
+              </div>
             </div>
           ) : (
-            <code className={`font-mono ${className || ''}`} {...props}>
-              {children}
-            </code>
+            highlightedCode
           )}
         </pre>
       </div>
     </div>
+  )
+})
+
+const InlineCode = memo(function InlineCode({ children, className, ...props }: React.HTMLAttributes<HTMLElement>) {
+  return (
+    <code
+      className={cn(
+        'bg-muted px-1.5 py-0.5 rounded text-sm font-mono text-foreground border',
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </code>
   )
 })
 
@@ -174,8 +205,36 @@ const MarkdownComponents = {
     </p>
   ),
   
-  // Custom code block renderer
-  code: CodeBlock,
+  // Custom code renderers
+  code: ({ inline, node, className, children, ...props }: React.HTMLAttributes<HTMLElement> & { inline?: boolean; node?: unknown }) => {
+    // Destructure non-DOM props to prevent React warnings
+    const { dataIndex, dataSourcePos, index, parent, sourcePosition, ...domProps } = props as Record<string, unknown>
+    
+    if (inline) {
+      return (
+        <InlineCode className={className} {...(domProps as React.HTMLAttributes<HTMLElement>)}>
+          {children}
+        </InlineCode>
+      )
+    }
+    
+    return (
+      <code className={cn('font-mono', className)} {...(domProps as React.HTMLAttributes<HTMLElement>)}>
+        {children}
+      </code>
+    )
+  },
+  
+  pre: ({ children, className, node, ...props }: React.HTMLAttributes<HTMLPreElement> & { node?: unknown }) => {
+    // Destructure non-DOM props to prevent React warnings
+    const { dataIndex, dataSourcePos, index, parent, sourcePosition, inline, ...domProps } = props as Record<string, unknown>
+    
+    return (
+      <CodeBlock className={className} {...(domProps as React.HTMLAttributes<HTMLPreElement>)}>
+        {children}
+      </CodeBlock>
+    )
+  },
   
   // Custom list renderers with task list support
   ul: ({ children, ...props }: React.HTMLAttributes<HTMLUListElement>) => {

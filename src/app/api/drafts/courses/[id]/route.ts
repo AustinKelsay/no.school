@@ -49,7 +49,7 @@ export async function GET(
 
     const { id } = paramsResult.data
 
-    const courseDraft = await CourseDraftService.findById(id)
+    let courseDraft = await CourseDraftService.findById(id)
     if (!courseDraft) {
       return NextResponse.json(
         { error: 'Course draft not found' },
@@ -64,6 +64,16 @@ export async function GET(
         { status: 403 }
       )
     }
+
+    await CourseDraftService.syncPublishedLessons(id)
+    const syncedCourseDraft = await CourseDraftService.findById(id)
+    if (!syncedCourseDraft) {
+      return NextResponse.json(
+        { error: 'Course draft not found' },
+        { status: 404 }
+      )
+    }
+    courseDraft = syncedCourseDraft
 
     return NextResponse.json({
       success: true,

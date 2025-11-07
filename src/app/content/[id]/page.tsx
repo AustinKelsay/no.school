@@ -13,7 +13,7 @@ import { parseEvent } from '@/data/types'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
 import { OptimizedImage } from '@/components/ui/optimized-image'
-import { encodePublicKey } from 'snstr'
+import { encodePublicKey, type AddressData, type EventData } from 'snstr'
 import { ZapThreads } from '@/components/ui/zap-threads'
 import { InteractionMetrics } from '@/components/ui/interaction-metrics'
 import { useInteractions } from '@/hooks/useInteractions'
@@ -138,22 +138,31 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
         let nostrEvent: NostrEvent | null = null
         
         // Fetch based on ID type
-        if (resolved.idType === 'nevent' && resolved.decodedData && typeof resolved.decodedData === 'object' && resolved.decodedData !== null) {
-          const data = resolved.decodedData as Record<string, unknown>
-          if (typeof data.id === 'string') {
-            // Direct event ID from nevent
+        if (resolved.idType === 'nevent' && resolved.decodedData) {
+          // Runtime check: ensure decodedData is non-null and has 'id' property
+          if (
+            resolved.decodedData !== null &&
+            typeof resolved.decodedData === 'object' &&
+            'id' in resolved.decodedData
+          ) {
+            const data = resolved.decodedData as EventData
             nostrEvent = await fetchSingleEvent({
               ids: [data.id]
             })
           }
-        } else if (resolved.idType === 'naddr' && resolved.decodedData && typeof resolved.decodedData === 'object' && resolved.decodedData !== null) {
-          const data = resolved.decodedData as Record<string, unknown>
-          if (typeof data.identifier === 'string') {
-            // Addressable event by identifier
+        } else if (resolved.idType === 'naddr' && resolved.decodedData) {
+          // Runtime check: ensure decodedData is non-null and has both 'identifier' and 'kind' properties
+          if (
+            resolved.decodedData !== null &&
+            typeof resolved.decodedData === 'object' &&
+            'identifier' in resolved.decodedData &&
+            'kind' in resolved.decodedData
+          ) {
+            const data = resolved.decodedData as AddressData
             nostrEvent = await fetchSingleEvent({
-              kinds: [30023, 30402, 30403], // Long-form content, paid content, and drafts
+              kinds: [data.kind],
               '#d': [data.identifier],
-              authors: typeof data.author === 'string' ? [data.author] : undefined
+              authors: data.pubkey ? [data.pubkey] : undefined
             })
           }
         } else if (resolved.idType === 'note' || resolved.idType === 'hex') {
