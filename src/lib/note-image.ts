@@ -48,7 +48,10 @@ function extractImageFromContent(content?: string): string | undefined {
 
   const markdownMatch = content.match(/!\[[^\]]*\]\(([^)]+)\)/i)
   if (markdownMatch?.[1]) {
-    return markdownMatch[1]
+    // Strip optional title (whitespace followed by quoted text) from the URL
+    const urlWithOptionalTitle = markdownMatch[1]
+    const urlOnly = urlWithOptionalTitle.replace(/\s+["'][^"']*["']\s*$/, "").trim()
+    return urlOnly || undefined
   }
 
   const htmlImgMatch = content.match(/<img[^>]+src=["']([^"']+)["']/i)

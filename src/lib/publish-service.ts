@@ -436,8 +436,12 @@ export class PublishService {
     const isVideoDraft = draft.type === 'video'
     const hasVideoUrl = !!draft.videoUrl && draft.videoUrl.trim().length > 0
 
-    if (!hasContent && (!isVideoDraft || !hasVideoUrl)) {
-      errors.push(isVideoDraft ? 'Video URL is required for video drafts' : 'Content is required')
+    if (isVideoDraft) {
+      if (!hasVideoUrl) {
+        errors.push('Video URL is required for video drafts')
+      }
+    } else if (!hasContent) {
+      errors.push('Content is required')
     }
 
     if (!draft.topics || draft.topics.length === 0) {
@@ -494,12 +498,12 @@ export class PublishService {
         const isVideoDraft = type === 'video'
         const hasVideoUrl = !!videoUrl && videoUrl.trim().length > 0
 
-        if (!hasContent && (!isVideoDraft || !hasVideoUrl)) {
-          errors.push(
-            isVideoDraft
-              ? `Lesson ${lessonNumber} draft is missing a video URL`
-              : `Lesson ${lessonNumber} draft is missing content`
-          )
+        if (isVideoDraft) {
+          if (!hasVideoUrl) {
+            errors.push(`Lesson ${lessonNumber} draft is missing a video URL`)
+          }
+        } else if (!hasContent) {
+          errors.push(`Lesson ${lessonNumber} draft is missing content`)
         }
       }
 

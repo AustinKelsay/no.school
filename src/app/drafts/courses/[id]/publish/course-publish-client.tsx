@@ -457,20 +457,31 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
 
       attempts++
 
+      if (cancelled) {
+        return
+      }
+
       // If we've reached max attempts, redirect anyway
       if (attempts >= maxAttempts) {
         console.warn(
           `Draft deletion polling reached max attempts (${maxAttempts}). ` +
           `Redirecting to published course anyway.`
         )
-        router.replace(`/courses/${publishedId}`)
+        if (!cancelled) {
+          router.replace(`/courses/${publishedId}`)
+        }
         return
       }
 
       try {
         const response = await fetch(`/api/drafts/courses/${courseId}`)
+        if (cancelled) {
+          return
+        }
         if (response.status === 404) {
-          router.replace(`/courses/${publishedId}`)
+          if (!cancelled) {
+            router.replace(`/courses/${publishedId}`)
+          }
           return
         }
       } catch (pollError) {

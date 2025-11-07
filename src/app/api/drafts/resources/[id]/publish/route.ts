@@ -112,9 +112,14 @@ export async function POST(
       })
 
       const duplicateCourseUsage = draftLessonUsages.reduce<Map<string, string[]>>((acc, lesson) => {
-        const existing = acc.get(lesson.courseDraftId) || []
+        const courseDraftId = lesson.courseDraftId
+        if (!courseDraftId) {
+          return acc
+        }
+
+        const existing = acc.get(courseDraftId) ?? []
         existing.push(lesson.id)
-        acc.set(lesson.courseDraftId, existing)
+        acc.set(courseDraftId, existing)
         return acc
       }, new Map())
 
