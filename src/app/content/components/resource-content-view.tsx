@@ -384,9 +384,10 @@ export function ResourceContentView({
     (tag) => Array.isArray(tag) && tag.length >= 2 && tag[0] === 'isPremium' && tag[1] === 'true'
   )
   const derivedPremiumFlag =
-    isPremiumFromParsed || isPremiumFromTags
-      ? true
-      : Boolean(parsedEvent.price && parseFloat(parsedEvent.price) > 0)
+    isPremiumFromParsed ||
+    isPremiumFromTags ||
+    event.kind === 30402 ||
+    Boolean(parsedEvent.price && parseFloat(parsedEvent.price) > 0)
   const isPremium = Boolean(derivedPremiumFlag)
   const videoDurationLabel = resolveVideoDurationLabel(event, parsedEvent)
   const videoUrl = resolveVideoPlaybackUrl(parsedEvent.videoUrl, event.content, type)

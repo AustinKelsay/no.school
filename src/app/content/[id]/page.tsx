@@ -245,12 +245,8 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
   const type = parsedEvent.type || 'document'
   const difficulty = 'intermediate' // Default since it's not in parseEvent
   // Views are tracked via /api/views and Vercel KV
-  const duration =
-    type === 'video'
-      ? parsedEvent.duration?.trim()
-        ? parsedEvent.duration.trim()
-        : undefined
-      : undefined
+  const trimmedDuration = parsedEvent.duration?.trim()
+  const duration = type === 'video' ? (trimmedDuration ? trimmedDuration : undefined) : undefined
   const isCourseContent = idResult?.contentType === 'course' || event.kind === 30004
   // Mirror the premium logic from ResourceContentView so gating stays consistent.
   const isPremiumFromParsed = parsedEvent.isPremium === true
@@ -258,9 +254,10 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
     (tag) => Array.isArray(tag) && tag.length >= 2 && tag[0] === 'isPremium' && tag[1] === 'true'
   )
   const derivedPremiumFlag =
-    isPremiumFromParsed || isPremiumFromTags
-      ? true
-      : Boolean(parsedEvent.price && Number(parsedEvent.price) > 0)
+    isPremiumFromParsed ||
+    isPremiumFromTags ||
+    event.kind === 30402 ||
+    Boolean(parsedEvent.price && Number(parsedEvent.price) > 0)
   const isPaidResource = Boolean(derivedPremiumFlag)
   // Only courses and paid resources keep the preview wall; everything else opens directly.
   const requiresPreviewGate = isCourseContent || isPaidResource
