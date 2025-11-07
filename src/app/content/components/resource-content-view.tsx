@@ -379,7 +379,7 @@ export function ResourceContentView({
   const additionalLinks = parsedEvent.additionalLinks || []
   const difficulty = 'intermediate'
   // Check parsedEvent.isPremium (boolean) and also check raw event tags for string 'true'
-  const isPremiumFromParsed = parsedEvent.isPremium === true || parsedEvent.isPremium === 'true'
+  const isPremiumFromParsed = parsedEvent.isPremium === true
   const isPremiumFromTags = event.tags?.some(
     (tag) => Array.isArray(tag) && tag.length >= 2 && tag[0] === 'isPremium' && tag[1] === 'true'
   )

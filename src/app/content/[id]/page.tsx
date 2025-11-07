@@ -253,7 +253,7 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
       : undefined
   const isCourseContent = idResult?.contentType === 'course' || event.kind === 30004
   // Mirror the premium logic from ResourceContentView so gating stays consistent.
-  const isPremiumFromParsed = parsedEvent.isPremium === true || parsedEvent.isPremium === 'true'
+  const isPremiumFromParsed = parsedEvent.isPremium === true
   const isPremiumFromTags = event.tags?.some(
     (tag) => Array.isArray(tag) && tag.length >= 2 && tag[0] === 'isPremium' && tag[1] === 'true'
   )
