@@ -139,17 +139,32 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
         
         // Fetch based on ID type
         if (resolved.idType === 'nevent' && resolved.decodedData) {
-          const data = resolved.decodedData as EventData
-          nostrEvent = await fetchSingleEvent({
-            ids: [data.id]
-          })
+          // Runtime check: ensure decodedData is non-null and has 'id' property
+          if (
+            resolved.decodedData !== null &&
+            typeof resolved.decodedData === 'object' &&
+            'id' in resolved.decodedData
+          ) {
+            const data = resolved.decodedData as EventData
+            nostrEvent = await fetchSingleEvent({
+              ids: [data.id]
+            })
+          }
         } else if (resolved.idType === 'naddr' && resolved.decodedData) {
-          const data = resolved.decodedData as AddressData
-          nostrEvent = await fetchSingleEvent({
-            kinds: [data.kind],
-            '#d': [data.identifier],
-            authors: data.pubkey ? [data.pubkey] : undefined
-          })
+          // Runtime check: ensure decodedData is non-null and has both 'identifier' and 'kind' properties
+          if (
+            resolved.decodedData !== null &&
+            typeof resolved.decodedData === 'object' &&
+            'identifier' in resolved.decodedData &&
+            'kind' in resolved.decodedData
+          ) {
+            const data = resolved.decodedData as AddressData
+            nostrEvent = await fetchSingleEvent({
+              kinds: [data.kind],
+              '#d': [data.identifier],
+              authors: data.pubkey ? [data.pubkey] : undefined
+            })
+          }
         } else if (resolved.idType === 'note' || resolved.idType === 'hex') {
           // Direct event ID
           nostrEvent = await fetchSingleEvent({

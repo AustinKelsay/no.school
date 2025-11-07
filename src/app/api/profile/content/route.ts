@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
             where: purchaseWhere,
           }),
         ])
-      : [{ _sum: { amountPaid: 0 } }, 0]
+      : [{ _sum: { amountPaid: null } }, 0] as const
 
     let paidResources = 0
     let freeResources = 0
