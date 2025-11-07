@@ -1,8 +1,9 @@
 import type { Metadata } from "next"
 
+import { Globe, Lightbulb, Users } from "lucide-react"
+
 import { MainLayout, Section } from "@/components/layout"
 import { ComingSoonPlaceholder } from "@/components/placeholders/coming-soon"
-import { Globe, Lightbulb, Users } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "About no.school",

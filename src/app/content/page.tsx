@@ -125,17 +125,17 @@ export default function ContentPage() {
     let isCancelled = false
 
     const fetchImages = async () => {
-      let results: Array<{ noteId: string; image?: string; didFetch: boolean }> = []
+      let results: Array<{ noteId: string; image?: string; hasEvent: boolean }> = []
       try {
         results = await Promise.all(
           noteIdsToFetch.map(async (noteId) => {
             try {
               const event = await fetchEventForIdentifier(noteId)
               const image = getNoteImage(event ?? undefined)
-              return { noteId, image, didFetch: true }
+              return { noteId, image, hasEvent: Boolean(event) }
             } catch (error) {
               console.error(`Failed to fetch note ${noteId} for image`, error)
-              return { noteId, image: undefined, didFetch: false }
+              return { noteId, image: undefined, hasEvent: false }
             }
           })
         )
@@ -146,8 +146,8 @@ export default function ContentPage() {
           const next = { ...prev }
           let cacheChanged = false
 
-          results.forEach(({ noteId, image, didFetch }) => {
-            if (didFetch) {
+          results.forEach(({ noteId, image, hasEvent }) => {
+            if (hasEvent) {
               attemptedNoteIds.current.add(noteId)
             }
             if (image && !next[noteId]) {

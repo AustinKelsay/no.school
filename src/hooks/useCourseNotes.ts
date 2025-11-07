@@ -4,6 +4,11 @@
  */
 
 import { useQuery } from '@tanstack/react-query'
+import type {
+  QueryObserverResult,
+  RefetchOptions,
+  RefetchQueryFilters,
+} from '@tanstack/react-query'
 import { useSnstrContext } from '@/contexts/snstr-context'
 import { NostrEvent, RelayPool } from 'snstr'
 
@@ -17,7 +22,11 @@ export interface CourseNotesQueryResult {
   isLoading: boolean
   isError: boolean
   error: Error | null
-  refetch: () => void
+  refetch: (
+    courseId?: string,
+    options?: RefetchOptions &
+      RefetchQueryFilters<Map<string, CourseNoteResult>>
+  ) => Promise<QueryObserverResult<Map<string, CourseNoteResult>, Error>>
 }
 
 export interface UseCourseNotesOptions {
@@ -115,12 +124,17 @@ export function useCourseNotes(
     retryDelay,
   })
 
+  const refetch: CourseNotesQueryResult['refetch'] = (courseId, options) => {
+    void courseId // allow hook consumers to pass course-specific identifiers
+    return query.refetch(options)
+  }
+
   return {
     notes: query.data || new Map(),
     isLoading: query.isLoading,
     isError: query.isError,
     error: query.error,
-    refetch: query.refetch,
+    refetch,
   }
 }
 
@@ -133,7 +147,7 @@ export function useCourseNote(
   isLoading: boolean
   isError: boolean
   error: Error | null
-  refetch: () => void
+  refetch: CourseNotesQueryResult['refetch']
 } {
   const result = useCourseNotes(courseId ? [courseId] : [], options)
   const noteResult = result.notes.get(courseId)

@@ -100,25 +100,28 @@ const CodeBlock = memo(function CodeBlock({ className, children, ...props }: Rea
         </Button>
       </div>
       <div className="bg-[#0d1117] border border-t-0 rounded-b-lg overflow-hidden w-full">
-        <pre
-          className={cn('p-3 sm:p-4 overflow-x-auto text-xs sm:text-sm leading-relaxed', className)}
-          {...props}
-        >
-          {hasMultipleLines ? (
-            <div className="flex min-w-0">
-              <div className="select-none pr-2 sm:pr-4 text-gray-500 font-mono text-right min-w-[1.5rem] sm:min-w-[2rem] flex-shrink-0">
-                {lines.map((_, i) => (
-                  <div key={i} className="text-xs sm:text-sm">{i + 1}</div>
-                ))}
-              </div>
-              <div className="flex-1 min-w-0">
-                {highlightedCode}
-              </div>
+        {hasMultipleLines ? (
+          <div className="flex min-w-0">
+            <div className="select-none pr-2 sm:pr-4 text-gray-500 font-mono text-right min-w-[1.5rem] sm:min-w-[2rem] flex-shrink-0 py-3 sm:py-4">
+              {lines.map((_, i) => (
+                <div key={i} className="text-xs sm:text-sm">{i + 1}</div>
+              ))}
             </div>
-          ) : (
-            highlightedCode
-          )}
-        </pre>
+            <pre
+              className={cn('p-3 sm:p-4 overflow-x-auto text-xs sm:text-sm leading-relaxed flex-1 min-w-0', className)}
+              {...props}
+            >
+              {highlightedCode}
+            </pre>
+          </div>
+        ) : (
+          <pre
+            className={cn('p-3 sm:p-4 overflow-x-auto text-xs sm:text-sm leading-relaxed', className)}
+            {...props}
+          >
+            {highlightedCode}
+          </pre>
+        )}
       </div>
     </div>
   )
