@@ -155,7 +155,7 @@ function extractImageFromContent(
   }
 
   // Find all URLs in the content
-  const urlMatches = content.matchAll(/https?:\/\/[^\s"'()]+/gi)
+  const urlMatches = content.matchAll(/https?:\/\/[^\s"'()]+(?:\([^\s"'()]*\)[^\s"'()]*)*/gi)
   const urls = Array.from(urlMatches, (match) => match[0])
 
   // Prefer URLs with image extensions to avoid false positives
