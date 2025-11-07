@@ -31,6 +31,7 @@ import {
 import type { NostrEvent } from 'snstr'
 import { getRelays } from '@/lib/nostr-relays'
 import { ViewsText } from '@/components/ui/views-text'
+import { ResourceContentView } from '@/app/content/components/resource-content-view'
 
 interface ResourcePageProps {
   params: Promise<{
@@ -245,6 +246,10 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
   const difficulty = 'intermediate' // Default since it's not in parseEvent
   // Views are tracked via /api/views and Vercel KV
   const duration = type === 'video' ? '15 min' : undefined
+  const isCourseContent = idResult?.contentType === 'course' || event.kind === 30004
+  const isPaidResource = Boolean(parsedEvent.isPremium) || event.kind === 30402
+  // Only courses and paid resources keep the preview wall; everything else opens directly.
+  const requiresPreviewGate = isCourseContent || isPaidResource
   
   // Use only real interaction data - no fallbacks
   const zapsCount = interactions.zaps
@@ -276,6 +281,18 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
       default:
         return <FileText className="h-5 w-5" />
     }
+  }
+
+  if (!requiresPreviewGate) {
+    return (
+      <MainLayout>
+        <Section spacing="lg">
+          <div className="space-y-6">
+            <ResourceContentView resourceId={resourceId} initialEvent={event} showBackLink={false} />
+          </div>
+        </Section>
+      </MainLayout>
+    )
   }
 
   return (

@@ -129,7 +129,6 @@ export function ContentCard({
     if (item.type === 'course') {
       router.push(`/courses/${item.id}`)
     } else {
-      console.log("pushinggg", item);
       // For resources (documents, videos, guides, etc.), navigate to content detail page
       router.push(`/content/${item.id}`)
     }
