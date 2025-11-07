@@ -151,6 +151,7 @@ export interface ParsedResourceEvent {
   tags: string[][]
   videoUrl?: string
   category?: string
+  duration?: string
 }
 
 // ============================================================================
@@ -267,6 +268,7 @@ export function parseEvent(event: NostrFreeContentEvent | NostrPaidContentEvent 
     tags: event.tags,
     videoUrl: undefined,
     category: undefined,
+    duration: undefined,
   }
 
   if (event.tags) {
@@ -325,6 +327,9 @@ export function parseEvent(event: NostrFreeContentEvent | NostrPaidContentEvent 
           break
         case "video":
           eventData.videoUrl = tag[1] || ""
+          break
+        case "duration":
+          eventData.duration = tag[1] || ""
           break
         case "p":
           eventData.authorPubkey = tag[1] || ""
