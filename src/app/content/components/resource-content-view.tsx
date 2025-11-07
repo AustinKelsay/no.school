@@ -304,7 +304,7 @@ export function ResourceContentView({
   const parsedEvent = parseEvent(event)
   const title = parsedEvent.title || 'Unknown Resource'
   const rawSummary = parsedEvent.summary?.trim() || ''
-  const category = parsedEvent.topics[0] || 'general'
+  const category = parsedEvent.topics?.[0] || 'general'
   const type = parsedEvent.type || 'document'
   const additionalLinks = parsedEvent.additionalLinks || []
   const difficulty = 'intermediate'
