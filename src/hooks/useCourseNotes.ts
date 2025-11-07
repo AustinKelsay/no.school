@@ -24,8 +24,7 @@ export interface CourseNotesQueryResult {
   error: Error | null
   refetch: (
     courseId?: string,
-    options?: RefetchOptions &
-      RefetchQueryFilters<Map<string, CourseNoteResult>>
+    options?: RefetchOptions & RefetchQueryFilters
   ) => Promise<QueryObserverResult<Map<string, CourseNoteResult>, Error>>
 }
 
