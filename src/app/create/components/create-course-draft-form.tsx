@@ -193,18 +193,14 @@ export default function CreateCourseDraftForm() {
           lesson.summary !== updatedLesson.summary ||
           lesson.contentType !== updatedLesson.contentType ||
           (lesson.price ?? 0) !== (updatedLesson.price ?? 0) ||
-          lesson.image !== updatedLesson.image
+          lesson.image !== updatedLesson.image ||
+          lesson.type !== updatedLesson.type ||
+          lesson.resourceId !== updatedLesson.resourceId ||
+          lesson.draftId !== updatedLesson.draftId
 
         if (shouldUpdate) {
           hasChanges = true
-          return {
-            ...lesson,
-            title: updatedLesson.title,
-            summary: updatedLesson.summary,
-            contentType: updatedLesson.contentType,
-            price: updatedLesson.price,
-            image: updatedLesson.image,
-          }
+          return updatedLesson
         }
 
         return lesson

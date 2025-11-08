@@ -63,6 +63,30 @@ export function EditPublishedCourseDialog({
     return formState.topics.map(topic => topic.trim()).filter(Boolean)
   }, [formState])
 
+  /**
+   * Build normalized course payload from form state
+   * Returns trimmed and validated course fields
+   */
+  function buildCoursePayload(
+    formState: CourseEditData,
+    displayTopics: string[]
+  ): {
+    title: string
+    summary: string
+    image?: string
+    price: number
+    topics: string[]
+  } {
+    return {
+      title: formState.title.trim(),
+      summary: formState.summary.trim(),
+      image: formState.image?.trim() || undefined,
+      price:
+        Number.isFinite(formState.price) && formState.price >= 0 ? formState.price : 0,
+      topics: displayTopics,
+    }
+  }
+
   const attemptNip07Republish = async (): Promise<boolean> => {
     if (!formState) {
       return false
@@ -91,16 +115,9 @@ export function EditPublishedCourseDialog({
       }
 
       const draftLike = {
+        ...buildCoursePayload(formState, displayTopics),
         id: formState.id,
         userId: '',
-        title: formState.title.trim(),
-        summary: formState.summary.trim(),
-        image: formState.image?.trim() || undefined,
-        price:
-          Number.isFinite(formState.price) && formState.price >= 0
-            ? formState.price
-            : 0,
-        topics: displayTopics,
       }
 
       const unsignedEvent = createUnsignedCourseEvent(
@@ -113,14 +130,7 @@ export function EditPublishedCourseDialog({
       await mutation.mutateAsync({
         id: formState.id,
         data: {
-          title: formState.title.trim(),
-          summary: formState.summary.trim(),
-          image: formState.image?.trim() || undefined,
-          price:
-            Number.isFinite(formState.price) && formState.price >= 0
-              ? formState.price
-              : 0,
-          topics: displayTopics,
+          ...buildCoursePayload(formState, displayTopics),
           signedEvent,
         },
       })
@@ -193,14 +203,7 @@ export function EditPublishedCourseDialog({
       await mutation.mutateAsync({
         id: formState.id,
         data: {
-          title: formState.title.trim(),
-          summary: formState.summary.trim(),
-          image: formState.image?.trim() || undefined,
-          price:
-            Number.isFinite(formState.price) && formState.price >= 0
-              ? formState.price
-              : 0,
-          topics: displayTopics,
+          ...buildCoursePayload(formState, displayTopics),
         },
       })
 
@@ -210,14 +213,33 @@ export function EditPublishedCourseDialog({
       if (err instanceof Error) {
         const code = (err as Error & { code?: string }).code
         if (code === 'PRIVKEY_REQUIRED' && !attemptedNip07) {
-          setError(null)
-          const succeeded = await attemptNip07Republish()
-          if (succeeded) {
-            return
+          // Only retry if prerequisites for Nip07 republish are actually present
+          const hasNip07 = hasNip07Support()
+          const hasLessonReferences =
+            formState.lessonReferences && formState.lessonReferences.length > 0
+
+          if (hasNip07 && hasLessonReferences) {
+            setError(null)
+            const succeeded = await attemptNip07Republish()
+            if (succeeded) {
+              return
+            }
+            setError(
+              `${err.message}. Provide a freshly signed Nostr event or the owner's private key to continue.`
+            )
+          } else {
+            // Prerequisites not met - explain what's missing
+            const missingRequirements: string[] = []
+            if (!hasNip07) {
+              missingRequirements.push('Nostr extension')
+            }
+            if (!hasLessonReferences) {
+              missingRequirements.push('at least one published lesson reference')
+            }
+            setError(
+              `${err.message}. Cannot use Nip07 signing because ${missingRequirements.join(' and ')} ${missingRequirements.length === 1 ? 'is' : 'are'} missing. Provide a freshly signed Nostr event or the owner's private key to continue.`
+            )
           }
-          setError(
-            `${err.message}. Provide a freshly signed Nostr event or the owner's private key to continue.`
-          )
         } else {
           setError(err.message)
         }
