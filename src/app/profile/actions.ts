@@ -11,15 +11,17 @@
 
 import { revalidatePath } from 'next/cache'
 import { getServerSession } from 'next-auth'
+
+import { z } from 'zod'
+import { RelayPool, createEvent, type NostrEvent } from 'snstr'
+
 import { authOptions, fetchNostrProfile } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { z } from 'zod'
 import { 
   PreferencesUpdateSchema,
   type PreferencesUpdate 
 } from '@/types/account-preferences'
 import { getRelays } from '@/lib/nostr-relays'
-import { RelayPool, createEvent, type NostrEvent } from 'snstr'
 
 // Basic profile update schema for OAuth-first accounts
 const BasicProfileSchema = z.object({

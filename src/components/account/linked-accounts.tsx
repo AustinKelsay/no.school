@@ -91,10 +91,12 @@ export function LinkedAccountsManager() {
         })
       }
 
-      // Await handlePostLink before URL replacement to ensure fetch/session refresh completes
+      // Clear URL immediately to prevent effect from re-running during async work
+      window.history.replaceState({}, '', '/profile?tab=accounts')
+      
+      // Then perform async work (fetch accounts and refresh session)
       ;(async () => {
         await handlePostLink()
-        window.history.replaceState({}, '', '/profile?tab=accounts')
       })()
     } else if (error) {
       let errorMessage = 'Failed to link account'

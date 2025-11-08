@@ -245,6 +245,7 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
             size="sm"
             className={cn('h-8 w-8 rounded-full', heroCopyButtonClasses)}
             onClick={() => copyToClipboard(valueToCopy, copyKey)}
+            aria-label={copiedField === copyKey ? `Copied ${label}` : `Copy ${label}`}
           >
             {copiedField === copyKey ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           </Button>
@@ -407,6 +408,8 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
                   variant="ghost" 
                   size="sm"
                   onClick={() => setShowPrivateKey(!showPrivateKey)}
+                  aria-label={showPrivateKey ? "Hide private key" : "Show private key"}
+                  title={showPrivateKey ? "Hide private key" : "Show private key"}
                 >
                   {showPrivateKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -420,6 +423,7 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
                     variant="ghost" 
                     size="sm"
                     onClick={() => copyToClipboard(user.privkey!, 'privkey')}
+                    aria-label="Copy private key"
                   >
                     {copiedField === 'privkey' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>

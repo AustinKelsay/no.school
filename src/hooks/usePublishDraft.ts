@@ -343,9 +343,26 @@ export function usePublishCourse(courseDraftId: string) {
           try {
             const errorBody = await validateResponse.json()
             if (Array.isArray((errorBody as { details?: unknown }).details)) {
-              const details = (errorBody as { details?: string[] }).details
-              if (details && details.length) {
-                errorMessage = `Course validation failed: ${details.join(', ')}`
+              const details = (errorBody as { details?: unknown[] }).details ?? []
+              const detailMessages = details
+                .map(detail => {
+                  if (typeof detail === 'string') {
+                    return detail.trim()
+                  }
+                  if (detail && typeof detail === 'object') {
+                    const message = (detail as { message?: unknown }).message
+                    if (typeof message === 'string') {
+                      return message.trim()
+                    }
+                    if (message != null) {
+                      return String(message).trim()
+                    }
+                  }
+                  return detail == null ? '' : String(detail).trim()
+                })
+                .filter((message): message is string => Boolean(message))
+              if (detailMessages.length) {
+                errorMessage = `Course validation failed: ${detailMessages.join(', ')}`
               }
             } else if (typeof (errorBody as { error?: unknown }).error === 'string') {
               errorMessage = (errorBody as { error?: string }).error!

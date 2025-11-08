@@ -20,7 +20,7 @@ import {
   isNip07User,
   extractNoteId
 } from '@/lib/nostr-events'
-import { DraftService, CourseDraftService, DraftLessonService, type CourseDraftWithIncludes } from '@/lib/draft-service'
+import { DraftService, CourseDraftService, type CourseDraftWithIncludes } from '@/lib/draft-service'
 import type { Resource, Course, Lesson } from '@prisma/client'
 
 // Default relays for publishing are loaded from config via DEFAULT_RELAYS

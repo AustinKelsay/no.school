@@ -515,7 +515,8 @@ export function createResourceDisplay(resource: Resource, parsedEvent: ParsedRes
     difficulty: 'intermediate', // Would need to be inferred or stored
     published: true,
     topics: parsedEvent.topics,
-    additionalLinks: parsedEvent.additionalLinks
+    additionalLinks: parsedEvent.additionalLinks,
+    duration: parsedEvent.duration
   }
 }
 

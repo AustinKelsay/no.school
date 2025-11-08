@@ -1,9 +1,9 @@
 "use client"
 
+import type { ReactNode, MouseEvent } from "react"
 import { CircleHelp } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
-import type { ReactNode, MouseEvent } from "react"
 
 interface InfoTooltipProps {
   content: ReactNode

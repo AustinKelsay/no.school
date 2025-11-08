@@ -178,35 +178,47 @@ export default function CreateCourseDraftForm() {
         return prevLessons
       }
 
+      const updatedMap = new Map(
+        draftLessons.map(draftLesson => [
+          draftLesson.id,
+          createLessonData(courseDraftData, draftLesson, resourceNotes),
+        ])
+      )
+
       let hasChanges = false
 
-      const updatedLessons = prevLessons.map(lesson => {
-        const draftLesson = draftLessons.find(item => item.id === lesson.id)
-        if (!draftLesson) {
-          return lesson
+      const mergedLessons = prevLessons.map(existingLesson => {
+        const update = updatedMap.get(existingLesson.id)
+        if (!update) {
+          return existingLesson
         }
 
-        const updatedLesson = createLessonData(courseDraftData, draftLesson, resourceNotes)
+        updatedMap.delete(existingLesson.id)
 
-        const shouldUpdate =
-          lesson.title !== updatedLesson.title ||
-          lesson.summary !== updatedLesson.summary ||
-          lesson.contentType !== updatedLesson.contentType ||
-          (lesson.price ?? 0) !== (updatedLesson.price ?? 0) ||
-          lesson.image !== updatedLesson.image ||
-          lesson.type !== updatedLesson.type ||
-          lesson.resourceId !== updatedLesson.resourceId ||
-          lesson.draftId !== updatedLesson.draftId
+        const shouldReplace =
+          existingLesson.title !== update.title ||
+          existingLesson.summary !== update.summary ||
+          existingLesson.contentType !== update.contentType ||
+          (existingLesson.price ?? 0) !== (update.price ?? 0) ||
+          existingLesson.image !== update.image ||
+          existingLesson.type !== update.type ||
+          existingLesson.resourceId !== update.resourceId ||
+          existingLesson.draftId !== update.draftId
 
-        if (shouldUpdate) {
+        if (shouldReplace) {
           hasChanges = true
-          return updatedLesson
+          return { ...existingLesson, ...update }
         }
 
-        return lesson
+        return existingLesson
       })
 
-      return hasChanges ? updatedLessons : prevLessons
+      if (updatedMap.size > 0) {
+        hasChanges = true
+        mergedLessons.push(...updatedMap.values())
+      }
+
+      return hasChanges ? mergedLessons : prevLessons
     })
   }, [courseDraftData, resourceNotes, createLessonData])
 
