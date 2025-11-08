@@ -172,7 +172,8 @@ export default function ContentPage() {
     return () => {
       isCancelled = true
     }
-  }, [courses, videos, documents, noteImageCache])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [courses, videos, documents])
   
   // Transform data to ContentItem format
   const contentItems = useMemo(() => {

@@ -24,7 +24,7 @@ export function ProfileTabs({
 
   const permittedTabs = useMemo(() => {
     if (!allowedTabs.length) {
-      return [defaultTab]
+      return undefined
     }
     return Array.from(new Set([...allowedTabs, defaultTab]))
   }, [allowedTabs, defaultTab])
@@ -92,7 +92,8 @@ export function ProfileTabs({
     }
     
     if (tab) {
-      const resolvedTab = permittedTabs.includes(tab) ? tab : defaultTab
+      const isPermitted = !permittedTabs || permittedTabs.includes(tab)
+      const resolvedTab = isPermitted ? tab : defaultTab
       params.set('tab', resolvedTab)
     }
 
@@ -106,15 +107,16 @@ export function ProfileTabs({
   // Determine initial tab from URL or default
   useEffect(() => {
     const searchTab = searchParams.get('tab') || defaultTab
-    const nextTab = permittedTabs.includes(searchTab) ? searchTab : defaultTab
-    if (!permittedTabs.includes(searchTab) && searchTab) {
+    const isPermitted = !permittedTabs || permittedTabs.includes(searchTab)
+    const nextTab = isPermitted ? searchTab : defaultTab
+    if (!isPermitted && searchTab) {
       updateQueryParam(defaultTab)
     }
     setTabValue((current) => (current === nextTab ? current : nextTab))
   }, [defaultTab, permittedTabs, searchParams, updateQueryParam])
 
   const handleValueChange = (value: string) => {
-    if (!permittedTabs.includes(value)) return
+    if (permittedTabs && !permittedTabs.includes(value)) return
     setTabValue(value)
     updateQueryParam(value)
   }
@@ -125,4 +127,3 @@ export function ProfileTabs({
     </Tabs>
   )
 }
-

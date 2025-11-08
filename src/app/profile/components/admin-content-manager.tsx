@@ -279,10 +279,23 @@ function buildCourseEditData(item: PublishedCourseItem): CourseEditData {
         }
         const parts = tag[1].split(':')
         if (parts.length < 3) {
+          console.warn('Malformed lesson reference tag: insufficient parts', {
+            rawTag: tag,
+            tagValue: tag[1],
+            partsCount: parts.length,
+            reason: 'parts.length < 3',
+          })
           return null
         }
         const [, pubkey, identifier] = parts
         if (!pubkey || !identifier) {
+          console.warn('Malformed lesson reference tag: missing pubkey or identifier', {
+            rawTag: tag,
+            tagValue: tag[1],
+            pubkey: pubkey || null,
+            identifier: identifier || null,
+            reason: !pubkey ? 'missing pubkey' : 'missing identifier',
+          })
           return null
         }
         return { resourceId: identifier, pubkey }

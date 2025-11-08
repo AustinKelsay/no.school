@@ -10,8 +10,8 @@ const paramsSchema = z.object({
 
 const republishSchema = z
   .object({
-    title: z.string().min(1, 'Title is required'),
-    summary: z.string().min(1, 'Summary is required'),
+    title: z.string().transform(s => s.trim()).pipe(z.string().min(1, 'Title is required')),
+    summary: z.string().transform(s => s.trim()).pipe(z.string().min(1, 'Summary is required')),
     image: z.string().url().optional().or(z.literal('')).transform(value => {
       const trimmed = value?.trim()
       return trimmed ? trimmed : undefined
@@ -80,8 +80,8 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     ).filter(topic => topic.toLowerCase() !== 'course')
 
     const result = await RepublishService.republishCourse(courseId, session.user.id, {
-      title: title.trim(),
-      summary: summary.trim(),
+      title,
+      summary,
       image,
       price,
       topics: sanitizedTopics,
