@@ -26,8 +26,8 @@ import { shouldShowThemeSelector, shouldShowFontToggle, shouldShowThemeToggle } 
 import { useTheme } from "next-themes"
 import { useThemeColor } from "@/contexts/theme-context"
 import { availableFonts, ThemeName } from "@/lib/theme-config"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { useEffect, useState } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { useAdminInfo } from "@/hooks/useAdmin"
 
@@ -41,13 +41,56 @@ export function Header() {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const { fontOverride, setFontOverride, themeConfig, currentTheme, setCurrentTheme, availableThemes } = useThemeColor()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const { data: session } = useSession()
   const { adminInfo } = useAdminInfo()
+  const linkingSuccess = searchParams?.get("success")
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(session?.user?.image || undefined)
+  const [displayName, setDisplayName] = useState<string | undefined>(
+    session?.user?.name || session?.user?.username || undefined
+  )
   const canCreateContent =
     Boolean(adminInfo?.isAdmin) ||
     Boolean(adminInfo?.permissions?.createCourse) ||
     Boolean(adminInfo?.permissions?.createResource)
+
+  useEffect(() => {
+    if (!session?.user) {
+      setAvatarUrl(undefined)
+      setDisplayName(undefined)
+      return
+    }
+
+    let isActive = true
+
+    const loadProfile = async () => {
+      // Always show whatever the session currently has while we fetch fresher data
+      setAvatarUrl(session.user.image || undefined)
+      setDisplayName(session.user.name || session.user.username || undefined)
+
+      try {
+        const response = await fetch("/api/profile/aggregated", { cache: "no-store" })
+        if (!response.ok) return
+        const data = await response.json()
+        if (!isActive) return
+        if (data?.image?.value) {
+          setAvatarUrl(data.image.value as string)
+        }
+        if (data?.name?.value) {
+          setDisplayName(data.name.value as string)
+        }
+      } catch (error) {
+        console.error("Failed to load aggregated profile for header avatar", error)
+      }
+    }
+
+    loadProfile()
+
+    return () => {
+      isActive = false
+    }
+  }, [session?.user?.id, session?.user?.image, session?.user?.name, session?.user?.username, linkingSuccess])
 
   function handleThemeSelect(themeName: ThemeName) {
     setCurrentTheme(themeName)
@@ -216,9 +259,11 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={session.user.image || undefined} alt={session.user.name || 'User'} />
+                    <AvatarImage src={avatarUrl} alt={displayName || session.user.name || "User"} />
                     <AvatarFallback>
-                      {(session.user.name || session.user.username || 'U').substring(0, 2).toUpperCase()}
+                      {(displayName || session.user.name || session.user.username || "U")
+                        .substring(0, 2)
+                        .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -227,7 +272,7 @@ export function Header() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {session.user.name || session.user.username || 'User'}
+                      {displayName || session.user.name || session.user.username || "User"}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {session.user.email}
@@ -271,4 +316,4 @@ export function Header() {
       </Container>
     </header>
   )
-} 
+}

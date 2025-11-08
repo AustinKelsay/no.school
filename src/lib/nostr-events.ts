@@ -318,7 +318,7 @@ export function createUnsignedResourceEvent(
  * Returns the event structure without id and signature
  */
 export function createUnsignedCourseEvent(
-  courseDraft: CourseDraft | CourseDraftWithIncludes,
+  courseDraft: CourseDraft | CourseDraftWithIncludes | CourseEventDraftInput,
   lessonReferences: Array<{ resourceId: string; pubkey: string }>,
   pubkey: string
 ): Omit<NostrEvent, 'id' | 'sig'> {

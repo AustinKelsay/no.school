@@ -26,6 +26,12 @@ The system recognizes two primary authentication paradigms:
   - Background Nostr capabilities with ephemeral keys
   - Profile stored in database
 
+### Anonymous Bootstrap Behavior
+- Anonymous sign-ins generate an `anon_XXXX` username and DiceBear avatar as placeholders.
+- These placeholders are explicitly treated as “unset” during aggregation: any linked OAuth provider with real profile data overrides them immediately.
+- Once the user updates their Nostr profile (via sync or settings), those non-placeholder values regain priority because the profile remains Nostr-first unless they switch sources.
+- When richer data replaces the placeholder, the system backfills the `User.username`, `User.avatar`, and `User.email` columns so settings forms stay in sync with what the public profile shows.
+
 ### Profile Source Priority
 
 Users can configure how their profile data is prioritized:

@@ -11,13 +11,15 @@
 
 import { revalidatePath } from 'next/cache'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/lib/auth'
+import { authOptions, fetchNostrProfile } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { 
   PreferencesUpdateSchema,
   type PreferencesUpdate 
 } from '@/types/account-preferences'
+import { getRelays } from '@/lib/nostr-relays'
+import { RelayPool, createEvent, type NostrEvent } from 'snstr'
 
 // Basic profile update schema for OAuth-first accounts
 const BasicProfileSchema = z.object({
@@ -25,15 +27,42 @@ const BasicProfileSchema = z.object({
   email: z.string().email('Invalid email').optional()
 })
 
+const optionalClearingField = (validator: z.ZodTypeAny) =>
+  z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        const trimmed = val.trim()
+        return trimmed === '' ? null : trimmed
+      }
+      return val
+    },
+    z.union([validator, z.null()]).optional()
+  )
+
 // Enhanced profile fields schema (allowed for all users)
 const EnhancedProfileSchema = z.object({
-  nip05: z.string().min(1, 'NIP05 address required').optional(),
-  lud16: z.string().min(1, 'Lightning address required').optional(),
-  banner: z.string().url('Invalid banner URL').optional()
+  nip05: optionalClearingField(z.string().min(1, 'NIP05 address required')),
+  lud16: optionalClearingField(z.string().min(1, 'Lightning address required')),
+  banner: optionalClearingField(z.string().url('Invalid banner URL'))
+})
+
+const SignedKind0EventSchema = z.object({
+  id: z.string(),
+  pubkey: z.string(),
+  created_at: z.number(),
+  kind: z.literal(0),
+  tags: z.array(z.array(z.string())),
+  content: z.string(),
+  sig: z.string()
+})
+
+const EnhancedProfileUpdateSchema = EnhancedProfileSchema.extend({
+  signedEvent: SignedKind0EventSchema.optional()
 })
 
 export type BasicProfileData = z.infer<typeof BasicProfileSchema>
 export type EnhancedProfileData = z.infer<typeof EnhancedProfileSchema>
+export type SignedKind0Event = z.infer<typeof SignedKind0EventSchema>
 export type AccountPreferencesData = PreferencesUpdate
 
 /**
@@ -114,7 +143,9 @@ export async function updateBasicProfile(data: BasicProfileData) {
  * Allowed for all users - these are database fields that complement Nostr profile
  * For Nostr-first accounts, these can be overridden by Nostr profile sync
  */
-export async function updateEnhancedProfile(data: EnhancedProfileData) {
+export async function updateEnhancedProfile(
+  data: EnhancedProfileData & { signedEvent?: SignedKind0Event }
+) {
   try {
     const session = await getServerSession(authOptions)
     
@@ -126,6 +157,9 @@ export async function updateEnhancedProfile(data: EnhancedProfileData) {
       where: { id: session.user.id },
       select: { 
         privkey: true,
+        pubkey: true,
+        username: true,
+        avatar: true,
         nip05: true,
         lud16: true,
         banner: true
@@ -136,33 +170,96 @@ export async function updateEnhancedProfile(data: EnhancedProfileData) {
       throw new Error('User not found')
     }
 
-    const validatedData = EnhancedProfileSchema.parse(data)
-    const updates: { nip05?: string; lud16?: string; banner?: string } = {}
+    const { signedEvent, ...profilePayload } = EnhancedProfileUpdateSchema.parse(data)
+    const isNostrFirst = !user.privkey
 
-    if (validatedData.nip05 && validatedData.nip05 !== user.nip05) {
-      updates.nip05 = validatedData.nip05
+    const updates: { nip05?: string | null; lud16?: string | null; banner?: string | null } = {}
+    const currentValues = {
+      nip05: user.nip05 ?? null,
+      lud16: user.lud16 ?? null,
+      banner: user.banner ?? null
     }
 
-    if (validatedData.lud16 && validatedData.lud16 !== user.lud16) {
-      updates.lud16 = validatedData.lud16
+    if (profilePayload.nip05 !== undefined && profilePayload.nip05 !== currentValues.nip05) {
+      updates.nip05 = profilePayload.nip05
     }
 
-    if (validatedData.banner && validatedData.banner !== user.banner) {
-      updates.banner = validatedData.banner
+    if (profilePayload.lud16 !== undefined && profilePayload.lud16 !== currentValues.lud16) {
+      updates.lud16 = profilePayload.lud16
+    }
+
+    if (profilePayload.banner !== undefined && profilePayload.banner !== currentValues.banner) {
+      updates.banner = profilePayload.banner
     }
 
     if (Object.keys(updates).length === 0) {
       return { success: true, message: 'No changes to apply' }
     }
 
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: updates
-    })
+    if (isNostrFirst && !user.pubkey) {
+      return {
+        success: false,
+        message: 'Missing Nostr public key. Please reconnect your Nostr account.'
+      }
+    }
+
+    if (isNostrFirst && !signedEvent) {
+      return {
+        success: false,
+        message: 'Nostr-first accounts must submit a signed kind 0 event from a NIP-07 extension.'
+      }
+    }
+
+    const persistUpdates = async () => {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: updates
+      })
+    }
+
+    let publishResult: Kind0PublishResult | null = null
+
+    const publishPayload = {
+      pubkey: user.pubkey,
+      privkey: user.privkey,
+      signedEvent,
+      updatedFields: updates,
+      fallbackProfile: {
+        name: user.username ?? undefined,
+        picture: user.avatar ?? undefined
+      }
+    } as const
+
+    if (isNostrFirst) {
+      try {
+        publishResult = await publishKind0Profile(publishPayload)
+        if (!publishResult.published) {
+          throw new Error('Failed to publish profile metadata to relays.')
+        }
+      } catch (publishError) {
+        console.error('[EnhancedProfile] Required Nostr publish failed:', publishError)
+        return { 
+          success: false,
+          message: publishError instanceof Error
+            ? publishError.message
+            : 'Failed to publish profile metadata to relays.'
+        }
+      }
+
+      await persistUpdates()
+    } else {
+      await persistUpdates()
+
+      try {
+        publishResult = await publishKind0Profile(publishPayload)
+      } catch (publishError) {
+        console.warn('[EnhancedProfile] Failed to publish to relays:', publishError)
+        publishResult = { published: false, mode: null, profileContent: null }
+      }
+    }
 
     revalidatePath('/profile')
-    
-    const isNostrFirst = !user.privkey
+
     const warningMessage = isNostrFirst 
       ? 'Note: These changes may be overridden if your Nostr profile contains different values.'
       : ''
@@ -171,7 +268,10 @@ export async function updateEnhancedProfile(data: EnhancedProfileData) {
       success: true, 
       message: `Enhanced profile updated successfully. ${warningMessage}`,
       updates: Object.keys(updates),
-      isNostrFirst
+      isNostrFirst,
+      publishedToNostr: publishResult?.published ?? false,
+      publishMode: publishResult?.mode ?? null,
+      nostrProfile: publishResult?.profileContent ?? null
     }
   } catch (error) {
     console.error('Error updating enhanced profile:', error)
@@ -188,6 +288,153 @@ export async function updateEnhancedProfile(data: EnhancedProfileData) {
       success: false, 
       message: error instanceof Error ? error.message : 'Failed to update enhanced profile' 
     }
+  }
+}
+
+type EnhancedProfileUpdates = Partial<Record<keyof EnhancedProfileData, string | null>>
+
+type Kind0PublishResult = {
+  published: boolean
+  mode: 'server-sign' | 'signed-event' | null
+  profileContent: Record<string, any> | null
+}
+
+async function publishKind0Profile({
+  pubkey,
+  privkey,
+  signedEvent,
+  updatedFields,
+  fallbackProfile
+}: {
+  pubkey?: string | null
+  privkey?: string | null
+  signedEvent?: SignedKind0Event
+  updatedFields: EnhancedProfileUpdates
+  fallbackProfile: { name?: string; picture?: string }
+}): Promise<Kind0PublishResult> {
+  const relays = getRelays('profile')
+  if (!pubkey || relays.length === 0 || Object.keys(updatedFields).length === 0) {
+    return { published: false, mode: null, profileContent: null }
+  }
+
+  if (signedEvent) {
+    if (signedEvent.kind !== 0) {
+      throw new Error('Signed event must be kind 0')
+    }
+    if (signedEvent.pubkey !== pubkey) {
+      throw new Error('Signed event pubkey does not match current user')
+    }
+
+    const parsedContent = safeParseContent(signedEvent.content)
+    enforceUpdatedFieldsMatch(parsedContent, updatedFields)
+    await publishEventToRelays(relays, signedEvent)
+    return { published: true, mode: 'signed-event', profileContent: parsedContent }
+  }
+
+  if (!privkey) {
+    console.warn('Missing private key for publishing Nostr profile')
+    return { published: false, mode: null, profileContent: null }
+  }
+
+  const existingProfile = await fetchNostrProfile(pubkey)
+  if (!existingProfile) {
+    console.warn('[EnhancedProfile] No existing Nostr profile found; creating metadata from fallback data')
+  }
+  const nextProfile = mergeProfileFields(existingProfile, updatedFields, fallbackProfile)
+
+  const event = createEvent(
+    {
+      kind: 0,
+      tags: [],
+      content: JSON.stringify(nextProfile)
+    },
+    privkey
+  ) as NostrEvent
+
+  await publishEventToRelays(relays, event)
+  return { published: true, mode: 'server-sign', profileContent: nextProfile }
+}
+
+function safeParseContent(content: string): Record<string, any> {
+  try {
+    const parsed = JSON.parse(content)
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed
+    }
+    return {}
+  } catch {
+    return {}
+  }
+}
+
+function enforceUpdatedFieldsMatch(
+  parsedContent: Record<string, any>,
+  updatedFields: EnhancedProfileUpdates
+) {
+  for (const [key, value] of Object.entries(updatedFields)) {
+    if (value === null) {
+      if (parsedContent[key] !== undefined && parsedContent[key] !== null && parsedContent[key] !== '') {
+        throw new Error(`Signed event ${key} should be removed`)
+      }
+    } else if (typeof value === 'string' && value.length > 0) {
+      if (parsedContent[key] !== value) {
+        throw new Error(`Signed event ${key} does not match submitted value`)
+      }
+    }
+  }
+}
+
+function mergeProfileFields(
+  existingProfile: Record<string, any> | null,
+  updatedFields: EnhancedProfileUpdates,
+  fallbackProfile: { name?: string; picture?: string }
+) {
+  const nextProfile: Record<string, any> = existingProfile && typeof existingProfile === 'object'
+    ? { ...existingProfile }
+    : {}
+
+  for (const [key, value] of Object.entries(updatedFields)) {
+    if (value === null) {
+      delete nextProfile[key]
+    } else if (typeof value === 'string' && value.length > 0) {
+      nextProfile[key] = value
+    }
+  }
+
+  if (!nextProfile.name && fallbackProfile.name) {
+    nextProfile.name = fallbackProfile.name
+  }
+
+  if (!nextProfile.display_name && fallbackProfile.name) {
+    nextProfile.display_name = fallbackProfile.name
+  }
+
+  if (!nextProfile.picture && fallbackProfile.picture) {
+    nextProfile.picture = fallbackProfile.picture
+  }
+
+  return nextProfile
+}
+
+async function publishEventToRelays(relays: string[], event: NostrEvent) {
+  const relayPool = new RelayPool(relays)
+  const publishResults = await Promise.allSettled(relayPool.publish(relays, event))
+  await relayPool.close()
+
+  const successful = publishResults.some(result => {
+    if (result.status !== 'fulfilled') {
+      return false
+    }
+    const value = result.value
+    if (Array.isArray(value)) {
+      // pool.publish returns an array of per-relay results
+      return value.some(entry => entry?.success === true)
+    }
+    return (value as { success?: boolean })?.success === true
+  })
+
+  if (!successful) {
+    throw new Error('Failed to publish profile metadata to any relay')
   }
 }
 

@@ -72,23 +72,30 @@ export function LinkedAccountsManager() {
   useEffect(() => {
     const success = searchParams.get('success')
     const error = searchParams.get('error')
-    
-    if (success === 'github_linked') {
-      toast({
-        title: 'Success',
-        description: 'GitHub account linked successfully'
-      })
-      // Clean up URL params
-      window.history.replaceState({}, '', '/profile?tab=accounts')
-      fetchAccounts()
-    } else if (success === 'email_linked') {
-      toast({
-        title: 'Success',
-        description: 'Email account linked successfully'
-      })
-      // Clean up URL params
-      window.history.replaceState({}, '', '/profile?tab=accounts')
-      fetchAccounts()
+
+    const handlePostLink = async () => {
+      await fetchAccounts()
+      try {
+        await updateSession()
+      } catch (sessionError) {
+        console.error('Failed to refresh session after linking account:', sessionError)
+      }
+    }
+
+    if (success === 'github_linked' || success === 'email_linked') {
+      // ProfileTabs already surfaces the GitHub toast, so only toast here for other providers
+      if (success !== 'github_linked') {
+        toast({
+          title: 'Success',
+          description: 'Email account linked successfully'
+        })
+      }
+
+      // Await handlePostLink before URL replacement to ensure fetch/session refresh completes
+      ;(async () => {
+        await handlePostLink()
+        window.history.replaceState({}, '', '/profile?tab=accounts')
+      })()
     } else if (error) {
       let errorMessage = 'Failed to link account'
       switch(error) {
@@ -132,7 +139,7 @@ export function LinkedAccountsManager() {
       // Clean up URL params
       window.history.replaceState({}, '', '/profile?tab=accounts')
     }
-  }, [searchParams, toast]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, toast, updateSession]) // eslint-disable-line react-hooks-exhaustive-deps
 
   // Unlink account
   const handleUnlink = async (provider: string) => {

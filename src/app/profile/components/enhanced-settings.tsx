@@ -32,8 +32,10 @@ import {
   ServerCrash,
   RotateCcw
 } from 'lucide-react'
-import { updateBasicProfile, updateEnhancedProfile, updateAccountPreferences, type BasicProfileData, type EnhancedProfileData } from '../actions'
+import { updateBasicProfile, updateEnhancedProfile, updateAccountPreferences, type BasicProfileData, type EnhancedProfileData, type SignedKind0Event } from '../actions'
 import type { AggregatedProfile } from '@/lib/profile-aggregator'
+import type { NostrEvent } from 'snstr'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
 
 interface EnhancedSettingsProps {
   session: Session
@@ -53,6 +55,22 @@ const providerLabels = {
   email: 'Email',
   current: 'Current Session',
   profile: 'Profile'
+}
+
+const fieldDescriptions = {
+  basicProfile: 'Core fields stored in our database. OAuth-first users can edit them directly.',
+  basicName: 'Displayed on your profile whenever OAuth data is authoritative.',
+  basicEmail: 'Used for login + notifications and never shown publicly.',
+  enhancedProfile: 'Nostr metadata (NIP-05, Lightning, banner) that augments your public profile.',
+  nip05: 'DNS-based identifier (user@domain.com) that maps to your Nostr public key.',
+  lud16: 'Lightning address that fans can use to send you tips.',
+  banner: 'Hero image URL rendered at the top of your profile.',
+  accountConfig: 'Tune how different providers contribute to your profile data.',
+  profileSource: 'Controls which provider wins when multiple sources provide the same field.',
+  primaryProvider: 'Determines which linked account is treated as your main authentication method.',
+  autoSync: 'When enabled, we automatically refresh data from your primary provider after each sign-in.',
+  currentConfiguration: 'Snapshot of the active provider preferences.',
+  syncOptions: 'Manually pull profile data from any linked provider on demand.'
 }
 
 // Error types for better error handling
@@ -98,6 +116,11 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
     autoSync: false
   })
 
+  const [nostrProfile, setNostrProfile] = useState<Record<string, any> | null>(null)
+  const [nostrProfileStatus, setNostrProfileStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    user.pubkey ? 'loading' : 'success'
+  )
+
   // Fetch aggregated profile data
   useEffect(() => {
     async function fetchProfile() {
@@ -135,9 +158,133 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
     fetchProfile()
   }, [user])
 
-  const isNostrFirst = aggregatedProfile?.profileSource === 'nostr' || 
-    (!aggregatedProfile?.profileSource && aggregatedProfile?.primaryProvider === 'nostr')
+  useEffect(() => {
+    if (!user.pubkey) {
+      setNostrProfileStatus('success')
+      return
+    }
+
+    let cancelled = false
+
+    async function fetchNostrMetadata() {
+      setNostrProfileStatus('loading')
+      try {
+        const response = await fetch('/api/profile/nostr')
+        if (!response.ok) {
+          throw new Error('Failed to load Nostr profile metadata')
+        }
+        const data = await response.json()
+        if (!cancelled) {
+          setNostrProfile(data?.profile || null)
+          setNostrProfileStatus('success')
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to fetch Nostr profile metadata:', error)
+          setNostrProfileStatus('error')
+        }
+      }
+    }
+
+    fetchNostrMetadata()
+    return () => {
+      cancelled = true
+    }
+  }, [user.pubkey])
+
+  const derivedNostrFirst = aggregatedProfile
+    ? aggregatedProfile.profileSource === 'nostr' ||
+      (!aggregatedProfile.profileSource && aggregatedProfile.primaryProvider === 'nostr')
+    : !user.privkey
+
+  const isNostrFirst = derivedNostrFirst
   const canEditBasic = !isNostrFirst
+  const requiresSignedEvent = !user.privkey
+
+  const normalizeField = (value: string | null | undefined) => {
+    if (value === undefined || value === null) return undefined
+    const trimmed = value.trim()
+    return trimmed.length === 0 ? null : trimmed
+  }
+
+  const buildNormalizedEnhancedProfile = (): EnhancedProfileData => ({
+    nip05: normalizeField(enhancedProfile.nip05),
+    lud16: normalizeField(enhancedProfile.lud16),
+    banner: normalizeField(enhancedProfile.banner)
+  })
+
+  const prepareSignedEvent = async (
+    normalizedData: EnhancedProfileData
+  ): Promise<SignedKind0Event> => {
+    if (!user.pubkey) {
+      throw new Error('Missing Nostr public key. Please reconnect your Nostr session.')
+    }
+
+    if (typeof window === 'undefined') {
+      throw new Error('Nostr signing is only available in the browser.')
+    }
+
+    const nostr = (window as any)?.nostr
+    if (!nostr?.signEvent) {
+      throw new Error('Connect a Nostr (NIP-07) extension to publish profile changes.')
+    }
+
+    if (nostrProfileStatus === 'loading') {
+      throw new Error('Still loading your current Nostr metadata. Please try again shortly.')
+    }
+
+    if (nostrProfileStatus === 'error' && !nostrProfile) {
+      throw new Error('Unable to load your existing Nostr metadata. Refresh and try again.')
+    }
+
+    const baseProfile: Record<string, any> =
+      nostrProfile && typeof nostrProfile === 'object' ? { ...nostrProfile } : {}
+
+    const applyField = (key: string, value: string | null | undefined) => {
+      if (value === undefined) return
+      if (value === null) {
+        delete baseProfile[key]
+      } else {
+        baseProfile[key] = value
+      }
+    }
+
+    applyField('nip05', normalizedData.nip05)
+    applyField('lud16', normalizedData.lud16)
+    applyField('banner', normalizedData.banner)
+
+    if (!baseProfile.name && user.name) {
+      baseProfile.name = user.name
+    }
+    if (!baseProfile.display_name && user.name) {
+      baseProfile.display_name = user.name
+    }
+    const fallbackImage = user.image || user.avatar
+    if (!baseProfile.picture && fallbackImage) {
+      baseProfile.picture = fallbackImage
+    }
+
+    const unsignedEvent = {
+      kind: 0,
+      tags: [],
+      content: JSON.stringify(baseProfile),
+      created_at: Math.floor(Date.now() / 1000),
+      pubkey: user.pubkey
+    }
+
+    let signed: NostrEvent
+    try {
+      signed = await nostr.signEvent(unsignedEvent)
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new Error(`Failed to sign event: ${error.message}`)
+      }
+      throw new Error('User rejected signing or signing failed')
+    }
+
+    setNostrProfile(baseProfile)
+    return signed as SignedKind0Event
+  }
 
   const handleBasicSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -162,19 +309,53 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
   const handleEnhancedSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
+    const normalizedData = buildNormalizedEnhancedProfile()
+
     startTransition(async () => {
-      try {
-        const result = await updateEnhancedProfile(enhancedProfile)
-        
-        if (result.success) {
+      let signedEvent: SignedKind0Event | undefined
+
+      if (requiresSignedEvent) {
+        try {
+          signedEvent = await prepareSignedEvent(normalizedData)
+        } catch (error) {
           setMessage({ 
-            type: result.isNostrFirst ? 'info' : 'success', 
-            text: result.message 
+            type: 'error', 
+            text: error instanceof Error ? error.message : 'Failed to sign profile update.' 
           })
-          setTimeout(() => setMessage(null), 7000)
-        } else {
-          setMessage({ type: 'error', text: result.message })
+          return
         }
+      }
+
+      try {
+        const result = await updateEnhancedProfile({
+          ...normalizedData,
+          signedEvent
+        })
+        
+        if (!result.success) {
+          setMessage({ type: 'error', text: result.message })
+          return
+        }
+
+        if (requiresSignedEvent && !result.publishedToNostr) {
+          setMessage({ 
+            type: 'error', 
+            text: 'Profile changes were not published to Nostr relays. Please retry.' 
+          })
+          return
+        }
+
+        if (result.nostrProfile) {
+          setNostrProfile(result.nostrProfile)
+        }
+
+        const messageType: 'success' | 'info' = result.publishedToNostr ? 'success' : 'info'
+        const messageText = result.publishedToNostr
+          ? result.message
+          : `${result.message || 'Enhanced profile updated locally.'} Nostr relays were not updated.`
+
+        setMessage({ type: messageType, text: messageText })
+        setTimeout(() => setMessage(null), 7000)
       } catch (error) {
         setMessage({ type: 'error', text: 'Failed to update enhanced profile' })
       }
@@ -505,8 +686,11 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
           {/* Basic Profile Form */}
           <Card className={!canEditBasic ? 'opacity-50' : ''}>
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>Basic Profile</span>
+              <CardTitle className="flex items-center justify-between gap-2">
+                <span className="flex items-center gap-2">
+                  Basic Profile
+                  <InfoTooltip content={fieldDescriptions.basicProfile} />
+                </span>
                 {aggregatedProfile?.name && (
                   <Badge variant="outline" className="text-xs">
                     From: {providerLabels[aggregatedProfile.name.source as keyof typeof providerLabels]}
@@ -521,7 +705,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
               <form onSubmit={handleBasicSubmit} className="space-y-4">
                 <div className="grid gap-2">
                   <Label htmlFor="name" className="flex items-center gap-2">
-                    Name
+                    <span className="flex items-center gap-1">
+                      Name
+                      <InfoTooltip content={fieldDescriptions.basicName} />
+                    </span>
                     {aggregatedProfile?.name && (
                       <Badge variant="secondary" className="text-xs">
                         {(() => {
@@ -542,7 +729,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
 
                 <div className="grid gap-2">
                   <Label htmlFor="email" className="flex items-center gap-2">
-                    Email
+                    <span className="flex items-center gap-1">
+                      Email
+                      <InfoTooltip content={fieldDescriptions.basicEmail} />
+                    </span>
                     {aggregatedProfile?.email && (
                       <Badge variant="secondary" className="text-xs">
                         {(() => {
@@ -582,7 +772,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
           {/* Enhanced Profile Form */}
           <Card>
             <CardHeader>
-              <CardTitle>Enhanced Profile</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Enhanced Profile
+                <InfoTooltip content={fieldDescriptions.enhancedProfile} />
+              </CardTitle>
               <CardDescription>
                 Nostr-related fields that complement your profile
               </CardDescription>
@@ -591,7 +784,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
               <form onSubmit={handleEnhancedSubmit} className="space-y-4">
                 <div className="grid gap-2">
                   <Label htmlFor="nip05" className="flex items-center gap-2">
-                    NIP-05 Address
+                    <span className="flex items-center gap-1">
+                      NIP-05 Address
+                      <InfoTooltip content={fieldDescriptions.nip05} />
+                    </span>
                     {aggregatedProfile?.nip05 && (
                       <Badge variant="secondary" className="text-xs">
                         {(() => {
@@ -611,7 +807,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
 
                 <div className="grid gap-2">
                   <Label htmlFor="lud16" className="flex items-center gap-2">
-                    Lightning Address
+                    <span className="flex items-center gap-1">
+                      Lightning Address
+                      <InfoTooltip content={fieldDescriptions.lud16} />
+                    </span>
                     {aggregatedProfile?.lud16 && (
                       <Badge variant="secondary" className="text-xs">
                         {(() => {
@@ -631,7 +830,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
 
                 <div className="grid gap-2">
                   <Label htmlFor="banner" className="flex items-center gap-2">
-                    Banner Image URL
+                    <span className="flex items-center gap-1">
+                      Banner Image URL
+                      <InfoTooltip content={fieldDescriptions.banner} />
+                    </span>
                     {aggregatedProfile?.banner && (
                       <Badge variant="secondary" className="text-xs">
                         {(() => {
@@ -673,9 +875,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center gap-2">
                 <Shield className="mr-2 h-5 w-5" />
                 Account Configuration
+                <InfoTooltip content={fieldDescriptions.accountConfig} />
               </CardTitle>
               <CardDescription>
                 Configure how your profile data is managed across providers
@@ -684,7 +887,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
             <CardContent className="space-y-6">
               {/* Profile Source Selection */}
               <div className="space-y-3">
-                <Label>Profile Source Priority</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Profile Source Priority</Label>
+                  <InfoTooltip content={fieldDescriptions.profileSource} />
+                </div>
                 <RadioGroup
                   value={accountPrefs.profileSource}
                   onValueChange={(value) => setAccountPrefs({ ...accountPrefs, profileSource: value })}
@@ -720,7 +926,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
 
               {/* Primary Provider Selection */}
               <div className="space-y-3">
-                <Label htmlFor="primary-provider">Primary Provider</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="primary-provider">Primary Provider</Label>
+                  <InfoTooltip content={fieldDescriptions.primaryProvider} />
+                </div>
                 <Select
                   value={accountPrefs.primaryProvider}
                   onValueChange={(value) => setAccountPrefs({ ...accountPrefs, primaryProvider: value })}
@@ -754,7 +963,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
                 <div className="space-y-1">
                   <Label htmlFor="auto-sync" className="flex items-center gap-2">
                     <RefreshCw className="h-4 w-4" />
-                    Auto-Sync on Sign In
+                    <span className="flex items-center gap-1">
+                      Auto-Sync on Sign In
+                      <InfoTooltip content={fieldDescriptions.autoSync} />
+                    </span>
                   </Label>
                   <p className="text-sm text-muted-foreground">
                     Automatically sync profile data from primary provider when signing in
@@ -790,7 +1002,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
           {/* Current Configuration Info */}
           <Card>
             <CardHeader>
-              <CardTitle>Current Configuration</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                Current Configuration
+                <InfoTooltip content={fieldDescriptions.currentConfiguration} />
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3">
@@ -821,9 +1036,10 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center gap-2">
                 <RefreshCw className="mr-2 h-5 w-5" />
                 Profile Sync Options
+                <InfoTooltip content={fieldDescriptions.syncOptions} />
               </CardTitle>
               <CardDescription>
                 Sync your profile data between different providers

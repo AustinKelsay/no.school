@@ -7,6 +7,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { fetchNostrProfile } from '@/lib/auth'
+import authConfig from '../../config/auth.json'
 
 export interface LinkedAccountData {
   provider: string
@@ -46,6 +47,18 @@ export interface AggregatedProfile {
   primaryProvider: string | null
   profileSource: string | null
   totalLinkedAccounts: number
+}
+
+// Anonymous accounts get generated usernames/avatars; treat them as placeholders
+const anonymousUsernamePrefix = authConfig.providers?.anonymous?.usernamePrefix || 'anon_'
+const anonymousAvatarBase = authConfig.providers?.anonymous?.defaultAvatar || ''
+
+function isAnonymousUsername(value?: string | null): boolean {
+  return !!(value && value.startsWith(anonymousUsernamePrefix))
+}
+
+function isAnonymousAvatar(value?: string | null): boolean {
+  return !!(value && anonymousAvatarBase && value.startsWith(anonymousAvatarBase))
 }
 
 /**
@@ -218,6 +231,23 @@ export async function getAggregatedProfile(userId: string): Promise<AggregatedPr
     profileSource: user.profileSource,
     totalLinkedAccounts: user.accounts.length
   }
+
+  // Allow richer data (GitHub, synced Nostr, etc.) to override generated anon defaults
+  const shouldReplaceAnonymousIdentity = (
+    existing: { value: string } | undefined,
+    incoming: string | undefined
+  ): boolean => {
+    if (!existing || !incoming) return false
+    return isAnonymousUsername(existing.value) && !isAnonymousUsername(incoming)
+  }
+
+  const shouldReplaceAnonymousAvatar = (
+    existing: { value: string } | undefined,
+    incoming: string | undefined
+  ): boolean => {
+    if (!existing || !incoming) return false
+    return isAnonymousAvatar(existing.value) && !isAnonymousAvatar(incoming)
+  }
   
   // Process each linked account
   for (const account of user.accounts) {
@@ -302,16 +332,25 @@ export async function getAggregatedProfile(userId: string): Promise<AggregatedPr
     const source = account.provider === 'current' ? 'profile' : account.provider
     
     // Only set fields if they have values and aren't already set
-    if (account.data.name && !aggregated.name) {
+    if (
+      account.data.name &&
+      (!aggregated.name || shouldReplaceAnonymousIdentity(aggregated.name, account.data.name))
+    ) {
       aggregated.name = { value: account.data.name, source }
     }
     if (account.data.email && !aggregated.email) {
       aggregated.email = { value: account.data.email, source }
     }
-    if (account.data.username && !aggregated.username) {
+    if (
+      account.data.username &&
+      (!aggregated.username || shouldReplaceAnonymousIdentity(aggregated.username, account.data.username))
+    ) {
       aggregated.username = { value: account.data.username, source }
     }
-    if (account.data.image && !aggregated.image) {
+    if (
+      account.data.image &&
+      (!aggregated.image || shouldReplaceAnonymousAvatar(aggregated.image, account.data.image))
+    ) {
       aggregated.image = { value: account.data.image, source }
     }
     if (account.data.banner && !aggregated.banner) {
@@ -357,6 +396,65 @@ export async function getAggregatedProfile(userId: string): Promise<AggregatedPr
         if (!account.alternatives) account.alternatives = {}
         account.alternatives[key] = { value, source }
       }
+    }
+  }
+
+  // Backfill placeholder DB fields once we have real data from linked providers
+  const pendingUpdates: {
+    username?: string | null
+    avatar?: string | null
+    email?: string | null
+  } = {}
+
+  const isMeaningfulUsername = (value?: string | null) =>
+    value && !isAnonymousUsername(value)
+
+  const isMeaningfulAvatar = (value?: string | null) =>
+    value && !isAnonymousAvatar(value)
+
+  const finalIdentity = (() => {
+    if (!user.username || isAnonymousUsername(user.username)) {
+      if (isMeaningfulUsername(aggregated.name?.value)) {
+        return aggregated.name!.value
+      }
+      if (isMeaningfulUsername(aggregated.username?.value)) {
+        return aggregated.username!.value
+      }
+      return user.username || null
+    }
+    return user.username
+  })()
+
+  if (
+    finalIdentity &&
+    (!user.username || isAnonymousUsername(user.username)) &&
+    !isAnonymousUsername(finalIdentity)
+  ) {
+    pendingUpdates.username = finalIdentity
+  }
+
+  const finalAvatar = aggregated.image?.value || user.avatar || null
+  if (
+    finalAvatar &&
+    (!user.avatar || isAnonymousAvatar(user.avatar)) &&
+    isMeaningfulAvatar(finalAvatar)
+  ) {
+    pendingUpdates.avatar = finalAvatar
+  }
+
+  const finalEmail = aggregated.email?.value || null
+  if (finalEmail && !user.email) {
+    pendingUpdates.email = finalEmail
+  }
+
+  if (Object.keys(pendingUpdates).length > 0) {
+    try {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: pendingUpdates
+      })
+    } catch (error) {
+      console.error('Failed to backfill placeholder profile fields:', error)
     }
   }
   

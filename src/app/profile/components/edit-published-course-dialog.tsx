@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { useRepublishCourseMutation } from '@/hooks/usePublishedContentMutations'
-import { createUnsignedCourseEvent } from '@/lib/nostr-events'
+import { createUnsignedCourseEvent, type CourseEventDraftInput } from '@/lib/nostr-events'
 
 export type CourseEditData = {
   id: string
@@ -114,14 +114,14 @@ export function EditPublishedCourseDialog({
         return false
       }
 
-      const draftLike = {
+      const draftLike: CourseEventDraftInput = {
         ...buildCoursePayload(formState, displayTopics),
         id: formState.id,
         userId: '',
       }
 
       const unsignedEvent = createUnsignedCourseEvent(
-        draftLike as any,
+        draftLike,
         formState.lessonReferences,
         pubkey
       )

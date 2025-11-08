@@ -20,8 +20,6 @@ import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { 
-  User, 
-  Mail, 
   Key, 
   Globe, 
   MapPin, 
@@ -38,6 +36,7 @@ import {
 } from 'lucide-react'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { ProfileEditForms } from './profile-edit-forms'
+import { cn } from '@/lib/utils'
 
 interface ProfileDisplayProps {
   session: Session
@@ -72,14 +71,69 @@ export function ProfileDisplay({ session }: ProfileDisplayProps) {
     return <ProfileEditForms session={session} onClose={() => setShowEditForm(false)} />
   }
 
+  const bannerImage = user.banner || null
+  const heroPanelClasses = bannerImage
+    ? 'border-white/20 bg-black/50 text-white/90 shadow-[0_8px_30px_rgba(0,0,0,0.35)] backdrop-blur'
+    : 'border-border bg-muted/60 text-foreground'
+  const heroFieldClasses = bannerImage
+    ? 'bg-white/5 text-white border-white/10'
+    : 'bg-background/60 text-foreground border-border'
+  const heroLabelClasses = bannerImage ? 'text-white/70' : 'text-muted-foreground'
+  const heroCopyButtonClasses = bannerImage ? 'text-white hover:bg-white/20' : ''
+
+  const renderHeroField = (
+    label: string,
+    value?: string | null,
+    key?: string,
+    copyValue?: string
+  ) => {
+    if (!value) return null
+    return (
+      <div className={cn('flex items-center justify-between rounded-2xl border px-4 py-3', heroFieldClasses)}>
+        <div className="space-y-1 pr-3">
+          <p className={cn('text-xs uppercase tracking-wide', heroLabelClasses)}>{label}</p>
+          <p className="text-sm font-medium break-all">{value}</p>
+        </div>
+        {key && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className={cn('h-8 w-8 rounded-full', heroCopyButtonClasses)}
+            onClick={() => copyToClipboard(copyValue ?? value, key)}
+          >
+            {copiedField === key ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          </Button>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
-      {/* Profile Header */}
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col space-y-4 sm:flex-row sm:items-start sm:justify-between sm:space-y-0">
+      {/* Profile Hero */}
+      <Card className="border-none bg-transparent shadow-none">
+        <div className="relative overflow-hidden rounded-3xl border border-border/70 bg-card/80 min-h-[220px] sm:min-h-[260px]">
+          {bannerImage && (
+            <>
+              <OptimizedImage
+                src={bannerImage}
+                alt="Profile banner artwork"
+                width={1600}
+                height={400}
+                className="absolute inset-0 h-full w-full object-cover opacity-90"
+                priority={false}
+              />
+              <div className="absolute inset-0 bg-gradient-to-b from-background/70 via-background/30 to-background/90" />
+            </>
+          )}
+          <div
+            className={cn(
+              'relative flex flex-col gap-4 px-6 py-8 sm:flex-row sm:items-center sm:justify-between',
+              bannerImage ? 'text-white drop-shadow-[0_1px_12px_rgba(0,0,0,0.55)]' : ''
+            )}
+          >
             <div className="flex items-center space-x-4">
-              <Avatar className="h-16 w-16 sm:h-20 sm:w-20">
+              <Avatar className="h-16 w-16 sm:h-20 sm:w-20 ring-2 ring-white/60">
                 <AvatarImage src={user.image || undefined} alt={user.name || 'User'} />
                 <AvatarFallback>
                   {(user.name || user.username || 'U').substring(0, 2).toUpperCase()}
@@ -94,7 +148,7 @@ export function ProfileDisplay({ session }: ProfileDisplayProps) {
                     {isNostrFirst ? '🔵 Nostr-First' : '🟠 OAuth-First'}
                   </Badge>
                   {canSignEvents && (
-                    <Badge variant="outline">
+                    <Badge variant="outline" className="bg-background/40 backdrop-blur">
                       <Zap className="mr-1 h-3 w-3" />
                       Can Sign Events
                     </Badge>
@@ -102,179 +156,80 @@ export function ProfileDisplay({ session }: ProfileDisplayProps) {
                 </div>
               </div>
             </div>
-            <Button variant="outline" onClick={() => setShowEditForm(true)}>
+            <Button
+              variant={bannerImage ? 'secondary' : 'outline'}
+              className={bannerImage ? 'bg-white/90 text-black hover:bg-white' : ''}
+              onClick={() => setShowEditForm(true)}
+            >
               <Edit className="mr-2 h-4 w-4" />
               Edit Profile
             </Button>
           </div>
-        </CardHeader>
+
+          {(user.name ||
+            user.email ||
+            (user.username && user.username !== user.name) ||
+            user.pubkey ||
+            user.nip05 ||
+            user.lud16) && (
+            <div className="mt-6 w-full space-y-3 px-6 pb-6">
+              <Separator className={bannerImage ? 'border-white/30' : ''} />
+              <div className={cn('rounded-2xl border px-4 py-4', heroPanelClasses)}>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {renderHeroField('Name', user.name, 'name')}
+                {renderHeroField('Email', user.email, 'email')}
+                {user.username && user.username !== user.name && renderHeroField('Username', user.username, 'username')}
+                {renderHeroField('Public Key', user.pubkey ? formatKey(user.pubkey) : undefined, 'pubkey', user.pubkey)}
+                {renderHeroField('NIP-05', user.nip05, 'nip05')}
+                {renderHeroField('Lightning Address', user.lud16, 'lud16')}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </Card>
 
-      {/* Banner Image */}
-      {user.banner && (
-        <Card>
-          <CardContent className="p-0">
-            <OptimizedImage
-              src={user.banner}
-              alt="Profile Banner"
-              width={800}
-              height={200}
-              className="aspect-[4/1] w-full rounded-lg object-cover"
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Basic Information */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <User className="mr-2 h-5 w-5" />
-              Basic Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {user.name && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium">Name:</span>
-                  <span className="text-muted-foreground">{user.name}</span>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => copyToClipboard(user.name!, 'name')}
-                >
-                  {copiedField === 'name' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            )}
-            
-            {user.email && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Mail className="h-4 w-4" />
-                  <span className="text-muted-foreground">{user.email}</span>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => copyToClipboard(user.email!, 'email')}
-                >
-                  {copiedField === 'email' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            )}
-
-            {user.username && user.username !== user.name && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <span className="font-medium">Username:</span>
-                  <span className="text-muted-foreground">{user.username}</span>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => copyToClipboard(user.username!, 'username')}
-                >
-                  {copiedField === 'username' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Nostr Information */}
+      {user.privkey && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center">
               <Key className="mr-2 h-5 w-5" />
-              Nostr Information
+              Private Key
             </CardTitle>
+            <CardDescription>
+              Toggle visibility to copy your locally stored key
+            </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {user.pubkey && (
+          <CardContent>
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="min-w-0 flex-1">
-                  <span className="block font-medium">Public Key</span>
-                  <code className="block text-sm text-muted-foreground font-mono break-all">
-                    {formatKey(user.pubkey)}
-                  </code>
-                </div>
+                <span className="font-medium">Key</span>
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  onClick={() => copyToClipboard(user.pubkey!, 'pubkey')}
+                  onClick={() => setShowPrivateKey(!showPrivateKey)}
                 >
-                  {copiedField === 'pubkey' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  {showPrivateKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-            )}
-
-            {user.nip05 && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Shield className="h-4 w-4" />
-                  <span className="text-muted-foreground">{user.nip05}</span>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => copyToClipboard(user.nip05!, 'nip05')}
-                >
-                  {copiedField === 'nip05' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            )}
-
-            {user.lud16 && (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Zap className="h-4 w-4 text-orange-500" />
-                  <span className="text-muted-foreground">{user.lud16}</span>
-                </div>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={() => copyToClipboard(user.lud16!, 'lud16')}
-                >
-                  {copiedField === 'lud16' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            )}
-
-            {user.privkey && (
-              <div className="space-y-2">
+              {showPrivateKey && (
                 <div className="flex items-center justify-between">
-                  <span className="font-medium">Private Key</span>
+                  <code className="text-sm text-muted-foreground font-mono break-all">
+                    {formatKey(user.privkey)}
+                  </code>
                   <Button 
                     variant="ghost" 
                     size="sm"
-                    onClick={() => setShowPrivateKey(!showPrivateKey)}
+                    onClick={() => copyToClipboard(user.privkey!, 'privkey')}
                   >
-                    {showPrivateKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    {copiedField === 'privkey' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
-                {showPrivateKey && (
-                  <div className="flex items-center justify-between">
-                    <code className="text-sm text-muted-foreground font-mono break-all">
-                      {formatKey(user.privkey)}
-                    </code>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      onClick={() => copyToClipboard(user.privkey!, 'privkey')}
-                    >
-                      {copiedField === 'privkey' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
+              )}
+            </div>
           </CardContent>
         </Card>
-      </div>
+      )}
 
       {/* Complete Nostr Profile */}
       {hasCompleteProfile && user.nostrProfile && (
