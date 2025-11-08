@@ -139,7 +139,7 @@ export function LinkedAccountsManager() {
       // Clean up URL params
       window.history.replaceState({}, '', '/profile?tab=accounts')
     }
-  }, [searchParams, toast, updateSession]) // eslint-disable-line react-hooks-exhaustive-deps
+  }, [searchParams, toast, updateSession]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Unlink account
   const handleUnlink = async (provider: string) => {

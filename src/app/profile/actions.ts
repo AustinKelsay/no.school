@@ -181,15 +181,15 @@ export async function updateEnhancedProfile(
     }
 
     if (profilePayload.nip05 !== undefined && profilePayload.nip05 !== currentValues.nip05) {
-      updates.nip05 = profilePayload.nip05
+      updates.nip05 = (profilePayload.nip05 as string | null) ?? null
     }
 
     if (profilePayload.lud16 !== undefined && profilePayload.lud16 !== currentValues.lud16) {
-      updates.lud16 = profilePayload.lud16
+      updates.lud16 = (profilePayload.lud16 as string | null) ?? null
     }
 
     if (profilePayload.banner !== undefined && profilePayload.banner !== currentValues.banner) {
-      updates.banner = profilePayload.banner
+      updates.banner = (profilePayload.banner as string | null) ?? null
     }
 
     if (Object.keys(updates).length === 0) {

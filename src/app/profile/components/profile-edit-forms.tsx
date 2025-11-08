@@ -227,7 +227,7 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
                 <Label htmlFor="nip05">NIP-05 Address</Label>
                 <Input
                   id="nip05"
-                  value={enhancedProfile.nip05}
+                  value={enhancedProfile.nip05 as string}
                   onChange={(e) => setEnhancedProfile({ ...enhancedProfile, nip05: e.target.value })}
                   placeholder="user@domain.com"
                 />
@@ -240,7 +240,7 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
                 <Label htmlFor="lud16">Lightning Address</Label>
                 <Input
                   id="lud16"
-                  value={enhancedProfile.lud16}
+                  value={enhancedProfile.lud16 as string}
                   onChange={(e) => setEnhancedProfile({ ...enhancedProfile, lud16: e.target.value })}
                   placeholder="user@wallet.com"
                 />
@@ -253,7 +253,7 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
                 <Label htmlFor="banner">Banner Image URL</Label>
                 <Input
                   id="banner"
-                  value={enhancedProfile.banner}
+                  value={enhancedProfile.banner as string}
                   onChange={(e) => setEnhancedProfile({ ...enhancedProfile, banner: e.target.value })}
                   placeholder="https://example.com/banner.jpg"
                 />

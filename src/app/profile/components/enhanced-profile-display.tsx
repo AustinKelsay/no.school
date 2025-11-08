@@ -265,6 +265,21 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
     </div>
   )
 
+  const usernameValue = profile.username?.value
+  const nameValue = profile.name?.value
+  const shouldRenderUsernameField =
+    Boolean(usernameValue) && (!nameValue || usernameValue !== nameValue)
+  const shouldShowHeroDetails = Boolean(
+    profile.name ||
+    profile.email ||
+    shouldRenderUsernameField ||
+    profile.location ||
+    profile.company ||
+    profile.pubkey ||
+    profile.nip05 ||
+    profile.lud16
+  )
+
   return (
     <div className="space-y-6">
       {/* Error State */}
@@ -350,21 +365,16 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
             </Button>
           </div>
 
-          {(profile.name ||
-            profile.email ||
-            (profile.username && profile.username.value !== profile.name?.value) ||
-            profile.location ||
-            profile.company ||
-            profile.pubkey ||
-            profile.nip05 ||
-            profile.lud16) && (
+          {shouldShowHeroDetails && (
             <div className="mt-6 w-full space-y-3 px-6 pb-6">
               <Separator className={bannerImage ? 'border-white/30' : ''} />
               <div className={cn('rounded-2xl border px-4 py-4', heroPanelClasses)}>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {renderHeroField('Name', profile.name?.value, 'name', profile.name?.value, profile.name?.source)}
                   {renderHeroField('Email', profile.email?.value, 'email', profile.email?.value, profile.email?.source)}
-                  {profile.username && profile.username.value !== profile.name?.value && renderHeroField('Username', profile.username.value, 'username', profile.username.value, profile.username.source)}
+                  {shouldRenderUsernameField &&
+                    profile.username &&
+                    renderHeroField('Username', usernameValue, 'username', usernameValue, profile.username.source)}
                   {renderHeroField('Location', profile.location?.value, undefined, undefined, profile.location?.source)}
                   {renderHeroField('Company', profile.company?.value, undefined, undefined, profile.company?.source)}
                   {renderHeroField('Public Key', profile.pubkey ? formatKey(profile.pubkey.value) : undefined, 'pubkey', profile.pubkey?.value, profile.pubkey?.source)}
@@ -401,10 +411,10 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
                   {showPrivateKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-              {showPrivateKey && (
+              {user.privkey ? (
                 <div className="flex items-center justify-between">
                   <code className="text-sm text-muted-foreground font-mono break-all">
-                    {formatKey(user.privkey)}
+                    {showPrivateKey ? user.privkey : formatKey(user.privkey)}
                   </code>
                   <Button 
                     variant="ghost" 
@@ -414,6 +424,8 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
                     {copiedField === 'privkey' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>
                 </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No private key available</p>
               )}
             </div>
           </CardContent>

@@ -208,9 +208,9 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
   }
 
   const buildNormalizedEnhancedProfile = (): EnhancedProfileData => ({
-    nip05: normalizeField(enhancedProfile.nip05),
-    lud16: normalizeField(enhancedProfile.lud16),
-    banner: normalizeField(enhancedProfile.banner)
+    nip05: normalizeField(enhancedProfile.nip05 as string | null | undefined),
+    lud16: normalizeField(enhancedProfile.lud16 as string | null | undefined),
+    banner: normalizeField(enhancedProfile.banner as string | null | undefined)
   })
 
   const prepareSignedEvent = async (
@@ -249,9 +249,9 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
       }
     }
 
-    applyField('nip05', normalizedData.nip05)
-    applyField('lud16', normalizedData.lud16)
-    applyField('banner', normalizedData.banner)
+    applyField('nip05', normalizedData.nip05 as string | null | undefined)
+    applyField('lud16', normalizedData.lud16 as string | null | undefined)
+    applyField('banner', normalizedData.banner as string | null | undefined)
 
     if (!baseProfile.name && user.name) {
       baseProfile.name = user.name
@@ -799,7 +799,7 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
                   </Label>
                   <Input
                     id="nip05"
-                    value={enhancedProfile.nip05}
+                    value={enhancedProfile.nip05 as string}
                     onChange={(e) => setEnhancedProfile({ ...enhancedProfile, nip05: e.target.value })}
                     placeholder="user@domain.com"
                   />
@@ -822,7 +822,7 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
                   </Label>
                   <Input
                     id="lud16"
-                    value={enhancedProfile.lud16}
+                    value={enhancedProfile.lud16 as string}
                     onChange={(e) => setEnhancedProfile({ ...enhancedProfile, lud16: e.target.value })}
                     placeholder="user@wallet.com"
                   />
@@ -845,7 +845,7 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
                   </Label>
                   <Input
                     id="banner"
-                    value={enhancedProfile.banner}
+                    value={enhancedProfile.banner as string}
                     onChange={(e) => setEnhancedProfile({ ...enhancedProfile, banner: e.target.value })}
                     placeholder="https://example.com/banner.jpg"
                   />

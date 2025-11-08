@@ -13,13 +13,13 @@ interface InfoTooltipProps {
   iconClassName?: string
 }
 
-export function InfoTooltip({
+export const InfoTooltip = ({
   content,
   side = "top",
   align = "center",
   className,
   iconClassName
-}: InfoTooltipProps) {
+}: InfoTooltipProps) => {
   const handleClick = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
   }
