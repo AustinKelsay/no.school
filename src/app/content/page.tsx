@@ -26,20 +26,24 @@ import {
 import { useCopy, getCopy } from "@/lib/copy"
 import { NostrFetchService } from "@/lib/nostr-fetch-service"
 import { getNoteImage } from "@/lib/note-image"
-import { Prefix, type NostrEvent } from "snstr"
+import { Prefix, type NostrEvent, type RelayPool } from "snstr"
 import { isNip19String, tryDecodeNip19Entity } from "@/lib/nip19-utils"
+import { getRelays } from "@/lib/nostr-relays"
 
 const HEX_EVENT_ID_REGEX = /^[0-9a-f]{64}$/i
 
-async function fetchEventForIdentifier(identifier: string): Promise<NostrEvent | null> {
+async function fetchEventForIdentifier(
+  identifier: string,
+  relayPool?: RelayPool
+): Promise<NostrEvent | null> {
   const trimmed = identifier?.trim()
   if (!trimmed) return null
 
   const fetchById = async (eventId: string, relays?: string[]) => {
     if (relays && relays.length > 0) {
-      return (await NostrFetchService.fetchEventById(eventId, undefined, relays)) ?? null
+      return (await NostrFetchService.fetchEventById(eventId, relayPool, relays)) ?? null
     }
-    return (await NostrFetchService.fetchEventById(eventId)) ?? null
+    return (await NostrFetchService.fetchEventById(eventId, relayPool)) ?? null
   }
 
   if (HEX_EVENT_ID_REGEX.test(trimmed)) {
@@ -67,13 +71,14 @@ async function fetchEventForIdentifier(identifier: string): Promise<NostrEvent |
             [dTag],
             [kind],
             pubkey,
-            undefined,
+            relayPool,
             relays
           )
         : await NostrFetchService.fetchEventsByDTags(
             [dTag],
             [kind],
-            pubkey
+            pubkey,
+            relayPool
           )
       return events.get(dTag) ?? null
     }
@@ -126,11 +131,16 @@ export default function ContentPage() {
 
     const fetchImages = async () => {
       let results: Array<{ noteId: string; image?: string; hasEvent: boolean }> = []
+      let relayPoolInstance: RelayPool | null = null
+
       try {
+        const { RelayPool: SnstrRelayPool } = await import('snstr')
+        relayPoolInstance = new SnstrRelayPool(getRelays('default'))
+
         results = await Promise.all(
           noteIdsToFetch.map(async (noteId) => {
             try {
-              const event = await fetchEventForIdentifier(noteId)
+              const event = await fetchEventForIdentifier(noteId, relayPoolInstance ?? undefined)
               const image = getNoteImage(event ?? undefined)
               return { noteId, image, hasEvent: Boolean(event) }
             } catch (error) {
@@ -164,6 +174,9 @@ export default function ContentPage() {
         results.forEach(({ noteId }) => {
           inFlightNoteIds.current.delete(noteId)
         })
+        if (relayPoolInstance) {
+          relayPoolInstance.close()
+        }
       }
     }
 

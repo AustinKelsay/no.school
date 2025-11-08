@@ -103,7 +103,7 @@ export default function CreateCourseDraftForm() {
 
     return {
       id: lesson.id,
-      type: lesson.resourceId ? 'resource' : 'draft',
+      type: (lesson.resourceId ?? lesson.resource?.id) ? 'resource' : 'draft',
       resourceId: lesson.resourceId ?? lesson.resource?.id ?? undefined,
       draftId: lesson.draftId ?? lesson.draft?.id ?? undefined,
       title:

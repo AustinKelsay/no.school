@@ -60,7 +60,7 @@ function resolveVideoPlaybackUrl(
 
 function formatNpubWithEllipsis(pubkey: string): string {
   try {
-    const npub = encodePublicKey(pubkey as `${string}1${string}`)
+    const npub = encodePublicKey(pubkey)
     return `${npub.slice(0, 12)}...${npub.slice(-6)}`
   } catch {
     return `${pubkey.slice(0, 6)}...${pubkey.slice(-6)}`

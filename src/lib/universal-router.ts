@@ -109,7 +109,6 @@ export function resolveUniversalId(id: string): UniversalIdResult | null {
 
     if (decoded) {
       if (decoded.type === Prefix.PrivateKey) {
-        console.warn('Ignored unsupported nsec identifier in resolveUniversalId')
         return null
       }
 

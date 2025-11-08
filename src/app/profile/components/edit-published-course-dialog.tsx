@@ -1,6 +1,8 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { Loader2, Plus, X } from 'lucide-react'
+import { hasNip07Support, type NostrEvent } from 'snstr'
 import {
   Dialog,
   DialogContent,
@@ -15,10 +17,8 @@ import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Plus, X } from 'lucide-react'
 import { useRepublishCourseMutation } from '@/hooks/usePublishedContentMutations'
 import { createUnsignedCourseEvent } from '@/lib/nostr-events'
-import { hasNip07Support, type NostrEvent } from 'snstr'
 
 export type CourseEditData = {
   id: string

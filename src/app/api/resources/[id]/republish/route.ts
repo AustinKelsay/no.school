@@ -10,8 +10,8 @@ const paramsSchema = z.object({
 
 const republishSchema = z
   .object({
-    title: z.string().min(1, 'Title is required'),
-    summary: z.string().min(1, 'Summary is required'),
+    title: z.string().trim().min(1, 'Title is required'),
+    summary: z.string().trim().min(1, 'Summary is required'),
     content: z.string().default(''),
     price: z.number().int().min(0).default(0),
     image: z.string().url().optional().or(z.literal('')).transform(value => {

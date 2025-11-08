@@ -2,6 +2,19 @@
 
 import React, { useMemo, useState } from 'react'
 import Link from 'next/link'
+import {
+  BookOpen,
+  ExternalLink,
+  FileText,
+  Filter,
+  Edit,
+  Loader2,
+  RefreshCw,
+  Search,
+  Trash2,
+  Video as VideoIcon,
+} from 'lucide-react'
+import type { NostrEvent } from 'snstr'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -9,10 +22,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Separator } from '@/components/ui/separator'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { OptimizedImage } from '@/components/ui/optimized-image'
 import { usePublishedContentQuery } from '@/hooks/usePublishedContentQuery'
 import { useResourceNotes } from '@/hooks/useResourceNotes'
 import { useCourseNotes } from '@/hooks/useCourseNotes'
-import { OptimizedImage } from '@/components/ui/optimized-image'
+import { useDeleteResourceMutation, useDeleteCourseMutation } from '@/hooks/usePublishedContentMutations'
 import {
   parseEvent,
   parseCourseEvent,
@@ -26,24 +41,9 @@ import {
 import DraftsClient from '@/app/drafts/drafts-client'
 import { getNoteImage } from '@/lib/note-image'
 import { formatNoteIdentifier } from '@/lib/note-identifiers'
-import {
-  BookOpen,
-  ExternalLink,
-  FileText,
-  Filter,
-  Edit,
-  Loader2,
-  RefreshCw,
-  Search,
-  Trash2,
-  Video as VideoIcon,
-} from 'lucide-react'
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog'
+import { extractVideoBodyMarkdown } from '@/lib/content-utils'
 import { EditPublishedResourceDialog, type ResourceEditData } from './edit-published-resource-dialog'
 import { EditPublishedCourseDialog, type CourseEditData } from './edit-published-course-dialog'
-import { useDeleteResourceMutation, useDeleteCourseMutation } from '@/hooks/usePublishedContentMutations'
-import { extractVideoBodyMarkdown } from '@/lib/content-utils'
-import type { NostrEvent } from 'snstr'
 
 type PublishedItemType = 'course' | 'video' | 'document'
 
