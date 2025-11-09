@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { getRelays } from '@/lib/nostr-relays'
+import { getRelays, type RelaySet } from '@/lib/nostr-relays'
 import {
   createCourseEvent,
   createResourceEvent,
@@ -11,8 +11,6 @@ import {
 import { parseCourseEvent, parseEvent } from '@/data/types'
 import type { Course, Resource } from '@prisma/client'
 import { RelayPool, type NostrEvent } from 'snstr'
-
-type RelaySet = 'default' | 'content' | 'profile' | 'zapThreads'
 
 export class RepublishError extends Error {
   constructor(

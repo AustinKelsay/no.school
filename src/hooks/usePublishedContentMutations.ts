@@ -54,13 +54,31 @@ async function republishResource({ id, data }: RepublishResourcePayload) {
     const message =
       typeof errorBody.error === 'string' ? errorBody.error : 'Failed to republish resource'
     const error = new Error(message) as Error & { code?: string }
-    if (typeof errorBody.code === 'string') {
-      error.code = errorBody.code
+    // Extract error code from nested path or direct property, matching delete mutations
+    const extractedCode = errorBody.error?.code ?? errorBody.code
+    if (typeof extractedCode === 'string') {
+      error.code = extractedCode
     }
     throw error
   }
 
-  return response.json()
+  // Check for empty/no-content responses before parsing JSON (mirroring delete handlers)
+  if (
+    response.status === 204 ||
+    response.headers.get('Content-Length') === '0' ||
+    !response.headers.get('Content-Type')?.includes('application/json')
+  ) {
+    return null
+  }
+
+  // Check if response body is empty by reading text first
+  const text = await response.text()
+  if (!text || text.trim() === '') {
+    return null
+  }
+
+  // Parse JSON from the text content
+  return JSON.parse(text)
 }
 
 async function republishCourse({ id, data }: RepublishCoursePayload) {
@@ -75,13 +93,31 @@ async function republishCourse({ id, data }: RepublishCoursePayload) {
     const message =
       typeof errorBody.error === 'string' ? errorBody.error : 'Failed to republish course'
     const error = new Error(message) as Error & { code?: string }
-    if (typeof errorBody.code === 'string') {
-      error.code = errorBody.code
+    // Extract error code from nested path or direct property, matching delete mutations
+    const extractedCode = errorBody.error?.code ?? errorBody.code
+    if (typeof extractedCode === 'string') {
+      error.code = extractedCode
     }
     throw error
   }
 
-  return response.json()
+  // Check for empty/no-content responses before parsing JSON (mirroring delete handlers)
+  if (
+    response.status === 204 ||
+    response.headers.get('Content-Length') === '0' ||
+    !response.headers.get('Content-Type')?.includes('application/json')
+  ) {
+    return null
+  }
+
+  // Check if response body is empty by reading text first
+  const text = await response.text()
+  if (!text || text.trim() === '') {
+    return null
+  }
+
+  // Parse JSON from the text content
+  return JSON.parse(text)
 }
 
 async function deleteResource({ id }: DeletePayload) {

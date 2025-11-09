@@ -624,24 +624,29 @@ export const authOptions: NextAuthOptions = {
         if (!token.userId) {
           return
         }
-        const dbUser = await prisma.user.findUnique({
-          where: { id: token.userId as string },
-          select: {
-            username: true,
-            avatar: true,
-            email: true,
-            nip05: true,
-            lud16: true,
-            banner: true,
-          },
-        })
-        if (dbUser) {
-          token.username = dbUser.username ?? undefined
-          token.avatar = dbUser.avatar ?? undefined
-          token.email = dbUser.email ?? undefined
-          token.nip05 = dbUser.nip05 ?? undefined
-          token.lud16 = dbUser.lud16 ?? undefined
-          token.banner = dbUser.banner ?? undefined
+        try {
+          const dbUser = await prisma.user.findUnique({
+            where: { id: token.userId as string },
+            select: {
+              username: true,
+              avatar: true,
+              email: true,
+              nip05: true,
+              lud16: true,
+              banner: true,
+            },
+          })
+          if (dbUser) {
+            token.username = dbUser.username ?? undefined
+            token.avatar = dbUser.avatar ?? undefined
+            token.email = dbUser.email ?? undefined
+            token.nip05 = dbUser.nip05 ?? undefined
+            token.lud16 = dbUser.lud16 ?? undefined
+            token.banner = dbUser.banner ?? undefined
+          }
+        } catch (error) {
+          console.error('Failed to refresh user data from database in JWT callback:', error)
+          // Silently return without modifying token to allow JWT callback to continue
         }
       }
 
