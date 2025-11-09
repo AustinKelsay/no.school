@@ -199,7 +199,7 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
 
   const isNostrFirst = derivedNostrFirst
   const canEditBasic = !isNostrFirst
-  const requiresSignedEvent = !user.privkey
+  const requiresSignedEvent = !!user.pubkey && !user.privkey
 
   const normalizeField = (value: string | null | undefined) => {
     if (value === undefined || value === null) return undefined

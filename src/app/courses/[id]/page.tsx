@@ -158,11 +158,12 @@ function CoursePageContent({ courseId }: { courseId: string }) {
   )
 
   // Get real interaction data if course has a Nostr event - call hook unconditionally at top level
+  const noteId = courseData?.note?.id
   const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
-    eventId: courseData?.note?.id,
+    eventId: noteId,
     realtime: false,
     staleTime: 5 * 60 * 1000,
-    enabled: !!resolvedCourseId
+    enabled: Boolean(noteId)
   })
 
   const loading = courseLoading || lessonsLoading

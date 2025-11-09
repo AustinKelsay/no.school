@@ -102,6 +102,14 @@ async function deleteResource({ id }: DeletePayload) {
     throw error
   }
 
+  if (
+    response.status === 204 ||
+    response.headers.get('Content-Length') === '0' ||
+    !response.headers.get('Content-Type')?.includes('application/json')
+  ) {
+    return null
+  }
+
   return response.json()
 }
 
@@ -121,6 +129,14 @@ async function deleteCourse({ id }: DeletePayload) {
       error.code = extractedCode
     }
     throw error
+  }
+
+  if (
+    response.status === 204 ||
+    response.headers.get('Content-Length') === '0' ||
+    !response.headers.get('Content-Type')?.includes('application/json')
+  ) {
+    return null
   }
 
   return response.json()

@@ -636,18 +636,12 @@ export const authOptions: NextAuthOptions = {
           },
         })
         if (dbUser) {
-          if (dbUser.username) {
-            token.username = dbUser.username
-          }
-          if (dbUser.avatar) {
-            token.avatar = dbUser.avatar
-          }
-          if (dbUser.email) {
-            token.email = dbUser.email
-          }
-          token.nip05 = dbUser.nip05 ?? token.nip05
-          token.lud16 = dbUser.lud16 ?? token.lud16
-          token.banner = dbUser.banner ?? token.banner
+          token.username = dbUser.username ?? undefined
+          token.avatar = dbUser.avatar ?? undefined
+          token.email = dbUser.email ?? undefined
+          token.nip05 = dbUser.nip05 ?? undefined
+          token.lud16 = dbUser.lud16 ?? undefined
+          token.banner = dbUser.banner ?? undefined
         }
       }
 
@@ -692,12 +686,12 @@ export const authOptions: NextAuthOptions = {
             }
           })
           token.privkey = dbUser?.privkey || undefined
-          // Update token with latest database values
-          if (dbUser?.username) token.username = dbUser.username
-          if (dbUser?.avatar) token.avatar = dbUser.avatar
-          token.nip05 = dbUser?.nip05 || undefined
-          token.lud16 = dbUser?.lud16 || undefined
-          token.banner = dbUser?.banner || undefined
+          // Update token with latest database values (null/undefined overwrites token)
+          token.username = dbUser?.username ?? undefined
+          token.avatar = dbUser?.avatar ?? undefined
+          token.nip05 = dbUser?.nip05 ?? undefined
+          token.lud16 = dbUser?.lud16 ?? undefined
+          token.banner = dbUser?.banner ?? undefined
           
           // Debug info for ephemeral keypair handling (development only)
           if (process.env.NODE_ENV === 'development') {

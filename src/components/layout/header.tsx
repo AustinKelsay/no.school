@@ -149,6 +149,11 @@ export function Header() {
         if (typeof window !== "undefined") {
           window.localStorage.setItem(AVATAR_STORAGE_KEY, data.image.value as string)
         }
+      } else {
+        setAvatarUrl(undefined)
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(AVATAR_STORAGE_KEY)
+        }
       }
 
       const aggregatedName = data?.name?.value || data?.username?.value
@@ -156,6 +161,11 @@ export function Header() {
         setDisplayName(aggregatedName as string)
         if (typeof window !== "undefined") {
           window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, aggregatedName as string)
+        }
+      } else {
+        setDisplayName(undefined)
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY)
         }
       }
     } catch (error) {

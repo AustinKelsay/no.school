@@ -325,21 +325,32 @@ export class RepublishService {
     const { signedEvent, privkey, relays, relaySet, ...payload } = options
     const selectedRelays = relays && relays.length > 0 ? relays : getRelays(relaySet ?? 'default')
 
-    const lessonReferences = course.lessons
-      .map(lesson => {
-        if (!lesson.resourceId || !lesson.resource?.user?.pubkey) {
-          return null
-        }
-        return {
-          resourceId: lesson.resourceId,
-          pubkey: lesson.resource.user.pubkey,
-        }
-      })
-      .filter(Boolean) as Array<{ resourceId: string; pubkey: string }>
+    const missingLessonIds: string[] = []
+    const lessonReferences: Array<{ resourceId: string; pubkey: string }> = []
 
-    if (lessonReferences.length === 0) {
+    for (const lesson of course.lessons) {
+      if (!lesson.resourceId) {
+        missingLessonIds.push(lesson.id)
+        continue
+      }
+
+      const lessonPubkey = lesson.resource?.user?.pubkey
+      if (!lessonPubkey) {
+        missingLessonIds.push(lesson.id)
+        continue
+      }
+
+      lessonReferences.push({
+        resourceId: lesson.resourceId,
+        pubkey: lessonPubkey,
+      })
+    }
+
+    if (missingLessonIds.length > 0 || lessonReferences.length === 0) {
       throw new RepublishError(
-        'Course must reference at least one published lesson',
+        missingLessonIds.length > 0
+          ? `Course contains ${missingLessonIds.length} lesson(s) missing resources or publisher pubkeys`
+          : 'Course must reference at least one published lesson',
         'MISSING_LESSONS'
       )
     }
