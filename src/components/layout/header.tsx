@@ -26,10 +26,15 @@ import { shouldShowThemeSelector, shouldShowFontToggle, shouldShowThemeToggle } 
 import { useTheme } from "next-themes"
 import { useThemeColor } from "@/contexts/theme-context"
 import { availableFonts, ThemeName } from "@/lib/theme-config"
-import { useRouter, useSearchParams } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useSession, signOut } from "next-auth/react"
 import { useAdminInfo } from "@/hooks/useAdmin"
+import { PROFILE_UPDATED_EVENT, type ProfileUpdatedDetail } from "@/lib/profile-events"
+import { isAnonymousAvatar, isAnonymousUsername } from "@/lib/anonymous-identity"
+
+const AVATAR_STORAGE_KEY = "ns.header.avatar"
+const DISPLAY_NAME_STORAGE_KEY = "ns.header.display-name"
 
 /**
  * Header component for the main navigation
@@ -41,19 +46,46 @@ export function Header() {
   const { theme, setTheme, resolvedTheme } = useTheme()
   const { fontOverride, setFontOverride, themeConfig, currentTheme, setCurrentTheme, availableThemes } = useThemeColor()
   const router = useRouter()
-  const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState("")
   const { data: session } = useSession()
   const { adminInfo } = useAdminInfo()
-  const linkingSuccess = searchParams?.get("success")
-  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(session?.user?.image || undefined)
-  const [displayName, setDisplayName] = useState<string | undefined>(
-    session?.user?.name || session?.user?.username || undefined
+  const isMountedRef = useRef(true)
+
+  const readFromStorage = (key: string, fallback?: string) => {
+    if (typeof window === "undefined") {
+      return fallback
+    }
+    try {
+      return window.localStorage.getItem(key) || fallback
+    } catch {
+      return fallback
+    }
+  }
+
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(() =>
+    readFromStorage(AVATAR_STORAGE_KEY, session?.user?.image || undefined)
+  )
+  const [displayName, setDisplayName] = useState<string | undefined>(() =>
+    readFromStorage(
+      DISPLAY_NAME_STORAGE_KEY,
+      session?.user?.name || session?.user?.username || undefined
+    )
   )
   const canCreateContent =
     Boolean(adminInfo?.isAdmin) ||
     Boolean(adminInfo?.permissions?.createCourse) ||
     Boolean(adminInfo?.permissions?.createResource)
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  const isMeaningfulName = (value?: string | null) =>
+    Boolean(value && !isAnonymousUsername(value))
+  const isMeaningfulAvatarUrl = (value?: string | null) =>
+    Boolean(value && !isAnonymousAvatar(value))
 
   useEffect(() => {
     if (!session?.user) {
@@ -62,35 +94,105 @@ export function Header() {
       return
     }
 
-    let isActive = true
-
-    const loadProfile = async () => {
-      // Always show whatever the session currently has while we fetch fresher data
-      setAvatarUrl(session.user.image || undefined)
-      setDisplayName(session.user.name || session.user.username || undefined)
-
-      try {
-        const response = await fetch("/api/profile/aggregated", { cache: "no-store" })
-        if (!response.ok) return
-        const data = await response.json()
-        if (!isActive) return
-        if (data?.image?.value) {
-          setAvatarUrl(data.image.value as string)
+    const nextAvatar = session.user.image || undefined
+    if (nextAvatar) {
+      const nextMeaningful = isMeaningfulAvatarUrl(nextAvatar)
+      const currentMeaningful = isMeaningfulAvatarUrl(avatarUrl)
+      if (nextMeaningful || !currentMeaningful) {
+        setAvatarUrl(nextAvatar)
+        try {
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(AVATAR_STORAGE_KEY, nextAvatar)
+          }
+        } catch (error) {
+          console.warn("Failed to persist avatar to storage:", error)
         }
-        if (data?.name?.value) {
-          setDisplayName(data.name.value as string)
-        }
-      } catch (error) {
-        console.error("Failed to load aggregated profile for header avatar", error)
       }
     }
 
-    loadProfile()
-
-    return () => {
-      isActive = false
+    const nextDisplayName = session.user.name || session.user.username || undefined
+    if (nextDisplayName) {
+      const nextMeaningful = isMeaningfulName(nextDisplayName)
+      const currentMeaningful = isMeaningfulName(displayName)
+      if (nextMeaningful || !currentMeaningful) {
+        setDisplayName(nextDisplayName)
+        try {
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, nextDisplayName)
+          }
+        } catch (error) {
+          console.warn("Failed to persist display name to storage:", error)
+        }
+      }
     }
-  }, [session?.user?.id, session?.user?.image, session?.user?.name, session?.user?.username, linkingSuccess])
+  }, [
+    avatarUrl,
+    displayName,
+    session?.user?.id,
+    session?.user?.image,
+    session?.user?.name,
+    session?.user?.username
+  ])
+
+  const loadAggregatedProfile = useCallback(async () => {
+    if (!session?.user?.id) {
+      return
+    }
+    try {
+      const response = await fetch("/api/profile/aggregated", { cache: "no-store" })
+      if (!response.ok) return
+      const data = await response.json()
+      if (!isMountedRef.current) return
+
+      if (data?.image?.value) {
+        setAvatarUrl(data.image.value as string)
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(AVATAR_STORAGE_KEY, data.image.value as string)
+        }
+      }
+
+      const aggregatedName = data?.name?.value || data?.username?.value
+      if (aggregatedName) {
+        setDisplayName(aggregatedName as string)
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, aggregatedName as string)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to refresh aggregated profile for header", error)
+    }
+  }, [session?.user?.id])
+
+  useEffect(() => {
+    loadAggregatedProfile()
+  }, [loadAggregatedProfile])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<ProfileUpdatedDetail>).detail
+      if (detail?.image) {
+        setAvatarUrl(detail.image)
+        try {
+          window.localStorage.setItem(AVATAR_STORAGE_KEY, detail.image)
+        } catch {}
+      }
+      const nextName = detail?.name || detail?.username
+      if (nextName) {
+        setDisplayName(nextName)
+        try {
+          window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, nextName)
+        } catch {}
+      }
+      loadAggregatedProfile()
+    }
+    window.addEventListener(PROFILE_UPDATED_EVENT, handler)
+    return () => {
+      window.removeEventListener(PROFILE_UPDATED_EVENT, handler)
+    }
+  }, [loadAggregatedProfile])
 
   function handleThemeSelect(themeName: ThemeName) {
     setCurrentTheme(themeName)

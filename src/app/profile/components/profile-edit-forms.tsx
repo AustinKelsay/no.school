@@ -13,7 +13,7 @@
  * - Default shadcn component spacing and typography
  */
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import { Session } from 'next-auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,7 @@ import {
   X
 } from 'lucide-react'
 import { updateBasicProfile, updateEnhancedProfile, type BasicProfileData, type EnhancedProfileData } from '../actions'
+import { dispatchProfileUpdatedEvent } from '@/lib/profile-events'
 
 interface ProfileEditFormsProps {
   session: Session
@@ -46,6 +47,52 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
     name: user.name || '',
     email: user.email || ''
   })
+  const [basicProfileDirty, setBasicProfileDirty] = useState(false)
+  const basicProfileDirtyRef = useRef(basicProfileDirty)
+  useEffect(() => {
+    basicProfileDirtyRef.current = basicProfileDirty
+  }, [basicProfileDirty])
+
+  useEffect(() => {
+    let isMounted = true
+    const refreshProfileDefaults = async () => {
+      try {
+        const response = await fetch('/api/profile/aggregated', { cache: 'no-store' })
+        if (!response.ok) {
+          return
+        }
+        const data = await response.json()
+        if (!isMounted || !data) {
+          return
+        }
+
+        setBasicProfile(prev => {
+          if (basicProfileDirtyRef.current) {
+            return prev
+          }
+          let changed = false
+          const next = { ...prev }
+          if (data.name?.value && data.name.value !== prev.name) {
+            next.name = data.name.value
+            changed = true
+          }
+          if (data.email?.value && data.email.value !== prev.email) {
+            next.email = data.email.value
+            changed = true
+          }
+          return changed ? next : prev
+        })
+      } catch (error) {
+        console.error('Failed to refresh basic profile defaults:', error)
+      }
+    }
+
+    refreshProfileDefaults()
+
+    return () => {
+      isMounted = false
+    }
+  }, [session.user.id])
 
   // Enhanced profile form state (all users)
   const [enhancedProfile, setEnhancedProfile] = useState<EnhancedProfileData>({
@@ -53,6 +100,21 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
     lud16: user.lud16 || '',
     banner: user.banner || ''
   })
+
+  const broadcastProfileRefresh = useCallback(async () => {
+    try {
+      const response = await fetch('/api/profile/aggregated', { cache: 'no-store' })
+      if (!response.ok) return
+      const data = await response.json()
+      dispatchProfileUpdatedEvent({
+        name: data?.name?.value ?? null,
+        username: data?.username?.value ?? null,
+        image: data?.image?.value ?? null
+      })
+    } catch (error) {
+      console.error('Failed to broadcast profile update', error)
+    }
+  }, [])
 
   const isNostrFirst = !user.privkey
   const canEditBasic = !isNostrFirst // OAuth-first accounts can edit basic profile
@@ -66,6 +128,7 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
         const result = await updateBasicProfile(basicProfile)
         
         if (result.success) {
+          await broadcastProfileRefresh()
           setMessage({ type: 'success', text: result.message })
           setTimeout(() => setMessage(null), 5000)
         } else {
@@ -85,6 +148,7 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
         const result = await updateEnhancedProfile(enhancedProfile)
         
         if (result.success) {
+          await broadcastProfileRefresh()
           setMessage({ 
             type: result.isNostrFirst ? 'info' : 'success', 
             text: result.message 
@@ -179,7 +243,12 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
                   <Input
                     id="name"
                     value={basicProfile.name}
-                    onChange={(e) => setBasicProfile({ ...basicProfile, name: e.target.value })}
+                    onChange={(e) => {
+                      if (!basicProfileDirtyRef.current) {
+                        setBasicProfileDirty(true)
+                      }
+                      setBasicProfile({ ...basicProfile, name: e.target.value })
+                    }}
                     placeholder="Enter your name"
                   />
                 </div>
@@ -190,7 +259,12 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
                     id="email"
                     type="email"
                     value={basicProfile.email}
-                    onChange={(e) => setBasicProfile({ ...basicProfile, email: e.target.value })}
+                    onChange={(e) => {
+                      if (!basicProfileDirtyRef.current) {
+                        setBasicProfileDirty(true)
+                      }
+                      setBasicProfile({ ...basicProfile, email: e.target.value })
+                    }}
                     placeholder="Enter your email"
                   />
                 </div>

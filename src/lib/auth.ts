@@ -619,7 +619,43 @@ export const authOptions: NextAuthOptions = {
   },
 
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger, session }) {
+      const refreshFromDatabase = async () => {
+        if (!token.userId) {
+          return
+        }
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.userId as string },
+          select: {
+            username: true,
+            avatar: true,
+            email: true,
+            nip05: true,
+            lud16: true,
+            banner: true,
+          },
+        })
+        if (dbUser) {
+          if (dbUser.username) {
+            token.username = dbUser.username
+          }
+          if (dbUser.avatar) {
+            token.avatar = dbUser.avatar
+          }
+          if (dbUser.email) {
+            token.email = dbUser.email
+          }
+          token.nip05 = dbUser.nip05 ?? token.nip05
+          token.lud16 = dbUser.lud16 ?? token.lud16
+          token.banner = dbUser.banner ?? token.banner
+        }
+      }
+
+      if (trigger === 'update') {
+        await refreshFromDatabase()
+        return token
+      }
+
       // Add user info to JWT token
       if (user) {
         token.pubkey = user.pubkey || undefined
@@ -668,6 +704,8 @@ export const authOptions: NextAuthOptions = {
             console.log('JWT Callback - Ephemeral keypair handling for provider:', account.provider)
           }
         }
+      } else {
+        await refreshFromDatabase()
       }
       return token
     },

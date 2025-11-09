@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import { Tabs } from '@/components/ui/tabs'
 import { useToast } from '@/hooks/use-toast'
@@ -21,6 +21,7 @@ export function ProfileTabs({
   const pathname = usePathname()
   const { toast } = useToast()
   const [tabValue, setTabValue] = useState(defaultTab)
+  const handledGithubLinkRef = useRef(false)
 
   const permittedTabs = useMemo(() => {
     if (!allowedTabs.length) {
@@ -82,13 +83,17 @@ export function ProfileTabs({
     }
     
     if (success === 'github_linked') {
-      toast({
-        title: 'Success!',
-        description: 'Your GitHub account has been linked successfully.'
-      })
-      
+      if (!handledGithubLinkRef.current) {
+        handledGithubLinkRef.current = true
+        toast({
+          title: 'Success!',
+          description: 'Your GitHub account has been linked successfully.'
+        })
+      }
       // Clean up URL
       params.delete('success')
+    } else {
+      handledGithubLinkRef.current = false
     }
     
     if (tab) {

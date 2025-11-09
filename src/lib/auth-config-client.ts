@@ -13,6 +13,10 @@ export const authConfigClient = {
   copy: authConfig.copy,
   pages: authConfig.pages,
   providers: {
+    anonymous: {
+      usernamePrefix: authConfig.providers.anonymous.usernamePrefix,
+      defaultAvatar: authConfig.providers.anonymous.defaultAvatar,
+    },
     recovery: {
       supportedFormats: authConfig.providers.recovery.supportedFormats,
       description: authConfig.providers.recovery.description,

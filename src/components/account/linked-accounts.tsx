@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -15,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { dispatchProfileUpdatedEvent } from '@/lib/profile-events'
 
 interface LinkedAccount {
   provider: string
@@ -29,6 +31,7 @@ interface LinkedAccountsData {
 }
 
 export function LinkedAccountsManager() {
+  const router = useRouter()
   const { data: session, update: updateSession } = useSession()
   const { toast } = useToast()
   const searchParams = useSearchParams()
@@ -37,6 +40,26 @@ export function LinkedAccountsManager() {
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null)
   const [changingPrimary, setChangingPrimary] = useState(false)
   const [providerToUnlink, setProviderToUnlink] = useState<string | null>(null)
+
+  const refreshAggregatedProfile = useCallback(async () => {
+    try {
+      const response = await fetch('/api/profile/aggregated', { cache: 'no-store' })
+      if (response.ok) {
+        const profile = await response.json()
+        dispatchProfileUpdatedEvent({
+          name: profile?.name?.value ?? null,
+          username: profile?.username?.value ?? null,
+          image: profile?.image?.value ?? null
+        })
+      } else {
+        console.warn('Failed to refresh aggregated profile: non-OK response')
+        dispatchProfileUpdatedEvent()
+      }
+    } catch (aggregateError) {
+      console.error('Failed to refresh aggregated profile after account change:', aggregateError)
+      dispatchProfileUpdatedEvent()
+    }
+  }, [])
 
   // Fetch linked accounts
   const fetchAccounts = async () => {
@@ -75,11 +98,13 @@ export function LinkedAccountsManager() {
 
     const handlePostLink = async () => {
       await fetchAccounts()
+      await refreshAggregatedProfile()
       try {
         await updateSession()
       } catch (sessionError) {
         console.error('Failed to refresh session after linking account:', sessionError)
       }
+      router.refresh()
     }
 
     if (success === 'github_linked' || success === 'email_linked') {
@@ -161,8 +186,10 @@ export function LinkedAccountsManager() {
           description: `${getProviderDisplayName(provider)} account unlinked successfully`
         })
         await fetchAccounts()
+        await refreshAggregatedProfile()
         // Update session if needed
         await updateSession()
+        router.refresh()
       } else {
         toast({
           title: 'Error',
@@ -201,6 +228,7 @@ export function LinkedAccountsManager() {
           description: `${getProviderDisplayName(provider)} is now your primary authentication method`
         })
         await fetchAccounts()
+        await refreshAggregatedProfile()
         // Update session
         await updateSession()
       } else {

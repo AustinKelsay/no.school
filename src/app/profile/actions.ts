@@ -26,7 +26,16 @@ import { getRelays } from '@/lib/nostr-relays'
 // Basic profile update schema for OAuth-first accounts
 const BasicProfileSchema = z.object({
   name: z.string().min(1, 'Name is required').max(100, 'Name too long').optional(),
-  email: z.string().email('Invalid email').optional()
+  email: z.preprocess(
+    (val) => {
+      if (typeof val === 'string') {
+        const trimmed = val.trim()
+        return trimmed === '' ? undefined : trimmed
+      }
+      return val
+    },
+    z.string().email('Invalid email').optional()
+  )
 })
 
 const optionalClearingField = (validator: z.ZodTypeAny) =>
