@@ -13,19 +13,31 @@ import { Separator } from '@/components/ui/separator'
 import { 
   Save, 
   Loader2, 
-  Info, 
   AlertTriangle, 
-  CheckCircle,
   Key,
   Mail,
   Github,
   RefreshCw
 } from 'lucide-react'
-import { updateBasicProfile, updateEnhancedProfile, type BasicProfileData, type EnhancedProfileData } from '../actions'
+import { updateBasicProfile, updateEnhancedProfile, type BasicProfileData, type EnhancedProfileData, type SignedKind0Event } from '../actions'
 import { useToast } from '@/hooks/use-toast'
+import { InfoTooltip } from '@/components/ui/info-tooltip'
+import { prepareSignedNostrProfile } from '@/lib/nostr-profile-signing'
 
 interface SimpleSettingsProps {
   session: Session
+}
+
+const fieldHelp = {
+  accountType: 'Explains whether your profile is driven by Nostr data or managed directly inside the app.',
+  basicName: 'Displayed on your profile when OAuth providers are authoritative. Nostr-first users must edit it via their Nostr profile.',
+  basicEmail: 'Used for authentication and notifications. It is never shown to other users.',
+  enhancedProfile: 'Nostr metadata (NIP-05, Lightning, banner) that accompanies your public profile.',
+  nip05: 'DNS-based identifier (user@domain.com) that maps to your Nostr public key.',
+  lud16: 'Lightning address that fans can use to send you tips.',
+  banner: 'Hero image that appears at the top of your profile.',
+  profileSource: 'Determines which provider wins when multiple accounts provide the same field.',
+  syncProfile: 'Manually pull the latest data from a specific provider without waiting for background jobs.'
 }
 
 export function SimpleSettings({ session }: SimpleSettingsProps) {
@@ -52,6 +64,10 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
   })
 
   const [linkedAccounts, setLinkedAccounts] = useState<any[]>([])
+  const [nostrProfile, setNostrProfile] = useState<Record<string, any> | null>(null)
+  const [nostrProfileStatus, setNostrProfileStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    user.pubkey ? 'loading' : 'success'
+  )
   
   // Tracks initial data loading errors so users get visible feedback
   const [initialLoadError, setInitialLoadError] = useState<string | null>(null)
@@ -96,11 +112,38 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
         errors.push('Failed to load linked accounts')
       }
 
+      if (user.pubkey) {
+        setNostrProfileStatus('loading')
+        try {
+          const nostrResponse = await fetch('/api/profile/nostr')
+          if (nostrResponse.ok) {
+            const data = await nostrResponse.json()
+            if (data?.profile) {
+              setNostrProfile(data.profile)
+              setEnhancedProfile(prev => ({
+                nip05: prev.nip05 || data.profile.nip05 || '',
+                lud16: prev.lud16 || data.profile.lud16 || '',
+                banner: prev.banner || data.profile.banner || ''
+              }))
+            }
+            setNostrProfileStatus('success')
+          } else {
+            setNostrProfileStatus('error')
+            errors.push('Failed to load Nostr profile metadata')
+          }
+        } catch {
+          setNostrProfileStatus('error')
+          errors.push('Failed to load Nostr profile metadata')
+        }
+      } else {
+        setNostrProfileStatus('success')
+      }
+
       if (errors.length > 0) setInitialLoadError(errors.join(' · '))
     }
 
     fetchData()
-  }, [])
+  }, [user.pubkey])
 
   const handleBasicSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -127,14 +170,93 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
   const handleEnhancedSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
+    const normalizedProfile = {
+      nip05: String(enhancedProfile.nip05 ?? '').trim(),
+      lud16: String(enhancedProfile.lud16 ?? '').trim(),
+      banner: String(enhancedProfile.banner ?? '').trim()
+    }
+    setEnhancedProfile(normalizedProfile)
+
+    const shouldSignWithExtension =
+      isNostrFirst &&
+      typeof window !== 'undefined' &&
+      Boolean((window as any).nostr?.signEvent) &&
+      Boolean(user.pubkey)
+
+    if (isNostrFirst && !shouldSignWithExtension) {
+      toast({
+        title: 'Nostr Extension Required',
+        description:
+          'Connect a Nostr browser extension (NIP-07) to update your on-chain profile metadata.',
+        variant: 'destructive'
+      })
+      return
+    }
+
+    if (shouldSignWithExtension) {
+      if (nostrProfileStatus === 'loading') {
+        toast({
+          title: 'Still Loading Profile',
+          description: 'Fetching your Nostr metadata; please try again in a moment.',
+          variant: 'destructive'
+        })
+        return
+      }
+
+      if (nostrProfileStatus === 'error' && !nostrProfile) {
+        toast({
+          title: 'Nostr Metadata Unavailable',
+          description: 'We could not load your existing profile from relays. Please retry syncing or refresh before publishing to avoid losing data.',
+          variant: 'destructive'
+        })
+        return
+      }
+    }
+
     startTransition(async () => {
-      const result = await updateEnhancedProfile(enhancedProfile)
+      let signedEvent: SignedKind0Event | undefined
+      if (shouldSignWithExtension) {
+        try {
+          const { signedEvent: signed, updatedProfile } = await prepareSignedNostrProfile({
+            user,
+            nostrProfile,
+            updates: {
+              nip05: normalizedProfile.nip05 || null,
+              lud16: normalizedProfile.lud16 || null,
+              banner: normalizedProfile.banner || null,
+            },
+          })
+          signedEvent = signed
+          setNostrProfile(updatedProfile)
+        } catch (error) {
+          toast({
+            title: 'Signing Failed',
+            description:
+              error instanceof Error
+                ? error.message
+                : 'Unable to sign profile update with your Nostr extension.',
+            variant: 'destructive'
+          })
+          return
+        }
+      }
+
+      const result = await updateEnhancedProfile({
+        ...normalizedProfile,
+        signedEvent
+      })
       
       if (result.success) {
+        const description = result.publishedToNostr
+          ? 'Your enhanced profile has been updated successfully.'
+          : 'Profile saved locally. Update your Nostr relays to keep metadata in sync.'
         toast({
           title: 'Profile Updated',
-          description: 'Your enhanced profile has been updated successfully.'
+          description
         })
+        if (result.nostrProfile) {
+          setNostrProfile(result.nostrProfile)
+        }
       } else {
         toast({
           title: 'Update Failed',
@@ -210,10 +332,37 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
             }))
             setEnhancedProfile(prev => ({
               ...prev,
-              nip05: (aggregated?.nip05?.value ?? prev.nip05) || prev.nip05,
-              lud16: (aggregated?.lud16?.value ?? prev.lud16) || prev.lud16,
-              banner: (aggregated?.banner?.value ?? prev.banner) || prev.banner
+              nip05: aggregated?.nip05?.value ?? prev.nip05,
+              lud16: aggregated?.lud16?.value ?? prev.lud16,
+              banner: aggregated?.banner?.value ?? prev.banner
             }))
+            if (aggregated?.nip05?.value || aggregated?.lud16?.value || aggregated?.banner?.value) {
+              setNostrProfile(profile => ({
+                ...(profile ?? {}),
+                nip05: aggregated?.nip05?.value ?? profile?.nip05,
+                lud16: aggregated?.lud16?.value ?? profile?.lud16,
+                banner: aggregated?.banner?.value ?? profile?.banner
+              }))
+            }
+          }
+          if (user.pubkey) {
+            setNostrProfileStatus('loading')
+            const nostrResponse = await fetch('/api/profile/nostr')
+            if (nostrResponse.ok) {
+              const nostrData = await nostrResponse.json()
+              if (nostrData?.profile) {
+                setNostrProfile(nostrData.profile)
+                setEnhancedProfile(prev => ({
+                  ...prev,
+                  nip05: nostrData.profile.nip05 ?? prev.nip05,
+                  lud16: nostrData.profile.lud16 ?? prev.lud16,
+                  banner: nostrData.profile.banner ?? prev.banner
+                }))
+              }
+              setNostrProfileStatus('success')
+            } else {
+              setNostrProfileStatus('error')
+            }
           }
         } catch (err) {
           console.error('Failed to refresh aggregated profile after sync:', err)
@@ -231,6 +380,9 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
         description: 'Failed to sync profile',
         variant: 'destructive'
       })
+      if (user.pubkey) {
+        setNostrProfileStatus('error')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -247,7 +399,10 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
       {/* Account Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Account Type</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            Account Type
+            <InfoTooltip content={fieldHelp.accountType} />
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
@@ -280,7 +435,10 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
         {/* Basic Profile */}
         <Card className={!canEditBasic ? 'opacity-60' : ''}>
           <CardHeader>
-            <CardTitle>Basic Profile</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Basic Profile
+              <InfoTooltip content="Core info stored in our database. OAuth-first users can edit it here." />
+            </CardTitle>
             <CardDescription>
               {canEditBasic ? 'Edit your name and email' : 'Managed via Nostr profile'}
             </CardDescription>
@@ -288,7 +446,10 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
           <CardContent>
             <form onSubmit={handleBasicSubmit} className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="name">Name</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="name">Name</Label>
+                  <InfoTooltip content={fieldHelp.basicName} />
+                </div>
                 <Input
                   id="name"
                   value={basicProfile.name}
@@ -299,7 +460,10 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="email">Email</Label>
+                  <InfoTooltip content={fieldHelp.basicEmail} />
+                </div>
                 <Input
                   id="email"
                   type="email"
@@ -330,7 +494,10 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
         {/* Enhanced Profile */}
         <Card>
           <CardHeader>
-            <CardTitle>Enhanced Profile</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Enhanced Profile
+              <InfoTooltip content={fieldHelp.enhancedProfile} />
+            </CardTitle>
             <CardDescription>
               Nostr and Lightning configuration
             </CardDescription>
@@ -338,30 +505,39 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
           <CardContent>
             <form onSubmit={handleEnhancedSubmit} className="space-y-4">
               <div className="grid gap-2">
-                <Label htmlFor="nip05">NIP-05 Address</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="nip05">NIP-05 Address</Label>
+                  <InfoTooltip content={fieldHelp.nip05} />
+                </div>
                 <Input
                   id="nip05"
-                  value={enhancedProfile.nip05}
+                  value={String(enhancedProfile.nip05 ?? '')}
                   onChange={(e) => setEnhancedProfile({ ...enhancedProfile, nip05: e.target.value })}
                   placeholder="user@domain.com"
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="lud16">Lightning Address</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="lud16">Lightning Address</Label>
+                  <InfoTooltip content={fieldHelp.lud16} />
+                </div>
                 <Input
                   id="lud16"
-                  value={enhancedProfile.lud16}
+                  value={String(enhancedProfile.lud16 ?? '')}
                   onChange={(e) => setEnhancedProfile({ ...enhancedProfile, lud16: e.target.value })}
                   placeholder="user@wallet.com"
                 />
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="banner">Banner URL</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="banner">Banner URL</Label>
+                  <InfoTooltip content={fieldHelp.banner} />
+                </div>
                 <Input
                   id="banner"
-                  value={enhancedProfile.banner}
+                  value={String(enhancedProfile.banner ?? '')}
                   onChange={(e) => setEnhancedProfile({ ...enhancedProfile, banner: e.target.value })}
                   placeholder="https://example.com/banner.jpg"
                 />
@@ -389,14 +565,20 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
       {linkedAccounts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Profile Configuration</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Profile Configuration
+              <InfoTooltip content={fieldHelp.profileSource} />
+            </CardTitle>
             <CardDescription>
               Choose how your profile data is managed
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
-              <Label>Profile Source</Label>
+              <div className="flex items-center justify-between">
+                <Label>Profile Source</Label>
+                <InfoTooltip content={fieldHelp.profileSource} />
+              </div>
               <RadioGroup
                 value={preferences.profileSource}
                 onValueChange={(value) => setPreferences({ ...preferences, profileSource: value })}
@@ -441,7 +623,10 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
       {linkedAccounts.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Sync Profile</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              Sync Profile
+              <InfoTooltip content={fieldHelp.syncProfile} />
+            </CardTitle>
             <CardDescription>
               Pull latest data from your linked accounts
             </CardDescription>

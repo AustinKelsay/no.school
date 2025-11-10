@@ -20,7 +20,7 @@ import {
   isNip07User,
   extractNoteId
 } from '@/lib/nostr-events'
-import { DraftService, CourseDraftService, DraftLessonService } from '@/lib/draft-service'
+import { DraftService, CourseDraftService, type CourseDraftWithIncludes } from '@/lib/draft-service'
 import type { Resource, Course, Lesson } from '@prisma/client'
 
 // Default relays for publishing are loaded from config via DEFAULT_RELAYS
@@ -105,6 +105,29 @@ export class PublishService {
     const signingPrivkey = privkey || user.privkey!
 
     try {
+      // Ensure this draft isn't reused multiple times in the same course draft
+      const draftLessonUsages = await prisma.draftLesson.findMany({
+        where: { draftId },
+        select: { id: true, courseDraftId: true },
+      })
+
+      const duplicateCourseUsage = draftLessonUsages.reduce<Map<string, string[]>>((acc, lesson) => {
+        const existing = acc.get(lesson.courseDraftId) || []
+        existing.push(lesson.id)
+        acc.set(lesson.courseDraftId, existing)
+        return acc
+      }, new Map())
+
+      for (const [courseDraftId, lessonIds] of duplicateCourseUsage.entries()) {
+        if (lessonIds.length > 1) {
+          throw new PublishError(
+            'A course draft contains this draft multiple times. Duplicate lessons must be removed before publishing this resource.',
+            'DUPLICATE_DRAFT_LESSONS',
+            { courseDraftId, lessonIds }
+          )
+        }
+      }
+
       // Create and sign the Nostr event
       const event = createResourceEvent(draft, signingPrivkey)
       
@@ -147,6 +170,15 @@ export class PublishService {
             videoId: draft.type === 'video' ? draft.id : undefined,
             videoUrl: draft.type === 'video' ? draft.videoUrl ?? null : null,
           }
+        })
+
+        await tx.draftLesson.updateMany({
+          where: { draftId: draft.id },
+          data: {
+            resourceId: newResource.id,
+            draftId: null,
+            updatedAt: new Date(),
+          },
         })
 
         // If this draft was used in any lessons, update them
@@ -194,7 +226,7 @@ export class PublishService {
     relays: string[] = DEFAULT_RELAYS
   ): Promise<PublishCourseResult> {
     // Fetch the course draft with lessons
-    const courseDraft = await CourseDraftService.findById(courseDraftId)
+    let courseDraft = await CourseDraftService.findById(courseDraftId)
     if (!courseDraft) {
       throw new PublishError('Course draft not found', 'DRAFT_NOT_FOUND')
     }
@@ -202,6 +234,12 @@ export class PublishService {
     // Verify ownership
     if (courseDraft.userId !== userId) {
       throw new PublishError('Access denied', 'ACCESS_DENIED')
+    }
+
+    await CourseDraftService.syncPublishedLessons(courseDraftId)
+    courseDraft = await CourseDraftService.findById(courseDraftId)
+    if (!courseDraft) {
+      throw new PublishError('Course draft not found', 'DRAFT_NOT_FOUND')
     }
 
     // Get user info
@@ -393,9 +431,19 @@ export class PublishService {
     if (!draft.summary || draft.summary.trim().length === 0) {
       errors.push('Summary is required')
     }
-    if (!draft.content || draft.content.trim().length === 0) {
+
+    const hasContent = !!draft.content && draft.content.trim().length > 0
+    const isVideoDraft = draft.type === 'video'
+    const hasVideoUrl = !!draft.videoUrl && draft.videoUrl.trim().length > 0
+
+    if (isVideoDraft) {
+      if (!hasVideoUrl) {
+        errors.push('Video URL is required for video drafts')
+      }
+    } else if (!hasContent) {
       errors.push('Content is required')
     }
+
     if (!draft.topics || draft.topics.length === 0) {
       errors.push('At least one topic is required')
     }
@@ -409,13 +457,8 @@ export class PublishService {
   /**
    * Validate that a course draft is ready for publishing
    */
-  static async validateCourseDraft(courseDraftId: string): Promise<{ valid: boolean; errors: string[] }> {
+  static validateCourseDraftData(courseDraft: CourseDraftWithIncludes): { valid: boolean; errors: string[] } {
     const errors: string[] = []
-    
-    const courseDraft = await CourseDraftService.findById(courseDraftId)
-    if (!courseDraft) {
-      return { valid: false, errors: ['Course draft not found'] }
-    }
 
     // Validate required fields
     if (!courseDraft.title || courseDraft.title.trim().length === 0) {
@@ -432,9 +475,66 @@ export class PublishService {
     }
 
     // Validate lessons
+    const resourceUsage = new Map<string, number[]>()
+    const draftUsage = new Map<string, number[]>()
+
     courseDraft.draftLessons.forEach((lesson, index) => {
+      const lessonNumber = index + 1
       if (!lesson.resourceId && !lesson.draftId) {
-        errors.push(`Lesson ${index + 1} has no content attached`)
+        errors.push(`Lesson ${lessonNumber} has no content attached`)
+        return
+      }
+
+      if (lesson.draft) {
+        const { title, summary, content, type, videoUrl } = lesson.draft
+        if (!title || title.trim().length === 0) {
+          errors.push(`Lesson ${lessonNumber} draft is missing a title`)
+        }
+        if (!summary || summary.trim().length === 0) {
+          errors.push(`Lesson ${lessonNumber} draft is missing a summary`)
+        }
+
+        const hasContent = !!content && content.trim().length > 0
+        const isVideoDraft = type === 'video'
+        const hasVideoUrl = !!videoUrl && videoUrl.trim().length > 0
+
+        if (isVideoDraft) {
+          if (!hasVideoUrl) {
+            errors.push(`Lesson ${lessonNumber} draft is missing a video URL`)
+          }
+        } else if (!hasContent) {
+          errors.push(`Lesson ${lessonNumber} draft is missing content`)
+        }
+      }
+
+      if (lesson.resourceId) {
+        const existing = resourceUsage.get(lesson.resourceId) ?? []
+        existing.push(lessonNumber)
+        resourceUsage.set(lesson.resourceId, existing)
+      }
+
+      if (lesson.draftId) {
+        const existingDraft = draftUsage.get(lesson.draftId) ?? []
+        existingDraft.push(lessonNumber)
+        draftUsage.set(lesson.draftId, existingDraft)
+      }
+    })
+
+    const indices = courseDraft.draftLessons.map((lesson) => lesson.index)
+    const uniqueIndices = new Set(indices)
+    if (uniqueIndices.size !== indices.length) {
+      errors.push('Duplicate lesson indices found')
+    }
+
+    resourceUsage.forEach((lessonNumbers) => {
+      if (lessonNumbers.length > 1) {
+        errors.push(`Lessons ${lessonNumbers.join(', ')} reference the same published resource`)
+      }
+    })
+
+    draftUsage.forEach((lessonNumbers) => {
+      if (lessonNumbers.length > 1) {
+        errors.push(`Lessons ${lessonNumbers.join(', ')} reuse the same draft content`)
       }
     })
 
@@ -442,5 +542,14 @@ export class PublishService {
       valid: errors.length === 0,
       errors
     }
+  }
+
+  static async validateCourseDraft(courseDraftId: string): Promise<{ valid: boolean; errors: string[] }> {
+    const courseDraft = await CourseDraftService.findById(courseDraftId)
+    if (!courseDraft) {
+      return { valid: false, errors: ['Course draft not found'] }
+    }
+
+    return this.validateCourseDraftData(courseDraft)
   }
 }

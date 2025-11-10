@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import { getAdminInfo } from '@/lib/admin-utils'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 
@@ -121,13 +122,8 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check if user is admin
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      include: { role: true }
-    })
-
-    if (!user?.role?.admin) {
+    const adminInfo = await getAdminInfo(session)
+    if (!adminInfo.isAdmin && !adminInfo.permissions?.createResource) {
       return NextResponse.json(
         { error: 'Admin access required' },
         { status: 403 }

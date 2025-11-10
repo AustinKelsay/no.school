@@ -19,7 +19,7 @@ import { ZapThreads } from '@/components/ui/zap-threads'
 import { InteractionMetrics } from '@/components/ui/interaction-metrics'
 import { useInteractions } from '@/hooks/useInteractions'
 import { preserveLineBreaks } from '@/lib/text-utils'
-import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
+import { resolveUniversalId } from '@/lib/universal-router'
 import { 
   Clock, 
   BookOpen, 
@@ -141,30 +141,34 @@ function CourseLessons({ lessons, courseId }: { lessons: LessonWithResource[]; c
 function CoursePageContent({ courseId }: { courseId: string }) {
   const { fetchProfile, normalizeKind0 } = useNostr()
   const [instructorProfile, setInstructorProfile] = useState<NormalizedProfile | null>(null)
-  const [idResult, setIdResult] = useState<UniversalIdResult | null>(null)
   const { course, errors, pricing } = useCopy()
   
-  // Resolve the universal ID to get the actual course ID for queries
-  const resolvedCourseId = React.useMemo(() => {
-    const resolved = resolveUniversalId(courseId)
-    setIdResult(resolved)
-    return resolved.resolvedId
-  }, [courseId])
-  
+  const resolved = React.useMemo(() => resolveUniversalId(courseId), [courseId])
+  const resolvedCourseId = resolved?.resolvedId
+
   // Use hooks to fetch course data and lessons with Nostr integration
-  const { course: courseData, isLoading: courseLoading, isError, error } = useCourseQuery(resolvedCourseId)
-  const { lessons: lessonsData, isLoading: lessonsLoading } = useLessonsQuery(resolvedCourseId)
+  // Must be called unconditionally at the top level, before any early returns
+  const { course: courseData, isLoading: courseLoading, isError, error } = useCourseQuery(
+    resolvedCourseId || '',
+    { enabled: !!resolvedCourseId }
+  )
+  const { lessons: lessonsData, isLoading: lessonsLoading } = useLessonsQuery(
+    resolvedCourseId || '',
+    { enabled: !!resolvedCourseId }
+  )
 
   // Get real interaction data if course has a Nostr event - call hook unconditionally at top level
+  const noteId = courseData?.note?.id
   const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
-    eventId: courseData?.note?.id,
+    eventId: noteId,
     realtime: false,
-    staleTime: 5 * 60 * 1000
+    staleTime: 5 * 60 * 1000,
+    enabled: Boolean(noteId)
   })
-
 
   const loading = courseLoading || lessonsLoading
 
+  // useEffect must be called unconditionally before any early returns
   useEffect(() => {
     if (!courseData) return
 
@@ -196,6 +200,19 @@ function CoursePageContent({ courseId }: { courseId: string }) {
 
     fetchInstructorProfile()
   }, [courseData, fetchProfile, normalizeKind0])
+
+  // Early return check after all hooks (hooks must be called unconditionally)
+  if (!resolvedCourseId) {
+    return (
+      <MainLayout>
+        <Section spacing="lg">
+          <p className="text-destructive">
+            Unsupported course identifier.
+          </p>
+        </Section>
+      </MainLayout>
+    )
+  }
 
   if (loading) {
     return (

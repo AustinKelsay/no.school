@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { CourseDraftService } from '@/lib/draft-service'
+import { getAdminInfo } from '@/lib/admin-utils'
 import { z } from 'zod'
 
 // Validation schemas
@@ -82,6 +83,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
+      )
+    }
+    
+    const adminInfo = await getAdminInfo(session)
+    if (!adminInfo.isAdmin && !adminInfo.permissions?.createCourse) {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
       )
     }
 

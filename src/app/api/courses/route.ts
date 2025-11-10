@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
 import { CourseAdapter } from '@/lib/db-adapter';
+import { getAdminInfo } from '@/lib/admin-utils';
 import type { Course } from '@/data/types';
 
 /**
@@ -40,6 +43,22 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      )
+    }
+    
+    const adminInfo = await getAdminInfo(session)
+    if (!adminInfo.isAdmin && !adminInfo.permissions?.createCourse) {
+      return NextResponse.json(
+        { error: 'Admin access required' },
+        { status: 403 }
+      )
+    }
+
     const body = await request.json();
     
     // Validate required fields
@@ -55,7 +74,7 @@ export async function POST(request: NextRequest) {
     // Note: UI fields like title, description, category would be stored in Nostr events
     const newCourse: Course = {
       id: `course-${Date.now()}`, // Generate a simple ID for now
-      userId: 'user-admin', // Default user ID
+      userId: session.user.id,
       price: 0,
       submissionRequired: false,
       createdAt: new Date().toISOString(),

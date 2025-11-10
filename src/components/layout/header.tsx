@@ -14,7 +14,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu"
-import { Menu, Search, Zap, Settings, Moon, Type, Check, User, LogOut, UserCircle } from "lucide-react"
+import { Menu, Search, Zap, Settings, Moon, Type, Check, LogOut, UserCircle, Plus } from "lucide-react"
 import { Container } from "./container"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { ThemeSelector } from "@/components/theme-selector"
@@ -27,8 +27,14 @@ import { useTheme } from "next-themes"
 import { useThemeColor } from "@/contexts/theme-context"
 import { availableFonts, ThemeName } from "@/lib/theme-config"
 import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useSession, signOut } from "next-auth/react"
+import { useAdminInfo } from "@/hooks/useAdmin"
+import { PROFILE_UPDATED_EVENT, type ProfileUpdatedDetail } from "@/lib/profile-events"
+import { isAnonymousAvatar, isAnonymousUsername } from "@/lib/anonymous-identity"
+
+const AVATAR_STORAGE_KEY = "ns.header.avatar"
+const DISPLAY_NAME_STORAGE_KEY = "ns.header.display-name"
 
 /**
  * Header component for the main navigation
@@ -41,7 +47,178 @@ export function Header() {
   const { fontOverride, setFontOverride, themeConfig, currentTheme, setCurrentTheme, availableThemes } = useThemeColor()
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
-  const { data: session, status } = useSession()
+  const { data: session } = useSession()
+  const sessionUser = session?.user
+  const { adminInfo } = useAdminInfo()
+  const isMountedRef = useRef(true)
+
+  const readFromStorage = (key: string, fallback?: string) => {
+    if (typeof window === "undefined") {
+      return fallback
+    }
+    try {
+      return window.localStorage.getItem(key) || fallback
+    } catch {
+      return fallback
+    }
+  }
+
+  const [avatarUrl, setAvatarUrl] = useState<string | undefined>(() =>
+    readFromStorage(AVATAR_STORAGE_KEY, session?.user?.image || undefined)
+  )
+  const [displayName, setDisplayName] = useState<string | undefined>(() =>
+    readFromStorage(
+      DISPLAY_NAME_STORAGE_KEY,
+      session?.user?.name || session?.user?.username || undefined
+    )
+  )
+  const canCreateContent =
+    Boolean(adminInfo?.isAdmin) ||
+    Boolean(adminInfo?.permissions?.createCourse) ||
+    Boolean(adminInfo?.permissions?.createResource)
+
+  const clearIdentityCache = useCallback(() => {
+    setAvatarUrl(undefined)
+    setDisplayName(undefined)
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(AVATAR_STORAGE_KEY)
+        window.localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY)
+      } catch (error) {
+        console.warn("Failed to clear identity cache:", error)
+      }
+    }
+  }, [])
+
+  const handleSignOut = useCallback(() => {
+    clearIdentityCache()
+    void signOut()
+  }, [clearIdentityCache])
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false
+    }
+  }, [])
+
+  const isMeaningfulName = (value?: string | null) =>
+    Boolean(value && !isAnonymousUsername(value))
+  const isMeaningfulAvatarUrl = (value?: string | null) =>
+    Boolean(value && !isAnonymousAvatar(value))
+
+  useEffect(() => {
+    if (!sessionUser) {
+      clearIdentityCache()
+      return
+    }
+
+    const nextAvatar = sessionUser.image || undefined
+    if (nextAvatar) {
+      const nextMeaningful = isMeaningfulAvatarUrl(nextAvatar)
+      const currentMeaningful = isMeaningfulAvatarUrl(avatarUrl)
+      if (nextMeaningful || !currentMeaningful) {
+        setAvatarUrl(nextAvatar)
+        try {
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(AVATAR_STORAGE_KEY, nextAvatar)
+          }
+        } catch (error) {
+          console.warn("Failed to persist avatar to storage:", error)
+        }
+      }
+    }
+
+    const nextDisplayName = sessionUser.name || sessionUser.username || undefined
+    if (nextDisplayName) {
+      const nextMeaningful = isMeaningfulName(nextDisplayName)
+      const currentMeaningful = isMeaningfulName(displayName)
+      if (nextMeaningful || !currentMeaningful) {
+        setDisplayName(nextDisplayName)
+        try {
+          if (typeof window !== "undefined") {
+            window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, nextDisplayName)
+          }
+        } catch (error) {
+          console.warn("Failed to persist display name to storage:", error)
+        }
+      }
+    }
+  }, [
+    clearIdentityCache,
+    avatarUrl,
+    displayName,
+    sessionUser,
+  ])
+
+  const loadAggregatedProfile = useCallback(async () => {
+    if (!sessionUser?.id) {
+      return
+    }
+    try {
+      const response = await fetch("/api/profile/aggregated", { cache: "no-store" })
+      if (!response.ok) return
+      const data = await response.json()
+      if (!isMountedRef.current) return
+
+      if (data?.image?.value) {
+        setAvatarUrl(data.image.value as string)
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(AVATAR_STORAGE_KEY, data.image.value as string)
+        }
+      } else {
+        setAvatarUrl(undefined)
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(AVATAR_STORAGE_KEY)
+        }
+      }
+
+      const aggregatedName = data?.name?.value || data?.username?.value
+      if (aggregatedName) {
+        setDisplayName(aggregatedName as string)
+        if (typeof window !== "undefined") {
+          window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, aggregatedName as string)
+        }
+      } else {
+        setDisplayName(undefined)
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY)
+        }
+      }
+    } catch (error) {
+      console.error("Failed to refresh aggregated profile for header", error)
+    }
+  }, [sessionUser?.id])
+
+  useEffect(() => {
+    loadAggregatedProfile()
+  }, [loadAggregatedProfile])
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return
+    }
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<ProfileUpdatedDetail>).detail
+      if (detail?.image) {
+        setAvatarUrl(detail.image)
+        try {
+          window.localStorage.setItem(AVATAR_STORAGE_KEY, detail.image)
+        } catch {}
+      }
+      const nextName = detail?.name || detail?.username
+      if (nextName) {
+        setDisplayName(nextName)
+        try {
+          window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, nextName)
+        } catch {}
+      }
+      loadAggregatedProfile()
+    }
+    window.addEventListener(PROFILE_UPDATED_EVENT, handler)
+    return () => {
+      window.removeEventListener(PROFILE_UPDATED_EVENT, handler)
+    }
+  }, [loadAggregatedProfile])
 
   function handleThemeSelect(themeName: ThemeName) {
     setCurrentTheme(themeName)
@@ -210,9 +387,11 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={session.user.image || undefined} alt={session.user.name || 'User'} />
+                    <AvatarImage src={avatarUrl} alt={displayName || session.user.name || "User"} />
                     <AvatarFallback>
-                      {(session.user.name || session.user.username || 'U').substring(0, 2).toUpperCase()}
+                      {(displayName || session.user.name || session.user.username || "U")
+                        .substring(0, 2)
+                        .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -221,7 +400,7 @@ export function Header() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {session.user.name || session.user.username || 'User'}
+                      {displayName || session.user.name || session.user.username || "User"}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {session.user.email}
@@ -236,13 +415,24 @@ export function Header() {
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/settings" className="flex items-center">
+                  <Link href="/profile?tab=settings" className="flex items-center">
                     <Settings className="mr-2 h-4 w-4" />
                     <span>Settings</span>
                   </Link>
                 </DropdownMenuItem>
+                {canCreateContent && (
+                  <DropdownMenuItem asChild>
+                    <Link href="/create" className="flex items-center">
+                      <Plus className="mr-2 h-4 w-4" />
+                      <span>Create</span>
+                    </Link>
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut()} className="flex items-center">
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="flex items-center"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sign out</span>
                 </DropdownMenuItem>
@@ -257,4 +447,4 @@ export function Header() {
       </Container>
     </header>
   )
-} 
+}

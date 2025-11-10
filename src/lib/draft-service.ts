@@ -85,12 +85,27 @@ export type CourseDraftWithIncludes = Prisma.CourseDraftGetPayload<{
       orderBy: {
         index: 'asc'
       }
+      include: {
+        resource: {
+          include: {
+            user: {
+              select: {
+                id: true
+                username: true
+                pubkey: true
+              }
+            }
+          }
+        }
+        draft: true
+      }
     }
     user: {
       select: {
         id: true
         username: true
         email: true
+        pubkey: true
       }
     }
   }
@@ -140,13 +155,28 @@ export class CourseDraftService {
         draftLessons: {
           orderBy: {
             index: 'asc'
+          },
+          include: {
+            resource: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    pubkey: true
+                  }
+                }
+              }
+            },
+            draft: true
           }
         },
         user: {
           select: {
             id: true,
             username: true,
-            email: true
+            email: true,
+            pubkey: true
           }
         }
       }
@@ -178,13 +208,28 @@ export class CourseDraftService {
           draftLessons: {
             orderBy: {
               index: 'asc'
+            },
+            include: {
+              resource: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      username: true,
+                      pubkey: true
+                    }
+                  }
+                }
+              },
+              draft: true
             }
           },
           user: {
             select: {
               id: true,
               username: true,
-              email: true
+              email: true,
+              pubkey: true
             }
           }
         }
@@ -219,7 +264,13 @@ export class CourseDraftService {
           include: {
             resource: {
               include: {
-                user: true
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    pubkey: true
+                  }
+                }
               }
             },
             draft: true
@@ -233,6 +284,80 @@ export class CourseDraftService {
             pubkey: true
           }
         }
+      }
+    })
+  }
+
+  static async syncPublishedLessons(courseDraftId: string) {
+    await prisma.$transaction(async (tx) => {
+      const lessonsWithResources = await tx.draftLesson.findMany({
+        where: {
+          courseDraftId,
+          resourceId: { not: null },
+        },
+        select: {
+          resourceId: true,
+        },
+      })
+
+      const assignedResourceIds = new Set<string>(
+        lessonsWithResources
+          .map((lesson) => lesson.resourceId)
+          .filter((resourceId): resourceId is string => Boolean(resourceId))
+      )
+      const skippedDuplicates: string[] = []
+
+      const lessonsNeedingSync = await tx.draftLesson.findMany({
+        where: {
+          courseDraftId,
+          resourceId: null,
+          draftId: { not: null },
+        },
+        select: {
+          id: true,
+          draftId: true,
+        },
+      })
+
+      if (!lessonsNeedingSync.length) {
+        return
+      }
+
+      for (const lesson of lessonsNeedingSync) {
+        if (!lesson.draftId) {
+          continue
+        }
+
+        // Find the published Resource where the Resource ID equals the draft ID
+        // (when a Draft is published, the Resource uses the Draft's ID)
+        const resource = await tx.resource.findFirst({
+          where: { id: lesson.draftId },
+          select: { id: true },
+        })
+
+        if (resource) {
+          if (assignedResourceIds.has(resource.id)) {
+            skippedDuplicates.push(lesson.id)
+            continue
+          }
+
+          await tx.draftLesson.update({
+            where: { id: lesson.id },
+            data: {
+              resourceId: resource.id,
+              draftId: null,
+            },
+          })
+
+          assignedResourceIds.add(resource.id)
+        }
+      }
+
+      if (skippedDuplicates.length > 0) {
+        console.warn(
+          `[CourseDraftService.syncPublishedLessons] Skipped syncing duplicate lessons for courseDraftId=${courseDraftId}. Affected draft lesson IDs:`,
+          skippedDuplicates
+        )
       }
     })
   }
@@ -255,13 +380,28 @@ export class CourseDraftService {
         draftLessons: {
           orderBy: {
             index: 'asc'
+          },
+          include: {
+            resource: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    username: true,
+                    pubkey: true
+                  }
+                }
+              }
+            },
+            draft: true
           }
         },
         user: {
           select: {
             id: true,
             username: true,
-            email: true
+            email: true,
+            pubkey: true
           }
         }
       }

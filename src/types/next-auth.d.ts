@@ -27,6 +27,7 @@ declare module 'next-auth' {
     id: string
     email?: string | null
     username?: string
+    image?: string | null
     avatar?: string
     pubkey?: string
   }

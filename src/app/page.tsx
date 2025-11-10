@@ -146,7 +146,7 @@ export default function Home() {
           </div>
           
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 lg:gap-4 justify-center">
-            <Link href="/signup">
+            <Link href="/auth/signin">
               <Button size="lg" className="w-full sm:w-auto sm:min-w-[140px]">
                 <Sparkles className="h-4 w-4 mr-2" />
                 {homepage.cta.buttons.getStarted}

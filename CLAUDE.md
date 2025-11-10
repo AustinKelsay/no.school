@@ -40,12 +40,14 @@ When making changes to this codebase:
 
 ## ESLint Configuration
 
-The project uses a customized ESLint configuration in `eslint.config.mjs`:
-- Extends `next/core-web-vitals` and `next/typescript`
+The project uses ESLint CLI (ESLint 9) with a customized flat config in `eslint.config.mjs`:
+- Uses `FlatCompat` to convert Next.js ESLint configs to flat config format
+- Extends `next/core-web-vitals` and `next/typescript` via compatibility layer
 - **Disabled Rules**: 
   - `@typescript-eslint/no-unused-vars` and `no-unused-vars`
   - `@typescript-eslint/no-unused-params` and `no-unused-params`
   - `@typescript-eslint/no-explicit-any`
+- **Note**: Migrated from deprecated `next lint` to ESLint CLI for Next.js 16 compatibility
 
 ## Project Architecture
 

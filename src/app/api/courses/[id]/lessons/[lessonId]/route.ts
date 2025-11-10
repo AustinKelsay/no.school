@@ -31,13 +31,18 @@ function collectCandidateIdentifiers(rawId: string): string[] {
     candidates.add(trimmed)
   }
 
+  if (!universal) {
+    return Array.from(candidates)
+  }
+
   if (universal.resolvedId) {
     candidates.add(universal.resolvedId)
   }
 
   const decoded = universal.decodedData
-  if (decoded && typeof decoded === 'object') {
-    const data = decoded as Record<string, unknown>
+  if (decoded && typeof decoded === 'object' && !Array.isArray(decoded)) {
+    // Use type assertion for dynamic property access
+    const data = decoded as unknown as Record<string, unknown>
     const possibleKeys = ['identifier', 'id', 'resource', 'event', 'd']
     for (const key of possibleKeys) {
       const value = data[key]

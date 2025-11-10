@@ -9,7 +9,8 @@
  * This allows content to be accessed via any valid identifier format.
  */
 
-import { decode } from 'snstr'
+import { Prefix, type AddressData, type EventData, type ProfileData } from "snstr"
+import { isNip19String, tryDecodeNip19Entity, type SafeDecodedEntity } from "@/lib/nip19-utils"
 
 export interface UniversalIdResult {
   /** The resolved identifier that can be used for data queries */
@@ -19,7 +20,7 @@ export interface UniversalIdResult {
   /** The original input ID */
   originalId: string
   /** For NIP-19 entities, the decoded data */
-  decodedData?: unknown
+  decodedData?: SafeDecodedEntity["data"]
   /** Whether this ID represents a course or resource */
   contentType?: 'course' | 'resource' | 'lesson' | 'unknown'
 }
@@ -44,36 +45,32 @@ function isDatabaseId(id: string): boolean {
 /**
  * Determines if a string is a NIP-19 encoded entity
  */
-function isNip19Entity(id: string): boolean {
-  return /^(npub|nsec|note|nevent|naddr|nprofile)1[a-zA-Z0-9]+$/.test(id)
-}
-
 /**
  * Extracts the content type from various ID formats
  */
-function extractContentType(id: string, decodedData?: unknown): 'course' | 'resource' | 'lesson' | 'unknown' {
+function extractContentType(id: string, decodedData?: SafeDecodedEntity["data"]): 'course' | 'resource' | 'lesson' | 'unknown' {
   // Check database ID patterns
   if (id.startsWith('course-')) return 'course'
   if (id.startsWith('resource-')) return 'resource'
   if (id.startsWith('lesson-')) return 'lesson'
   
   // Check decoded NIP-19 data
-  if (decodedData && typeof decodedData === 'object' && decodedData !== null) {
-    const data = decodedData as Record<string, unknown>
-    
-    // For nevent and naddr, check the kind
-    if (typeof data.kind === 'number') {
+  if (decodedData && typeof decodedData === 'object') {
+    // Type guard for EventData
+    if ('kind' in decodedData && typeof decodedData.kind === 'number') {
+      const eventData = decodedData as EventData
       // NIP-51 course lists
-      if (data.kind === 30004) return 'course'
+      if (eventData.kind === 30004) return 'course'
       // NIP-23 free content or NIP-99 paid content
-      if (data.kind === 30023 || data.kind === 30402) return 'resource'
+      if (eventData.kind === 30023 || eventData.kind === 30402) return 'resource'
     }
     
-    // For naddr, check the identifier pattern
-    if (typeof data.identifier === 'string') {
-      if (data.identifier.startsWith('course-')) return 'course'
-      if (data.identifier.startsWith('resource-')) return 'resource'
-      if (data.identifier.startsWith('lesson-')) return 'lesson'
+    // Type guard for AddressData
+    if ('identifier' in decodedData && typeof decodedData.identifier === 'string') {
+      const addressData = decodedData as AddressData
+      if (addressData.identifier.startsWith('course-')) return 'course'
+      if (addressData.identifier.startsWith('resource-')) return 'resource'
+      if (addressData.identifier.startsWith('lesson-')) return 'lesson'
     }
   }
   
@@ -83,7 +80,7 @@ function extractContentType(id: string, decodedData?: unknown): 'course' | 'reso
 /**
  * Resolves a universal ID to a format usable for data queries
  */
-export function resolveUniversalId(id: string): UniversalIdResult {
+export function resolveUniversalId(id: string): UniversalIdResult | null {
   const originalId = id.trim()
   
   // Handle database IDs
@@ -107,60 +104,23 @@ export function resolveUniversalId(id: string): UniversalIdResult {
   }
   
   // Handle NIP-19 entities
-  if (isNip19Entity(originalId)) {
-    try {
-      const decoded = decode(originalId as `${string}1${string}`)
-      
-      let resolvedId: string
-      const decodedData: unknown = decoded.data
-      
-      switch (decoded.type) {
-        case 'npub':
-        case 'nsec':
-          // Public/private keys - use the hex key as resolved ID
-          resolvedId = decoded.data as string
-          break
-          
-        case 'note':
-          // Note ID - use the hex event ID as resolved ID
-          resolvedId = decoded.data as string
-          break
-          
-        case 'nevent':
-          // Event with metadata - use the event ID as resolved ID
-          resolvedId = (decoded.data as unknown as Record<string, unknown>).id as string
-          break
-          
-        case 'naddr':
-          // Addressable event - use the identifier as resolved ID
-          resolvedId = ((decoded.data as unknown as Record<string, unknown>).identifier as string) || originalId
-          break
-          
-        case 'nprofile':
-          // Profile with metadata - use the pubkey as resolved ID
-          resolvedId = (decoded.data as unknown as Record<string, unknown>).pubkey as string
-          break
-          
-        default:
-          // Fallback to original ID
-          resolvedId = originalId
+  if (isNip19String(originalId)) {
+    const decoded = tryDecodeNip19Entity(originalId)
+
+    if (decoded) {
+      if (decoded.type === Prefix.PrivateKey) {
+        return null
       }
-      
+
+      const { resolvedId, idType } = determineResolvedId(originalId, decoded)
+      const decodedData = decoded.data
+
       return {
         resolvedId,
-        idType: decoded.type as 'npub' | 'nsec' | 'note' | 'nevent' | 'naddr' | 'nprofile',
+        idType,
         originalId,
         decodedData,
         contentType: extractContentType(resolvedId, decodedData)
-      }
-    } catch (error) {
-      console.error('Failed to decode NIP-19 entity:', error)
-      // Fallback: treat as database ID
-      return {
-        resolvedId: originalId,
-        idType: 'database',
-        originalId,
-        contentType: extractContentType(originalId)
       }
     }
   }
@@ -174,10 +134,44 @@ export function resolveUniversalId(id: string): UniversalIdResult {
   }
 }
 
+function determineResolvedId(originalId: string, decoded: SafeDecodedEntity): { resolvedId: string; idType: UniversalIdResult["idType"] } {
+  switch (decoded.type) {
+    case Prefix.PublicKey:
+      return { resolvedId: decoded.data, idType: decoded.type }
+    case Prefix.Note:
+      return { resolvedId: decoded.data, idType: decoded.type }
+    case Prefix.Event:
+      return {
+        resolvedId: decoded.data.id,
+        idType: decoded.type
+      }
+    case Prefix.Address: {
+      const identifier = decoded.data.identifier || originalId
+      return {
+        resolvedId: identifier,
+        idType: decoded.type
+      }
+    }
+    case Prefix.Profile:
+      return {
+        resolvedId: decoded.data.pubkey,
+        idType: decoded.type
+      }
+    default:
+      return {
+        resolvedId: originalId,
+        idType: 'database'
+      }
+  }
+}
+
 /**
  * Determines the appropriate route path based on content type and ID
  */
-export function getRoutePath(result: UniversalIdResult): string {
+export function getRoutePath(result: UniversalIdResult | null): string {
+  if (!result) {
+    return '/content'
+  }
   const { contentType, resolvedId } = result
   
   switch (contentType) {
@@ -206,14 +200,21 @@ export function getUniversalRoute(id: string): string {
  * Hook-friendly version for use in React components
  */
 export function useUniversalRouter(id: string) {
-  const result = resolveUniversalId(id)
-  const route = getRoutePath(result)
+  const resolvedResult = resolveUniversalId(id)
+  const fallbackResult: UniversalIdResult = {
+    resolvedId: id,
+    idType: 'database',
+    originalId: id,
+    contentType: extractContentType(id)
+  }
+  const result = resolvedResult ?? fallbackResult
+  const route = getRoutePath(resolvedResult)
   
   return {
     ...result,
     route,
-    isValidId: result.idType !== 'database' || isDatabaseId(id),
-    canRoute: result.contentType !== 'unknown'
+    isValidId: resolvedResult !== null && (resolvedResult.idType !== 'database' || isDatabaseId(id)),
+    canRoute: resolvedResult !== null && resolvedResult.contentType !== 'unknown'
   }
 }
 
@@ -223,7 +224,7 @@ export function useUniversalRouter(id: string) {
 export function isValidUniversalId(id: string): boolean {
   try {
     const result = resolveUniversalId(id)
-    return result.idType !== 'database' || isDatabaseId(id)
+    return Boolean(result && (result.idType !== 'database' || isDatabaseId(id)))
   } catch {
     return false
   }
@@ -234,6 +235,9 @@ export function isValidUniversalId(id: string): boolean {
  */
 export function normalizeId(id: string): string {
   const result = resolveUniversalId(id)
+  if (!result) {
+    return id.trim()
+  }
   return result.resolvedId
 }
 
@@ -242,14 +246,30 @@ export function normalizeId(id: string): string {
  */
 export function extractAllIds(id: string): string[] {
   const result = resolveUniversalId(id)
+  const trimmed = id.trim()
+  if (!result) {
+    return trimmed ? [trimmed] : []
+  }
+
   const ids = [result.resolvedId, result.originalId]
   
   // Add additional IDs from decoded data
   if (result.decodedData && typeof result.decodedData === 'object' && result.decodedData !== null) {
-    const data = result.decodedData as Record<string, unknown>
-    if (typeof data.id === 'string') ids.push(data.id)
-    if (typeof data.pubkey === 'string') ids.push(data.pubkey)
-    if (typeof data.identifier === 'string') ids.push(data.identifier)
+    // Type guard for EventData
+    if ('id' in result.decodedData) {
+      const eventData = result.decodedData as EventData
+      if (eventData.id) ids.push(eventData.id)
+    }
+    // Type guard for ProfileData or AddressData (both have pubkey)
+    if ('pubkey' in result.decodedData) {
+      const profileOrAddress = result.decodedData as ProfileData | AddressData
+      if (profileOrAddress.pubkey) ids.push(profileOrAddress.pubkey)
+    }
+    // Type guard for AddressData (has identifier)
+    if ('identifier' in result.decodedData) {
+      const addressData = result.decodedData as AddressData
+      if (addressData.identifier) ids.push(addressData.identifier)
+    }
   }
   
   // Remove duplicates

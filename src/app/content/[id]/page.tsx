@@ -13,7 +13,7 @@ import { parseEvent } from '@/data/types'
 import { useNostr, type NormalizedProfile } from '@/hooks/useNostr'
 import { resolveUniversalId, type UniversalIdResult } from '@/lib/universal-router'
 import { OptimizedImage } from '@/components/ui/optimized-image'
-import { encodePublicKey } from 'snstr'
+import { encodePublicKey, type AddressData, type EventData } from 'snstr'
 import { ZapThreads } from '@/components/ui/zap-threads'
 import { InteractionMetrics } from '@/components/ui/interaction-metrics'
 import { useInteractions } from '@/hooks/useInteractions'
@@ -31,6 +31,8 @@ import {
 import type { NostrEvent } from 'snstr'
 import { getRelays } from '@/lib/nostr-relays'
 import { ViewsText } from '@/components/ui/views-text'
+import { ResourceContentView } from '@/app/content/components/resource-content-view'
+import { extractNoteId } from '@/lib/nostr-events'
 
 interface ResourcePageProps {
   params: Promise<{
@@ -133,28 +135,62 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
         
         // Resolve the universal ID to determine how to fetch the content
         const resolved = resolveUniversalId(resourceId)
+        if (!resolved) {
+          setIdResult(null)
+          setError('Unsupported identifier')
+          setLoading(false)
+          return
+        }
         setIdResult(resolved)
         
         let nostrEvent: NostrEvent | null = null
         
         // Fetch based on ID type
-        if (resolved.idType === 'nevent' && resolved.decodedData && typeof resolved.decodedData === 'object' && resolved.decodedData !== null) {
-          const data = resolved.decodedData as Record<string, unknown>
-          if (typeof data.id === 'string') {
-            // Direct event ID from nevent
+        if (resolved.idType === 'nevent' && resolved.decodedData) {
+          if (
+            typeof resolved.decodedData === 'object' &&
+            'id' in resolved.decodedData &&
+            typeof resolved.decodedData.id === 'string'
+          ) {
+            const data = resolved.decodedData as EventData
+            // Check if relays field exists and is a valid array of strings
+            const relayHints = data.relays && Array.isArray(data.relays) && data.relays.length > 0
+              ? data.relays.filter((relay): relay is string => typeof relay === 'string')
+              : undefined
+            
             nostrEvent = await fetchSingleEvent({
               ids: [data.id]
-            })
+            }, relayHints ? { relays: relayHints } : {})
+          } else {
+            console.error('Invalid nevent decoded data', resolved.decodedData)
+            setError('Invalid identifier metadata')
+            setLoading(false)
+            return
           }
-        } else if (resolved.idType === 'naddr' && resolved.decodedData && typeof resolved.decodedData === 'object' && resolved.decodedData !== null) {
-          const data = resolved.decodedData as Record<string, unknown>
-          if (typeof data.identifier === 'string') {
-            // Addressable event by identifier
+        } else if (resolved.idType === 'naddr' && resolved.decodedData) {
+          if (
+            typeof resolved.decodedData === 'object' &&
+            'identifier' in resolved.decodedData &&
+            'kind' in resolved.decodedData &&
+            typeof resolved.decodedData.identifier === 'string' &&
+            typeof resolved.decodedData.kind === 'number'
+          ) {
+            const data = resolved.decodedData as AddressData
+            // Check if relays field exists and is a valid array of strings
+            const relayHints = data.relays && Array.isArray(data.relays) && data.relays.length > 0
+              ? data.relays.filter((relay): relay is string => typeof relay === 'string')
+              : undefined
+            
             nostrEvent = await fetchSingleEvent({
-              kinds: [30023, 30402, 30403], // Long-form content, paid content, and drafts
+              kinds: [data.kind],
               '#d': [data.identifier],
-              authors: typeof data.author === 'string' ? [data.author] : undefined
-            })
+              authors: data.pubkey ? [data.pubkey] : undefined
+            }, relayHints ? { relays: relayHints } : {})
+          } else {
+            console.error('Invalid naddr decoded data', resolved.decodedData)
+            setError('Invalid identifier metadata')
+            setLoading(false)
+            return
           }
         } else if (resolved.idType === 'note' || resolved.idType === 'hex') {
           // Direct event ID
@@ -235,7 +271,22 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
   const type = parsedEvent.type || 'document'
   const difficulty = 'intermediate' // Default since it's not in parseEvent
   // Views are tracked via /api/views and Vercel KV
-  const duration = type === 'video' ? '15 min' : undefined
+  const trimmedDuration = parsedEvent.duration?.trim()
+  const duration = type === 'video' ? (trimmedDuration ? trimmedDuration : undefined) : undefined
+  const isCourseContent = idResult?.contentType === 'course' || event.kind === 30004
+  // Mirror the premium logic from ResourceContentView so gating stays consistent.
+  const isPremiumFromParsed = parsedEvent.isPremium === true
+  const isPremiumFromTags = event.tags?.some(
+    (tag) => Array.isArray(tag) && tag.length >= 2 && tag[0] === 'isPremium' && tag[1] === 'true'
+  )
+  const derivedPremiumFlag =
+    isPremiumFromParsed ||
+    isPremiumFromTags ||
+    event.kind === 30402 ||
+    Boolean(parsedEvent.price && Number(parsedEvent.price) > 0)
+  const isPaidResource = Boolean(derivedPremiumFlag)
+  // Only courses and paid resources keep the preview wall; everything else opens directly.
+  const requiresPreviewGate = isCourseContent || isPaidResource
   
   // Use only real interaction data - no fallbacks
   const zapsCount = interactions.zaps
@@ -266,6 +317,39 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
         return <FileText className="h-5 w-5" />
       default:
         return <FileText className="h-5 w-5" />
+    }
+  }
+
+  // Normalize resourceId to extract the raw d-tag value for ZapThreads
+  // ZapThreads expects the d-tag identifier, not encoded formats (naddr, nevent, note, hex)
+  let normalizedResourceId: string = resourceId
+  
+  if (idResult) {
+    // For naddr, extract the identifier (d-tag) from decoded data
+    if (idResult.idType === 'naddr' && idResult.decodedData) {
+      const addressData = idResult.decodedData as AddressData
+      if (addressData.identifier) {
+        normalizedResourceId = addressData.identifier
+      }
+    } else if (idResult.idType === 'nevent' || idResult.idType === 'note' || idResult.idType === 'hex') {
+      // For nevent/note/hex, extract d-tag from the event itself
+      // Parameterized replaceable events (30023, 30402, 30004) use d-tags
+      const dTag = extractNoteId(event)
+      if (dTag) {
+        normalizedResourceId = dTag
+      } else {
+        // Fallback to resolvedId if no d-tag found
+        normalizedResourceId = idResult.resolvedId
+      }
+    } else {
+      // For other types (database IDs, etc.), use resolvedId
+      normalizedResourceId = idResult.resolvedId
+    }
+  } else {
+    // If idResult is null, try to extract d-tag from event as fallback
+    const dTag = extractNoteId(event)
+    if (dTag) {
+      normalizedResourceId = dTag
     }
   }
 
@@ -317,16 +401,18 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-                <Button size="lg" className="bg-primary hover:bg-primary/90 w-full sm:w-auto" asChild>
-                  <Link href={`/content/${resourceId}/details`}>
-                    {getResourceTypeIcon(type)}
-                    <span className="ml-2">
-                      {type === 'video' ? 'Watch Now' : 'Read Now'}
-                    </span>
-                  </Link>
-                </Button>
-              </div>
+              {requiresPreviewGate && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                  <Button size="lg" className="bg-primary hover:bg-primary/90 w-full sm:w-auto" asChild>
+                    <Link href={`/content/${resourceId}/details`}>
+                      {getResourceTypeIcon(type)}
+                      <span className="ml-2">
+                        {type === 'video' ? 'Watch Now' : 'Read Now'}
+                      </span>
+                    </Link>
+                  </Button>
+                </div>
+              )}
 
               {/* Tags */}
               {topics && topics.length > 0 && (
@@ -385,12 +471,16 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
             </div>
           </div>
 
-          {/* Resource Overview */}
+          {/* Resource Content - Conditionally render preview or full content */}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <Suspense fallback={<ResourceContentSkeleton />}>
-                <ResourceOverview resourceId={resourceId} />
-              </Suspense>
+              {requiresPreviewGate ? (
+                <Suspense fallback={<ResourceContentSkeleton />}>
+                  <ResourceOverview resourceId={resourceId} />
+                </Suspense>
+              ) : (
+                <ResourceContentView resourceId={resourceId} initialEvent={event} showBackLink={false} />
+              )}
             </div>
 
             <div className="space-y-6">
@@ -450,18 +540,20 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
             </div>
           </div>
           
-          {/* Comments Section */}
-          <div className="mt-8" data-comments-section>
-            <ZapThreads
-              eventDetails={{
-                identifier: resourceId,
-                pubkey: event.pubkey,
-                kind: event.kind,
-                relays: getRelays('default')
-              }}
-              title="Comments"
-            />
-          </div>
+          {/* Comments Section - Only show for preview-gated content since ResourceContentView includes its own comments */}
+          {requiresPreviewGate && (
+            <div className="mt-8" data-comments-section>
+              <ZapThreads
+                eventDetails={{
+                  identifier: normalizedResourceId,
+                  pubkey: event.pubkey,
+                  kind: event.kind,
+                  relays: getRelays('default')
+                }}
+                title="Comments"
+              />
+            </div>
+          )}
         </div>
       </Section>
     </MainLayout>

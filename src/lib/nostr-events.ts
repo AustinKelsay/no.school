@@ -16,6 +16,30 @@ import {
 import type { Draft, CourseDraft } from '@prisma/client'
 import type { DraftWithIncludes, CourseDraftWithIncludes } from './draft-service'
 
+export type ResourceEventDraftInput = {
+  id: string
+  userId: string
+  type: string
+  title: string
+  summary: string
+  content: string
+  image?: string | null
+  price?: number | null
+  topics: string[]
+  additionalLinks?: string[]
+  videoUrl?: string | null
+}
+
+export type CourseEventDraftInput = {
+  id: string
+  userId: string
+  title: string
+  summary: string
+  image?: string | null
+  price?: number | null
+  topics: string[]
+}
+
 // Event kinds for different content types
 export const EVENT_KINDS = {
   LONG_FORM_CONTENT: 30023,    // NIP-23 (free resources)
@@ -86,7 +110,9 @@ function buildVideoEmbedHtml(originalUrl: string, title: string): string {
   return `>[!TIP]\n> Watch the video here: [${sanitizedTitle}](${trimmedUrl})`
 }
 
-function formatDraftContent(draft: Draft | DraftWithIncludes): string {
+function formatDraftContent(
+  draft: Draft | DraftWithIncludes | ResourceEventDraftInput
+): string {
   if (draft.type !== 'video') {
     return draft.content
   }
@@ -114,7 +140,7 @@ function formatDraftContent(draft: Draft | DraftWithIncludes): string {
  * Note: This is only for server-side signing. NIP-07 users sign on the client.
  */
 export function createResourceEvent(
-  draft: Draft | DraftWithIncludes,
+  draft: Draft | DraftWithIncludes | ResourceEventDraftInput,
   privateKey: string
 ): NostrEvent {
   const isPaid = (draft.price || 0) > 0
@@ -177,7 +203,7 @@ export function createResourceEvent(
  * Note: This is only for server-side signing. NIP-07 users sign on the client.
  */
 export function createCourseEvent(
-  courseDraft: CourseDraft | CourseDraftWithIncludes,
+  courseDraft: CourseDraft | CourseDraftWithIncludes | CourseEventDraftInput,
   lessonReferences: Array<{ resourceId: string; pubkey: string }>,
   privateKey: string
 ): NostrEvent {
@@ -232,7 +258,7 @@ export function createCourseEvent(
  * Returns the event structure without id and signature
  */
 export function createUnsignedResourceEvent(
-  draft: Draft | DraftWithIncludes,
+  draft: Draft | DraftWithIncludes | ResourceEventDraftInput,
   pubkey: string
 ): Omit<NostrEvent, 'id' | 'sig'> {
   const isPaid = (draft.price || 0) > 0
@@ -292,7 +318,7 @@ export function createUnsignedResourceEvent(
  * Returns the event structure without id and signature
  */
 export function createUnsignedCourseEvent(
-  courseDraft: CourseDraft | CourseDraftWithIncludes,
+  courseDraft: CourseDraft | CourseDraftWithIncludes | CourseEventDraftInput,
   lessonReferences: Array<{ resourceId: string; pubkey: string }>,
   pubkey: string
 ): Omit<NostrEvent, 'id' | 'sig'> {

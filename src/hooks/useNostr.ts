@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { DEFAULT_RELAYS, useSnstrContext } from "@/contexts/snstr-context";
-import { Filter, NostrEvent, decodePublicKey, decodeProfile, decode } from "snstr";
+import { Filter, NostrEvent, Prefix } from "snstr";
+import { tryDecodeNip19Entity } from "@/lib/nip19-utils";
 
 /**
  * Normalized profile data extracted from a kind 0 event
@@ -52,28 +53,13 @@ export function useNostr() {
       return pubkeyInput.toLowerCase();
     }
 
-    // If it starts with npub, decode it
-    if (pubkeyInput.startsWith('npub1')) {
-      return decodePublicKey(pubkeyInput as `${string}1${string}`);
+    // Try generic decode for all NIP-19 formats (npub, nprofile, etc.)
+    const decoded = tryDecodeNip19Entity(pubkeyInput);
+    if (decoded?.type === Prefix.PublicKey) {
+      return decoded.data;
     }
-
-    // If it starts with nprofile, decode it and extract pubkey
-    if (pubkeyInput.startsWith('nprofile1')) {
-      const profileData = decodeProfile(pubkeyInput as `${string}1${string}`);
-      return profileData.pubkey;
-    }
-
-    // Try generic decode as fallback
-    try {
-      const decoded = decode(pubkeyInput as `${string}1${string}`);
-      if (decoded.type === 'npub') {
-        return decoded.data;
-      }
-      if (decoded.type === 'nprofile') {
-        return decoded.data.pubkey;
-      }
-    } catch (error) {
-      // If all else fails, assume it's already hex
+    if (decoded?.type === Prefix.Profile) {
+      return decoded.data.pubkey;
     }
 
     return pubkeyInput;
@@ -86,15 +72,17 @@ export function useNostr() {
    * @param filter - Filter object to match events (kinds, authors, since, until, etc.)
    * @param options - Optional configuration object
    * @param options.timeout - Maximum time to wait for response in milliseconds (default: 5000)
+   * @param options.relays - Optional array of relay URLs to query (defaults to DEFAULT_RELAYS)
    * @returns Promise that resolves to the most recent matching event or null if none found
    */
   const fetchSingleEvent = useCallback(async (
     filter: Filter, 
-    options: { timeout?: number } = {}
+    options: { timeout?: number; relays?: string[] } = {}
   ): Promise<NostrEvent | null> => {
     try {
+      const relays = options.relays && options.relays.length > 0 ? options.relays : DEFAULT_RELAYS
       const event = await relayPool.get(
-        DEFAULT_RELAYS,
+        relays,
         filter,
         { timeout: options.timeout || 5000 }
       );

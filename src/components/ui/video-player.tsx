@@ -109,13 +109,16 @@ function extractVideoSource(content: string | undefined): string | null {
 /**
  * Video controls component
  */
-function VideoControls({ videoUrl, duration }: { videoUrl?: string; duration?: string }) {
+const VideoControls = ({ videoUrl, duration }: { videoUrl?: string; duration?: string }) => {
+  const durationLabel = duration?.trim()
+  const shouldShowDuration = Boolean(durationLabel && durationLabel !== '—')
+
   return (
     <div className="flex items-center justify-between p-4 bg-muted/50 border-t">
       <div className="flex items-center space-x-2">
-        {duration && (
+        {shouldShowDuration && (
           <Badge variant="outline" className="text-xs">
-            {duration}
+            {durationLabel}
           </Badge>
         )}
         <Badge variant="secondary" className="text-xs">

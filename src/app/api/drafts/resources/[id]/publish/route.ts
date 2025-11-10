@@ -105,6 +105,39 @@ export async function POST(
         )
       }
 
+      // Ensure this draft isn't reused multiple times in the same course draft
+      const draftLessonUsages = await prisma.draftLesson.findMany({
+        where: { draftId },
+        select: { id: true, courseDraftId: true },
+      })
+
+      const duplicateCourseUsage = draftLessonUsages.reduce<Map<string, string[]>>((acc, lesson) => {
+        const courseDraftId = lesson.courseDraftId
+        if (!courseDraftId) {
+          return acc
+        }
+
+        const existing = acc.get(courseDraftId) ?? []
+        existing.push(lesson.id)
+        acc.set(courseDraftId, existing)
+        return acc
+      }, new Map())
+
+      for (const [courseDraftId, lessonIds] of duplicateCourseUsage.entries()) {
+        if (lessonIds.length > 1) {
+          return NextResponse.json(
+            {
+              error: 'Duplicate draft lessons detected',
+              details: [
+                'A course draft contains this draft multiple times. Remove duplicates before publishing this resource.'
+              ],
+              meta: { courseDraftId, lessonIds }
+            },
+            { status: 400 }
+          )
+        }
+      }
+
       // Create resource in database (the event is already published by client)
       const resource = await prisma.$transaction(async (tx) => {
         // Get the draft details for creating resource
@@ -126,6 +159,15 @@ export async function POST(
             videoId: fullDraft.type === 'video' ? draftId : undefined,
             videoUrl: fullDraft.type === 'video' ? fullDraft.videoUrl ?? undefined : undefined,
           }
+        })
+
+        await tx.draftLesson.updateMany({
+          where: { draftId },
+          data: {
+            resourceId: newResource.id,
+            draftId: null,
+            updatedAt: new Date(),
+          },
         })
 
         // Update any lessons using this draft
