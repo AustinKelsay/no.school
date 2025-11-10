@@ -100,6 +100,33 @@ function generateAnonymousUserData(pubkey: string) {
 }
 
 /**
+ * Look up an existing ephemeral user (anonymous/email/github) using a persisted private key
+ * This is primarily used to let anonymous accounts reconnect using browser-stored keys.
+ */
+async function findUserByPrivateKey(privateKeyInput: string) {
+  const privateKeyHex = normalizePrivateKey(privateKeyInput)
+  const publicKey = derivePublicKey(privateKeyHex)
+
+  if (!verifyNostrPubkey(publicKey)) {
+    throw new Error('Derived invalid public key format')
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { pubkey: publicKey }
+  })
+
+  if (!user) {
+    throw new Error('No account found for this private key')
+  }
+
+  if (!user.privkey || user.privkey !== privateKeyHex) {
+    throw new Error('Private key mismatch for this account')
+  }
+
+  return user
+}
+
+/**
  * Normalize private key input (hex or nsec) to hex format
  */
 function normalizePrivateKey(input: string): string {
@@ -429,14 +456,42 @@ if (authConfig.providers.anonymous.enabled) {
       id: 'anonymous',
       name: 'Anonymous',
       credentials: {
+        privateKey: {
+          label: 'Persisted Private Key',
+          type: 'hidden'
+        },
         generateKeys: {
           label: 'Generate Keys',
           type: 'hidden',
           value: 'true'
         }
       },
-      async authorize() {
+      async authorize(credentials) {
         try {
+          // Allow returning anonymous users to authenticate with their persisted private key
+          if (credentials?.privateKey) {
+            const existingUser = await findUserByPrivateKey(credentials.privateKey)
+            console.log('Reusing persisted anonymous user:', existingUser.id)
+
+            // NOSTR-FIRST: Keep resumed anonymous users in sync with their live Nostr profile
+            let syncedUser = existingUser
+            if (existingUser.pubkey) {
+              const refreshed = await syncUserProfileFromNostr(existingUser.id, existingUser.pubkey)
+              if (refreshed) {
+                syncedUser = refreshed
+                console.log('Synced anonymous user profile from Nostr on resume')
+              }
+            }
+
+            return {
+              id: syncedUser.id,
+              email: syncedUser.email,
+              username: syncedUser.username || undefined,
+              avatar: syncedUser.avatar || undefined,
+              pubkey: syncedUser.pubkey || undefined,
+            }
+          }
+
           // Generate new Nostr keypair using snstr
           const keys = await generateKeypair()
           

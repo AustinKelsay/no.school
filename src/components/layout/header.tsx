@@ -48,6 +48,7 @@ export function Header() {
   const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const { data: session } = useSession()
+  const sessionUser = session?.user
   const { adminInfo } = useAdminInfo()
   const isMountedRef = useRef(true)
 
@@ -76,6 +77,24 @@ export function Header() {
     Boolean(adminInfo?.permissions?.createCourse) ||
     Boolean(adminInfo?.permissions?.createResource)
 
+  const clearIdentityCache = useCallback(() => {
+    setAvatarUrl(undefined)
+    setDisplayName(undefined)
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(AVATAR_STORAGE_KEY)
+        window.localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY)
+      } catch (error) {
+        console.warn("Failed to clear identity cache:", error)
+      }
+    }
+  }, [])
+
+  const handleSignOut = useCallback(() => {
+    clearIdentityCache()
+    void signOut()
+  }, [clearIdentityCache])
+
   useEffect(() => {
     return () => {
       isMountedRef.current = false
@@ -88,13 +107,12 @@ export function Header() {
     Boolean(value && !isAnonymousAvatar(value))
 
   useEffect(() => {
-    if (!session?.user) {
-      setAvatarUrl(undefined)
-      setDisplayName(undefined)
+    if (!sessionUser) {
+      clearIdentityCache()
       return
     }
 
-    const nextAvatar = session.user.image || undefined
+    const nextAvatar = sessionUser.image || undefined
     if (nextAvatar) {
       const nextMeaningful = isMeaningfulAvatarUrl(nextAvatar)
       const currentMeaningful = isMeaningfulAvatarUrl(avatarUrl)
@@ -110,7 +128,7 @@ export function Header() {
       }
     }
 
-    const nextDisplayName = session.user.name || session.user.username || undefined
+    const nextDisplayName = sessionUser.name || sessionUser.username || undefined
     if (nextDisplayName) {
       const nextMeaningful = isMeaningfulName(nextDisplayName)
       const currentMeaningful = isMeaningfulName(displayName)
@@ -126,16 +144,14 @@ export function Header() {
       }
     }
   }, [
+    clearIdentityCache,
     avatarUrl,
     displayName,
-    session?.user?.id,
-    session?.user?.image,
-    session?.user?.name,
-    session?.user?.username
+    sessionUser,
   ])
 
   const loadAggregatedProfile = useCallback(async () => {
-    if (!session?.user?.id) {
+    if (!sessionUser?.id) {
       return
     }
     try {
@@ -171,7 +187,7 @@ export function Header() {
     } catch (error) {
       console.error("Failed to refresh aggregated profile for header", error)
     }
-  }, [session?.user?.id])
+  }, [sessionUser?.id])
 
   useEffect(() => {
     loadAggregatedProfile()
@@ -413,7 +429,10 @@ export function Header() {
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => signOut()} className="flex items-center">
+                <DropdownMenuItem
+                  onClick={handleSignOut}
+                  className="flex items-center"
+                >
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Sign out</span>
                 </DropdownMenuItem>

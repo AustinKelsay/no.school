@@ -7,7 +7,7 @@
 
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { signIn, getSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent } from '@/components/ui/card'
@@ -23,6 +23,11 @@ import { authConfigClient } from '@/lib/auth-config-client'
 import { validateCallbackUrlFromParams } from '@/lib/url-utils'
 import { Mail, Github, Zap, KeyRound, UserX, Sparkles, ArrowRight, HelpCircle, Shield, User } from 'lucide-react'
 import Link from 'next/link'
+import {
+  clearPersistedAnonymousIdentity,
+  getPersistedAnonymousIdentity,
+  persistAnonymousIdentity,
+} from '@/lib/anonymous-client-storage'
 
 interface NostrWindow extends Window {
   nostr?: {
@@ -56,10 +61,41 @@ export default function SignInPage() {
   const [isRecoveryLoading, setIsRecoveryLoading] = useState(false)
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
+  const [hasPersistedAnonymousIdentity, setHasPersistedAnonymousIdentity] = useState(false)
+  const [anonymousResumeFailed, setAnonymousResumeFailed] = useState(false)
 
   const callbackUrl = validateCallbackUrlFromParams(searchParams, 'callbackUrl', '/')
   const errorType = searchParams.get('error')
   const copy = authConfigClient.copy.signin
+
+  useEffect(() => {
+    setHasPersistedAnonymousIdentity(Boolean(getPersistedAnonymousIdentity()?.privkey))
+  }, [])
+
+  // Cache the anonymous identity (privkey, pubkey) after a successful anon login
+  const persistAnonymousSessionIdentity = useCallback(async () => {
+    try {
+      const session = await getSession()
+      if (session?.provider !== 'anonymous' || !session.user?.privkey) {
+        return
+      }
+
+      persistAnonymousIdentity({
+        privkey: session.user.privkey,
+        pubkey: session.user.pubkey,
+        userId: session.user.id,
+      })
+      setHasPersistedAnonymousIdentity(true)
+    } catch (storageError) {
+      console.warn('Failed to persist anonymous identity to browser storage:', storageError)
+    }
+  }, [])
+
+  const handleResetAnonymousIdentity = useCallback(() => {
+    clearPersistedAnonymousIdentity()
+    setHasPersistedAnonymousIdentity(false)
+    setAnonymousResumeFailed(false)
+  }, [])
 
   // Handle email magic link sign in
   const handleEmailSignIn = useCallback(async (e: React.FormEvent) => {
@@ -145,17 +181,38 @@ export default function SignInPage() {
   const handleAnonymousSignIn = useCallback(async () => {
     setIsAnonymousLoading(true)
     setError('')
+    setAnonymousResumeFailed(false)
 
     try {
-      const result = await signIn('anonymous', {
-        callbackUrl,
-        redirect: false,
-      })
+      const persistedIdentity = getPersistedAnonymousIdentity()
+      const attemptExistingIdentity = Boolean(persistedIdentity?.privkey)
+      setHasPersistedAnonymousIdentity(attemptExistingIdentity)
+
+      // Helper ensures we only duplicate the signIn argument building once
+      const attemptAnonymousSignIn = (privateKey?: string) =>
+        signIn('anonymous', {
+          callbackUrl,
+          redirect: false,
+          ...(privateKey ? { privateKey } : {}),
+        })
+
+      const result = await attemptAnonymousSignIn(persistedIdentity?.privkey)
 
       if (result?.error) {
-        setError(copy.messages.anonymousError || copy.messages.genericError)
+        if (attemptExistingIdentity) {
+          setAnonymousResumeFailed(true)
+          setError(
+            copy.messages.anonymousError ||
+              'We could not reconnect to your existing anonymous identity. Try again in a moment or reset the cached key below.'
+          )
+        } else {
+          setError(copy.messages.anonymousError || copy.messages.genericError)
+        }
       } else {
         // Success - redirect will be handled by NextAuth
+        await persistAnonymousSessionIdentity()
+        setAnonymousResumeFailed(false)
+        setHasPersistedAnonymousIdentity(true)
         router.push(callbackUrl)
       }
     } catch (err) {
@@ -164,7 +221,7 @@ export default function SignInPage() {
     } finally {
       setIsAnonymousLoading(false)
     }
-  }, [callbackUrl, router, copy.messages.anonymousError, copy.messages.genericError])
+  }, [callbackUrl, router, copy.messages.anonymousError, copy.messages.genericError, persistAnonymousSessionIdentity])
 
   // Handle Recovery sign in
   const handleRecoverySignIn = useCallback(async (e: React.FormEvent) => {
@@ -294,6 +351,22 @@ export default function SignInPage() {
                         </div>
                       </TooltipContent>
                     </Tooltip>
+                    {(anonymousResumeFailed || hasPersistedAnonymousIdentity) && (
+                      <div className="mt-3 text-xs text-muted-foreground">
+                        <p>
+                          {anonymousResumeFailed
+                            ? 'We could not reopen the cached anonymous account. Please retry or reset the cached key to start fresh.'
+                            : 'We will reuse the anonymous account cached in this browser.'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={handleResetAnonymousIdentity}
+                          className="mt-1 font-semibold text-primary hover:underline"
+                        >
+                          Reset anonymous identity (clears cached key)
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
