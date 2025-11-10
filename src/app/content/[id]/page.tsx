@@ -309,18 +309,6 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
     }
   }
 
-  if (!requiresPreviewGate) {
-    return (
-      <MainLayout>
-        <Section spacing="lg">
-          <div className="space-y-6">
-            <ResourceContentView resourceId={resourceId} initialEvent={event} showBackLink={false} />
-          </div>
-        </Section>
-      </MainLayout>
-    )
-  }
-
   return (
     <MainLayout>
       <Section spacing="lg">
@@ -369,16 +357,18 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                 )}
               </div>
 
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
-                <Button size="lg" className="bg-primary hover:bg-primary/90 w-full sm:w-auto" asChild>
-                  <Link href={`/content/${resourceId}/details`}>
-                    {getResourceTypeIcon(type)}
-                    <span className="ml-2">
-                      {type === 'video' ? 'Watch Now' : 'Read Now'}
-                    </span>
-                  </Link>
-                </Button>
-              </div>
+              {requiresPreviewGate && (
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+                  <Button size="lg" className="bg-primary hover:bg-primary/90 w-full sm:w-auto" asChild>
+                    <Link href={`/content/${resourceId}/details`}>
+                      {getResourceTypeIcon(type)}
+                      <span className="ml-2">
+                        {type === 'video' ? 'Watch Now' : 'Read Now'}
+                      </span>
+                    </Link>
+                  </Button>
+                </div>
+              )}
 
               {/* Tags */}
               {topics && topics.length > 0 && (
@@ -437,12 +427,16 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
             </div>
           </div>
 
-          {/* Resource Overview */}
+          {/* Resource Content - Conditionally render preview or full content */}
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <Suspense fallback={<ResourceContentSkeleton />}>
-                <ResourceOverview resourceId={resourceId} />
-              </Suspense>
+              {requiresPreviewGate ? (
+                <Suspense fallback={<ResourceContentSkeleton />}>
+                  <ResourceOverview resourceId={resourceId} />
+                </Suspense>
+              ) : (
+                <ResourceContentView resourceId={resourceId} initialEvent={event} showBackLink={false} />
+              )}
             </div>
 
             <div className="space-y-6">
@@ -502,18 +496,20 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
             </div>
           </div>
           
-          {/* Comments Section */}
-          <div className="mt-8" data-comments-section>
-            <ZapThreads
-              eventDetails={{
-                identifier: resourceId,
-                pubkey: event.pubkey,
-                kind: event.kind,
-                relays: getRelays('default')
-              }}
-              title="Comments"
-            />
-          </div>
+          {/* Comments Section - Only show for preview-gated content since ResourceContentView includes its own comments */}
+          {requiresPreviewGate && (
+            <div className="mt-8" data-comments-section>
+              <ZapThreads
+                eventDetails={{
+                  identifier: resourceId,
+                  pubkey: event.pubkey,
+                  kind: event.kind,
+                  relays: getRelays('default')
+                }}
+                title="Comments"
+              />
+            </div>
+          )}
         </div>
       </Section>
     </MainLayout>

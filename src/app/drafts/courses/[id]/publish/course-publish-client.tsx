@@ -397,17 +397,12 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
   const resolvedLessons = useMemo(() => {
     if (!draftData) return []
     
-    // If we have resourceIds and notes are still loading, wait for complete data
-    // This prevents using incomplete note data while loading
-    if (resourceIds.length > 0 && resourceNotes.isLoading) {
-      return []
-    }
-    
     return [...draftData.draftLessons]
       .sort((a, b) => a.index - b.index)
       .map(lesson => {
         const resourceId = lesson.resourceId ?? lesson.resource?.id ?? ''
-        const noteResult = resourceId ? resourceNotes.notes.get(resourceId) : undefined
+        // Only use notes when loading is complete to avoid incomplete data
+        const noteResult = (!resourceNotes.isLoading && resourceId) ? resourceNotes.notes.get(resourceId) : undefined
         const { data } = resolveDraftLesson(draftData, lesson, noteResult)
         if (data) {
           return data
@@ -432,7 +427,7 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
           resourceId: resourceId || null,
         } satisfies ResolvedDraftLesson
       })
-  }, [draftData, resourceNotes.notes, resourceNotes.isLoading, resourceIds.length])
+  }, [draftData, resourceNotes.notes, resourceNotes.isLoading])
 
   // Update published course ID when publish succeeds and redirect
   useEffect(() => {

@@ -7,6 +7,7 @@
 
 import { prisma } from '@/lib/prisma'
 import { fetchNostrProfile } from '@/lib/auth'
+import { slugifyUsername } from '@/lib/username-utils'
 import authConfig from '../../config/auth.json'
 
 export interface LinkedAccountData {
@@ -406,19 +407,19 @@ export async function getAggregatedProfile(userId: string): Promise<AggregatedPr
     email?: string | null
   } = {}
 
-  const isMeaningfulUsername = (value?: string | null) =>
-    value && !isAnonymousUsername(value)
-
   const isMeaningfulAvatar = (value?: string | null) =>
     value && !isAnonymousAvatar(value)
 
+  const sanitizedAggregatedUsername = slugifyUsername(aggregated.username?.value)
+  const sanitizedAggregatedName = slugifyUsername(aggregated.name?.value)
+
   const finalIdentity = (() => {
     if (!user.username || isAnonymousUsername(user.username)) {
-      if (isMeaningfulUsername(aggregated.name?.value)) {
-        return aggregated.name!.value
+      if (sanitizedAggregatedUsername && !isAnonymousUsername(sanitizedAggregatedUsername)) {
+        return sanitizedAggregatedUsername
       }
-      if (isMeaningfulUsername(aggregated.username?.value)) {
-        return aggregated.username!.value
+      if (sanitizedAggregatedName && !isAnonymousUsername(sanitizedAggregatedName)) {
+        return sanitizedAggregatedName
       }
       return user.username || null
     }

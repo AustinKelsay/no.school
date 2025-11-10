@@ -19,7 +19,6 @@ declare module 'next-auth' {
       nip05?: string
       lud16?: string
       banner?: string
-      avatar?: string
     } & DefaultSession['user']
     provider?: string  // Track which provider was used for current session
   }

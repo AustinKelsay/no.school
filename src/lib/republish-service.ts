@@ -254,6 +254,11 @@ export class RepublishService {
     const event = createResourceEvent(draftLike, signingPrivkey)
     const noteId = extractNoteId(event)
 
+    // Verify the event pubkey matches the resource owner's pubkey
+    if (event.pubkey !== resource.user.pubkey) {
+      throw new RepublishError('Event must be signed by resource owner', 'INVALID_PUBKEY')
+    }
+
     if (!noteId || noteId !== resourceId) {
       throw new RepublishError('Generated event missing matching d tag', 'INVALID_EVENT')
     }
@@ -427,6 +432,11 @@ export class RepublishService {
 
     const event = createCourseEvent(draftLike, lessonReferences, signingPrivkey)
     const noteId = extractNoteId(event)
+
+    // Verify the event pubkey matches the course owner's pubkey
+    if (event.pubkey !== course.user.pubkey) {
+      throw new RepublishError('Event must be signed by course owner', 'INVALID_PUBKEY')
+    }
 
     if (!noteId || noteId !== courseId) {
       throw new RepublishError('Generated event missing matching d tag', 'INVALID_EVENT')

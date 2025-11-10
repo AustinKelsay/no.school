@@ -166,19 +166,32 @@ function ContentMetadata({ event, parsedEvent, resourceKey }: ContentMetadataPro
   const [authorProfile, setAuthorProfile] = useState<NormalizedProfile | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+
     const fetchAuthorProfile = async () => {
-      if (event.pubkey) {
-        try {
-          const profileEvent = await fetchProfile(event.pubkey)
-          const normalizedProfile = normalizeKind0(profileEvent)
-          setAuthorProfile(normalizedProfile)
-        } catch (error) {
+      if (!event.pubkey) {
+        return
+      }
+
+      try {
+        const profileEvent = await fetchProfile(event.pubkey)
+        if (cancelled) {
+          return
+        }
+        const normalizedProfile = normalizeKind0(profileEvent)
+        setAuthorProfile(normalizedProfile)
+      } catch (error) {
+        if (!cancelled) {
           console.error('Error fetching author profile:', error)
         }
       }
     }
 
     fetchAuthorProfile()
+
+    return () => {
+      cancelled = true
+    }
   }, [event.pubkey, fetchProfile, normalizeKind0])
 
   const formatDate = (timestamp: number): string => {
