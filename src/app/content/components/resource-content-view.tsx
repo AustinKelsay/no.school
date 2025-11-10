@@ -281,16 +281,22 @@ export function ResourceContentView({
   const resolvedIdentifier = useMemo(() => resolveUniversalId(resourceId), [resourceId])
 
   useEffect(() => {
+    let cancelled = false
+
     if (initialEvent) {
       // When the parent already fetched the event (e.g., overview route), reuse it immediately.
       setEvent(initialEvent)
       setLoading(false)
       setError(null)
-      return
+      return () => {
+        cancelled = true
+      }
     }
 
     const fetchEvent = async () => {
       try {
+        if (cancelled) return
+
         setLoading(true)
         setError(null)
 
@@ -298,8 +304,10 @@ export function ResourceContentView({
         const resolved = resolvedIdentifier
 
         if (!resolved) {
-          setError('Unsupported identifier')
-          setLoading(false)
+          if (!cancelled) {
+            setError('Unsupported identifier')
+            setLoading(false)
+          }
           return
         }
 
@@ -334,6 +342,8 @@ export function ResourceContentView({
           })
         }
 
+        if (cancelled) return
+
         if (nostrEvent) {
           setEvent(nostrEvent)
         } else {
@@ -341,13 +351,21 @@ export function ResourceContentView({
         }
       } catch (err) {
         console.error('Error fetching Nostr event:', err)
-        setError('Failed to fetch resource')
+        if (!cancelled) {
+          setError('Failed to fetch resource')
+        }
       } finally {
-        setLoading(false)
+        if (!cancelled) {
+          setLoading(false)
+        }
       }
     }
 
     fetchEvent()
+
+    return () => {
+      cancelled = true
+    }
   }, [resourceId, fetchSingleEvent, initialEvent, resolvedIdentifier])
 
   const isMissingResource = error === 'Resource not found'
