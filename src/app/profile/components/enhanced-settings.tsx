@@ -746,7 +746,7 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
                   </Label>
                   <Input
                     id="nip05"
-                    value={enhancedProfile.nip05 as string}
+                    value={String(enhancedProfile.nip05 ?? '')}
                     onChange={(e) => setEnhancedProfile({ ...enhancedProfile, nip05: e.target.value })}
                     placeholder="user@domain.com"
                   />
@@ -769,7 +769,7 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
                   </Label>
                   <Input
                     id="lud16"
-                    value={enhancedProfile.lud16 as string}
+                    value={String(enhancedProfile.lud16 ?? '')}
                     onChange={(e) => setEnhancedProfile({ ...enhancedProfile, lud16: e.target.value })}
                     placeholder="user@wallet.com"
                   />
@@ -792,7 +792,7 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
                   </Label>
                   <Input
                     id="banner"
-                    value={enhancedProfile.banner as string}
+                    value={String(enhancedProfile.banner ?? '')}
                     onChange={(e) => setEnhancedProfile({ ...enhancedProfile, banner: e.target.value })}
                     placeholder="https://example.com/banner.jpg"
                   />
