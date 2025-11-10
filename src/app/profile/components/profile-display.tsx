@@ -100,6 +100,8 @@ export function ProfileDisplay({ session }: ProfileDisplayProps) {
             size="sm"
             className={cn('h-8 w-8 rounded-full', heroCopyButtonClasses)}
             onClick={() => copyToClipboard(copyValue ?? value, key)}
+            aria-label={copiedField === key ? `${label} copied` : `Copy ${label} to clipboard`}
+            title={copiedField === key ? `${label} copied` : `Copy ${label} to clipboard`}
           >
             {copiedField === key ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
           </Button>
@@ -208,6 +210,8 @@ export function ProfileDisplay({ session }: ProfileDisplayProps) {
                   variant="ghost" 
                   size="sm"
                   onClick={() => setShowPrivateKey(!showPrivateKey)}
+                  aria-label={showPrivateKey ? 'Hide private key' : 'Show private key'}
+                  title={showPrivateKey ? 'Hide private key' : 'Show private key'}
                 >
                   {showPrivateKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
@@ -215,12 +219,14 @@ export function ProfileDisplay({ session }: ProfileDisplayProps) {
               {showPrivateKey && (
                 <div className="flex items-center justify-between">
                   <code className="text-sm text-muted-foreground font-mono break-all">
-                    {formatKey(user.privkey)}
+                    {user.privkey}
                   </code>
                   <Button 
                     variant="ghost" 
                     size="sm"
                     onClick={() => copyToClipboard(user.privkey!, 'privkey')}
+                    aria-label={copiedField === 'privkey' ? 'Private key copied' : 'Copy private key to clipboard'}
+                    title={copiedField === 'privkey' ? 'Private key copied' : 'Copy private key to clipboard'}
                   >
                     {copiedField === 'privkey' ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                   </Button>

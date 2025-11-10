@@ -72,15 +72,17 @@ export function useNostr() {
    * @param filter - Filter object to match events (kinds, authors, since, until, etc.)
    * @param options - Optional configuration object
    * @param options.timeout - Maximum time to wait for response in milliseconds (default: 5000)
+   * @param options.relays - Optional array of relay URLs to query (defaults to DEFAULT_RELAYS)
    * @returns Promise that resolves to the most recent matching event or null if none found
    */
   const fetchSingleEvent = useCallback(async (
     filter: Filter, 
-    options: { timeout?: number } = {}
+    options: { timeout?: number; relays?: string[] } = {}
   ): Promise<NostrEvent | null> => {
     try {
+      const relays = options.relays && options.relays.length > 0 ? options.relays : DEFAULT_RELAYS
       const event = await relayPool.get(
-        DEFAULT_RELAYS,
+        relays,
         filter,
         { timeout: options.timeout || 5000 }
       );

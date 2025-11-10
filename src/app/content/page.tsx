@@ -130,6 +130,9 @@ export default function ContentPage() {
     let isCancelled = false
 
     const fetchImages = async () => {
+      // Capture the list of noteIds we intend to fetch before the try block
+      // This ensures we can clean them up in finally even if an error occurs
+      const noteIdsToCleanup = [...noteIdsToFetch]
       let results: Array<{ noteId: string; image?: string; hasEvent: boolean }> = []
       let relayPoolInstance: RelayPool | null = null
 
@@ -171,7 +174,9 @@ export default function ContentPage() {
       } catch (error) {
         console.error('Failed to fetch note images', error)
       } finally {
-        results.forEach(({ noteId }) => {
+        // Always clean up all noteIds we intended to fetch, regardless of whether
+        // results was populated or an error occurred
+        noteIdsToCleanup.forEach((noteId) => {
           inFlightNoteIds.current.delete(noteId)
         })
         if (relayPoolInstance) {

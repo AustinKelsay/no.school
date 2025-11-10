@@ -308,6 +308,8 @@ export function ResourceContentView({
             const eventData = resolved.decodedData as EventData
             nostrEvent = await fetchSingleEvent({
               ids: [eventData.id]
+            }, {
+              relays: eventData.relays
             })
           }
         } else if (resolved.idType === 'naddr' && resolved.decodedData && typeof resolved.decodedData === 'object') {
@@ -317,6 +319,8 @@ export function ResourceContentView({
               kinds: [addressData.kind],
               '#d': [addressData.identifier],
               authors: addressData.pubkey ? [addressData.pubkey] : undefined
+            }, {
+              relays: addressData.relays
             })
           }
         } else if (resolved.idType === 'note' || resolved.idType === 'hex') {
