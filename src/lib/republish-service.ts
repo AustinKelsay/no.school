@@ -386,6 +386,37 @@ export class RepublishService {
         })
       }
 
+      // Ensure the signed event references the same lesson set as the database
+      const expectedLessonRefs = new Set(
+        lessonReferences.map(ref => `${ref.pubkey}:${ref.resourceId}`)
+      )
+
+      const eventLessonRefs = new Set(
+        signedEvent.tags
+          .filter(tag => tag[0] === 'a' && typeof tag[1] === 'string')
+          .map(([, ref]) => {
+            const parts = ref.split(':') // Format: "<kind>:<pubkey>:<identifier>"
+            return parts.length >= 3 ? `${parts[1]}:${parts[2]}` : ''
+          })
+          .filter(Boolean)
+      )
+
+      const lessonsMismatch =
+        eventLessonRefs.size === 0 ||
+        eventLessonRefs.size !== expectedLessonRefs.size ||
+        [...expectedLessonRefs].some(key => !eventLessonRefs.has(key))
+
+      if (lessonsMismatch) {
+        throw new RepublishError(
+          'Signed course event lessons do not match current course lessons',
+          'LESSON_MISMATCH',
+          {
+            expected: [...expectedLessonRefs],
+            event: [...eventLessonRefs],
+          }
+        )
+      }
+
       const publishedRelays = await publishToRelays(selectedRelays, signedEvent)
 
       await prisma.$transaction(async tx => {

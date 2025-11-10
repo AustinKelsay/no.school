@@ -43,6 +43,8 @@ export function slugifyUsername(value?: string | null): string | null {
     slug = slug.slice(0, USERNAME_MAX_LENGTH)
   }
 
+  slug = slug.replace(LEADING_TRAILING_SEPARATORS_REGEX, '')
+
   if (slug.length < USERNAME_MIN_LENGTH) {
     return null
   }

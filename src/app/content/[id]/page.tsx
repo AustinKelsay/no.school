@@ -32,6 +32,7 @@ import type { NostrEvent } from 'snstr'
 import { getRelays } from '@/lib/nostr-relays'
 import { ViewsText } from '@/components/ui/views-text'
 import { ResourceContentView } from '@/app/content/components/resource-content-view'
+import { extractNoteId } from '@/lib/nostr-events'
 
 interface ResourcePageProps {
   params: Promise<{
@@ -152,9 +153,14 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
             typeof resolved.decodedData.id === 'string'
           ) {
             const data = resolved.decodedData as EventData
+            // Check if relays field exists and is a valid array of strings
+            const relayHints = data.relays && Array.isArray(data.relays) && data.relays.length > 0
+              ? data.relays.filter((relay): relay is string => typeof relay === 'string')
+              : undefined
+            
             nostrEvent = await fetchSingleEvent({
               ids: [data.id]
-            })
+            }, relayHints ? { relays: relayHints } : {})
           } else {
             console.error('Invalid nevent decoded data', resolved.decodedData)
             setError('Invalid identifier metadata')
@@ -170,11 +176,16 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
             typeof resolved.decodedData.kind === 'number'
           ) {
             const data = resolved.decodedData as AddressData
+            // Check if relays field exists and is a valid array of strings
+            const relayHints = data.relays && Array.isArray(data.relays) && data.relays.length > 0
+              ? data.relays.filter((relay): relay is string => typeof relay === 'string')
+              : undefined
+            
             nostrEvent = await fetchSingleEvent({
               kinds: [data.kind],
               '#d': [data.identifier],
               authors: data.pubkey ? [data.pubkey] : undefined
-            })
+            }, relayHints ? { relays: relayHints } : {})
           } else {
             console.error('Invalid naddr decoded data', resolved.decodedData)
             setError('Invalid identifier metadata')
@@ -306,6 +317,39 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
         return <FileText className="h-5 w-5" />
       default:
         return <FileText className="h-5 w-5" />
+    }
+  }
+
+  // Normalize resourceId to extract the raw d-tag value for ZapThreads
+  // ZapThreads expects the d-tag identifier, not encoded formats (naddr, nevent, note, hex)
+  let normalizedResourceId: string = resourceId
+  
+  if (idResult) {
+    // For naddr, extract the identifier (d-tag) from decoded data
+    if (idResult.idType === 'naddr' && idResult.decodedData) {
+      const addressData = idResult.decodedData as AddressData
+      if (addressData.identifier) {
+        normalizedResourceId = addressData.identifier
+      }
+    } else if (idResult.idType === 'nevent' || idResult.idType === 'note' || idResult.idType === 'hex') {
+      // For nevent/note/hex, extract d-tag from the event itself
+      // Parameterized replaceable events (30023, 30402, 30004) use d-tags
+      const dTag = extractNoteId(event)
+      if (dTag) {
+        normalizedResourceId = dTag
+      } else {
+        // Fallback to resolvedId if no d-tag found
+        normalizedResourceId = idResult.resolvedId
+      }
+    } else {
+      // For other types (database IDs, etc.), use resolvedId
+      normalizedResourceId = idResult.resolvedId
+    }
+  } else {
+    // If idResult is null, try to extract d-tag from event as fallback
+    const dTag = extractNoteId(event)
+    if (dTag) {
+      normalizedResourceId = dTag
     }
   }
 
@@ -501,7 +545,7 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
             <div className="mt-8" data-comments-section>
               <ZapThreads
                 eventDetails={{
-                  identifier: resourceId,
+                  identifier: normalizedResourceId,
                   pubkey: event.pubkey,
                   kind: event.kind,
                   relays: getRelays('default')
