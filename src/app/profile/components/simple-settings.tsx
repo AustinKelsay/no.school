@@ -242,7 +242,7 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
         if (!baseProfile.display_name && user.name) {
           baseProfile.display_name = user.name
         }
-        const profilePicture = user.image ?? user.avatar
+        const profilePicture = user.image
         if (!baseProfile.picture && profilePicture) {
           baseProfile.picture = profilePicture
         }

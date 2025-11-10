@@ -259,7 +259,7 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
     if (!baseProfile.display_name && user.name) {
       baseProfile.display_name = user.name
     }
-    const fallbackImage = user.image || user.avatar
+    const fallbackImage = user.image
     if (!baseProfile.picture && fallbackImage) {
       baseProfile.picture = fallbackImage
     }
