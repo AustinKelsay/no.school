@@ -1,5 +1,4 @@
 import type { SignedKind0Event } from '@/app/profile/actions'
-import type { NostrEvent } from 'snstr'
 
 type ProfileUpdateFields = {
   nip05?: string | null | undefined
@@ -30,13 +29,6 @@ type UnsignedKind0Event = {
   pubkey: string
 }
 
-interface NostrExtension {
-  signEvent(event: UnsignedKind0Event): Promise<NostrEvent>
-}
-
-interface NostrWindow extends Window {
-  nostr?: NostrExtension
-}
 
 const normalizeUpdate = (value?: string | null): string | null | undefined => {
   if (value === undefined) {
@@ -60,17 +52,17 @@ export async function prepareSignedNostrProfile({
     throw new Error('Missing Nostr public key. Please reconnect your Nostr session.')
   }
 
-  if (typeof window === 'undefined') {
-    throw new Error('Nostr signing is only available in the browser.')
+  if (typeof window === "undefined") {
+    throw new Error("Nostr signing is only available in the browser.")
   }
 
-  const nostr = (window as NostrWindow).nostr
+  const nostr = window.nostr
   if (!nostr?.signEvent) {
-    throw new Error('Connect a Nostr (NIP-07) extension to publish profile changes.')
+    throw new Error("Connect a Nostr (NIP-07) extension to publish profile changes.")
   }
 
   const baseProfile: Record<string, any> =
-    nostrProfile && typeof nostrProfile === 'object' ? { ...nostrProfile } : {}
+    nostrProfile && typeof nostrProfile === "object" ? { ...nostrProfile } : {}
 
   const applyField = (key: keyof ProfileUpdateFields, value: string | null | undefined) => {
     const normalized = normalizeUpdate(value)
@@ -84,9 +76,9 @@ export async function prepareSignedNostrProfile({
     }
   }
 
-  applyField('nip05', updates.nip05)
-  applyField('lud16', updates.lud16)
-  applyField('banner', updates.banner)
+  applyField("nip05", updates.nip05)
+  applyField("lud16", updates.lud16)
+  applyField("banner", updates.banner)
 
   if (!baseProfile.name && user.name) {
     baseProfile.name = user.name
@@ -106,14 +98,14 @@ export async function prepareSignedNostrProfile({
     pubkey: user.pubkey,
   }
 
-  let signed: NostrEvent
+  let signed: Awaited<ReturnType<NonNullable<typeof window.nostr>['signEvent']>>
   try {
     signed = await nostr.signEvent(unsignedEvent)
   } catch (error) {
     if (error instanceof Error) {
       throw new Error(`Failed to sign event: ${error.message}`)
     }
-    throw new Error('User rejected signing or signing failed')
+    throw new Error("User rejected signing or signing failed")
   }
 
   return {

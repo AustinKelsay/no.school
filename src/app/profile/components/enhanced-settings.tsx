@@ -35,7 +35,6 @@ import {
 import { updateBasicProfile, updateEnhancedProfile, updateAccountPreferences, type BasicProfileData, type EnhancedProfileData, type SignedKind0Event } from '../actions'
 import { prepareSignedNostrProfile } from '@/lib/nostr-profile-signing'
 import type { AggregatedProfile } from '@/lib/profile-aggregator'
-import type { NostrEvent } from 'snstr'
 import { InfoTooltip } from '@/components/ui/info-tooltip'
 
 interface EnhancedSettingsProps {
@@ -202,7 +201,7 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
   const canEditBasic = !isNostrFirst
   const requiresSignedEvent = !!user.pubkey && !user.privkey
 
-  const normalizeField = (value: string | null | undefined) => {
+  const normalizeField = (value: string | null | undefined): string | null | undefined => {
     if (value === undefined || value === null) return undefined
     const trimmed = value.trim()
     return trimmed.length === 0 ? null : trimmed
@@ -257,7 +256,11 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
           const { signedEvent: signed, updatedProfile } = await prepareSignedNostrProfile({
             user,
             nostrProfile,
-            updates: normalizedData,
+            updates: {
+              nip05: normalizedData.nip05 as string | null | undefined,
+              lud16: normalizedData.lud16 as string | null | undefined,
+              banner: normalizedData.banner as string | null | undefined,
+            },
           })
           signedEvent = signed
           setNostrProfile(updatedProfile)
