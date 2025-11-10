@@ -21,8 +21,8 @@ import {
 } from 'lucide-react'
 import { updateBasicProfile, updateEnhancedProfile, type BasicProfileData, type EnhancedProfileData, type SignedKind0Event } from '../actions'
 import { useToast } from '@/hooks/use-toast'
-import type { NostrEvent } from 'snstr'
 import { InfoTooltip } from '@/components/ui/info-tooltip'
+import { prepareSignedNostrProfile } from '@/lib/nostr-profile-signing'
 
 interface SimpleSettingsProps {
   session: Session
@@ -213,70 +213,32 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
       }
     }
 
-    const prepareSignedEvent = async (): Promise<SignedKind0Event | undefined> => {
-      if (!shouldSignWithExtension) {
-        return undefined
-      }
-
-      try {
-        const baseProfile: Record<string, any> = nostrProfile
-          ? { ...nostrProfile }
-          : {}
-
-        const applyField = (key: 'nip05' | 'lud16' | 'banner') => {
-          const value = normalizedProfile[key]
-          if (value) {
-            baseProfile[key] = value
-          } else if (value === '') {
-            delete baseProfile[key]
-          }
-        }
-
-        applyField('nip05')
-        applyField('lud16')
-        applyField('banner')
-
-        if (!baseProfile.name && user.name) {
-          baseProfile.name = user.name
-        }
-        if (!baseProfile.display_name && user.name) {
-          baseProfile.display_name = user.name
-        }
-        const profilePicture = user.image
-        if (!baseProfile.picture && profilePicture) {
-          baseProfile.picture = profilePicture
-        }
-
-        const unsignedEvent = {
-          kind: 0,
-          tags: [],
-          content: JSON.stringify(baseProfile),
-          created_at: Math.floor(Date.now() / 1000),
-          pubkey: user.pubkey
-        }
-
-        const signed: NostrEvent = await (window as any).nostr.signEvent(unsignedEvent)
-        setNostrProfile(baseProfile)
-        return signed as SignedKind0Event
-      } catch (error) {
-        toast({
-          title: 'Signing Failed',
-          description:
-            error instanceof Error
-              ? error.message
-              : 'Unable to sign profile update with your Nostr extension.',
-          variant: 'destructive'
-        })
-        throw error
-      }
-    }
-
     startTransition(async () => {
       let signedEvent: SignedKind0Event | undefined
-      try {
-        signedEvent = await prepareSignedEvent()
-      } catch {
-        return
+      if (shouldSignWithExtension) {
+        try {
+          const { signedEvent: signed, updatedProfile } = await prepareSignedNostrProfile({
+            user,
+            nostrProfile,
+            updates: {
+              nip05: normalizedProfile.nip05 || null,
+              lud16: normalizedProfile.lud16 || null,
+              banner: normalizedProfile.banner || null,
+            },
+          })
+          signedEvent = signed
+          setNostrProfile(updatedProfile)
+        } catch (error) {
+          toast({
+            title: 'Signing Failed',
+            description:
+              error instanceof Error
+                ? error.message
+                : 'Unable to sign profile update with your Nostr extension.',
+            variant: 'destructive'
+          })
+          return
+        }
       }
 
       const result = await updateEnhancedProfile({

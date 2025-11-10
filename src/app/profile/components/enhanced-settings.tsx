@@ -33,6 +33,7 @@ import {
   RotateCcw
 } from 'lucide-react'
 import { updateBasicProfile, updateEnhancedProfile, updateAccountPreferences, type BasicProfileData, type EnhancedProfileData, type SignedKind0Event } from '../actions'
+import { prepareSignedNostrProfile } from '@/lib/nostr-profile-signing'
 import type { AggregatedProfile } from '@/lib/profile-aggregator'
 import type { NostrEvent } from 'snstr'
 import { InfoTooltip } from '@/components/ui/info-tooltip'
@@ -213,79 +214,6 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
     banner: normalizeField(enhancedProfile.banner as string | null | undefined)
   })
 
-  const prepareSignedEvent = async (
-    normalizedData: EnhancedProfileData
-  ): Promise<SignedKind0Event> => {
-    if (!user.pubkey) {
-      throw new Error('Missing Nostr public key. Please reconnect your Nostr session.')
-    }
-
-    if (typeof window === 'undefined') {
-      throw new Error('Nostr signing is only available in the browser.')
-    }
-
-    const nostr = (window as any)?.nostr
-    if (!nostr?.signEvent) {
-      throw new Error('Connect a Nostr (NIP-07) extension to publish profile changes.')
-    }
-
-    if (nostrProfileStatus === 'loading') {
-      throw new Error('Still loading your current Nostr metadata. Please try again shortly.')
-    }
-
-    if (nostrProfileStatus === 'error' && !nostrProfile) {
-      throw new Error('Unable to load your existing Nostr metadata. Refresh and try again.')
-    }
-
-    const baseProfile: Record<string, any> =
-      nostrProfile && typeof nostrProfile === 'object' ? { ...nostrProfile } : {}
-
-    const applyField = (key: string, value: string | null | undefined) => {
-      if (value === undefined) return
-      if (value === null) {
-        delete baseProfile[key]
-      } else {
-        baseProfile[key] = value
-      }
-    }
-
-    applyField('nip05', normalizedData.nip05 as string | null | undefined)
-    applyField('lud16', normalizedData.lud16 as string | null | undefined)
-    applyField('banner', normalizedData.banner as string | null | undefined)
-
-    if (!baseProfile.name && user.name) {
-      baseProfile.name = user.name
-    }
-    if (!baseProfile.display_name && user.name) {
-      baseProfile.display_name = user.name
-    }
-    const fallbackImage = user.image
-    if (!baseProfile.picture && fallbackImage) {
-      baseProfile.picture = fallbackImage
-    }
-
-    const unsignedEvent = {
-      kind: 0,
-      tags: [],
-      content: JSON.stringify(baseProfile),
-      created_at: Math.floor(Date.now() / 1000),
-      pubkey: user.pubkey
-    }
-
-    let signed: NostrEvent
-    try {
-      signed = await nostr.signEvent(unsignedEvent)
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new Error(`Failed to sign event: ${error.message}`)
-      }
-      throw new Error('User rejected signing or signing failed')
-    }
-
-    setNostrProfile(baseProfile)
-    return signed as SignedKind0Event
-  }
-
   const handleBasicSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!canEditBasic) return
@@ -315,8 +243,24 @@ export function EnhancedSettings({ session }: EnhancedSettingsProps) {
       let signedEvent: SignedKind0Event | undefined
 
       if (requiresSignedEvent) {
+        if (nostrProfileStatus === 'loading') {
+          setMessage({ type: 'error', text: 'Still loading your Nostr metadata. Please try again shortly.' })
+          return
+        }
+
+        if (nostrProfileStatus === 'error' && !nostrProfile) {
+          setMessage({ type: 'error', text: 'Unable to load your existing Nostr metadata. Refresh and try again.' })
+          return
+        }
+
         try {
-          signedEvent = await prepareSignedEvent(normalizedData)
+          const { signedEvent: signed, updatedProfile } = await prepareSignedNostrProfile({
+            user,
+            nostrProfile,
+            updates: normalizedData,
+          })
+          signedEvent = signed
+          setNostrProfile(updatedProfile)
         } catch (error) {
           setMessage({ 
             type: 'error', 
