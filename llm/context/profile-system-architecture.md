@@ -26,11 +26,19 @@ The system recognizes two primary authentication paradigms:
   - Background Nostr capabilities with ephemeral keys
   - Profile stored in database
 
+### Automatic Promotions
+
+Linking flows automatically migrate users along the chain:
+- Anonymous → OAuth-first: linking email/GitHub immediately switches `primaryProvider/profileSource` to OAuth while keeping the server-managed keypair.
+- OAuth-first → Nostr-first: linking a NIP-07 pubkey copies the new pubkey into `User.pubkey`, clears `privkey`, and runs a Nostr sync so DB fields match the decentralized profile before the response returns.
+- Once a user becomes Nostr-first, subsequent OAuth logins behave as secondary credentials; the system never reverts without an explicit preference change.
+
 ### Anonymous Bootstrap Behavior
 - Anonymous sign-ins generate an `anon_XXXX` username and DiceBear avatar as placeholders.
 - These placeholders are explicitly treated as “unset” during aggregation: any linked OAuth provider with real profile data overrides them immediately.
 - Once the user updates their Nostr profile (via sync or settings), those non-placeholder values regain priority because the profile remains Nostr-first unless they switch sources.
 - When richer data replaces the placeholder, the system backfills the `User.username`, `User.avatar`, and `User.email` columns so settings forms stay in sync with what the public profile shows.
+- Linking a real Nostr account erases the platform-managed private key to enforce user custody from that point onward.
 
 ### Profile Source Priority
 
@@ -187,17 +195,25 @@ Main profile display component featuring:
 
 #### Simple Settings (`/src/app/profile/components/simple-settings.tsx`)
 Streamlined settings component with:
+- Account-type detection derived from `profileSource`, `primaryProvider`, and `session.provider`
 - Basic profile editing (OAuth-first only)
 - Enhanced profile fields (all users)
 - Profile source configuration
 - Manual sync from providers
 - Real-time validation and feedback
+- Contextual messaging for anonymous and Nostr-first accounts (e.g., “Managed via Nostr relays”)
 
 #### Linked Accounts Manager (`/src/components/account/linked-accounts.tsx`)
 Account linking interface providing:
 - Available provider display
 - Current provider detection and disabling
 - Provider-specific linking flows
+- Automatic redirect back to `/profile` after successful linking so every tab (and the sticky header) reloads in a consistent state
+
+### Identity Synchronisation Events
+
+- `src/lib/profile-events.ts` emits `profile:updated` whenever profile data changes (linking, unlinking, server actions).
+- The header (`src/components/layout/header.tsx`) listens for this event, fetches `/api/profile/aggregated`, and persists the latest avatar/name in localStorage so it stays in sync with the Profile tab after migrations.
 - Email verification
 - OAuth initiation
 

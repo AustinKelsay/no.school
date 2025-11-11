@@ -128,8 +128,6 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
     fetchProfile()
   }, [fetchProfile])
 
-  const isNostrFirst = aggregatedProfile?.profileSource === 'nostr' || 
-    (!aggregatedProfile?.profileSource && aggregatedProfile?.primaryProvider === 'nostr')
   const canSignEvents = !!user.privkey
 
   const copyToClipboard = async (text: string, fieldName: string) => {
@@ -168,10 +166,6 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
     }
   }
 
-  if (showEditForm) {
-    return <ProfileEditForms session={session} onClose={() => setShowEditForm(false)} />
-  }
-
   if (loading) {
     return (
       <div className="space-y-6">
@@ -193,6 +187,31 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
     primaryProvider: null,
     profileSource: null,
     totalLinkedAccounts: 0
+  }
+  type AccountType = 'anonymous' | 'nostr' | 'oauth'
+  const accountType: AccountType =
+    profile.primaryProvider === 'anonymous'
+      ? 'anonymous'
+      : profile.profileSource === 'nostr'
+        ? 'nostr'
+        : 'oauth'
+  const accountBadgeLabel =
+    accountType === 'anonymous'
+      ? '🟢 Anonymous Account'
+      : accountType === 'nostr'
+        ? '🔵 Nostr-First Account'
+        : '🟠 OAuth-First Account'
+  const accountBadgeVariant = accountType === 'oauth' ? 'secondary' : 'default'
+
+  if (showEditForm) {
+    return (
+      <ProfileEditForms
+        session={session}
+        onClose={() => setShowEditForm(false)}
+        profileSource={(profile.profileSource as 'nostr' | 'oauth' | null) ?? null}
+        primaryProvider={profile.primaryProvider ?? null}
+      />
+    )
   }
 
   const websiteHref = profile.website ? normalizeExternalUrl(profile.website.value) : null
@@ -338,8 +357,8 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
                   {profile.name && <ProviderBadge source={profile.name.source} />}
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant={isNostrFirst ? "default" : "secondary"}>
-                    {isNostrFirst ? '🔵 Nostr-First' : '🟠 OAuth-First'}
+                  <Badge variant={accountBadgeVariant}>
+                    {accountBadgeLabel}
                   </Badge>
                   {canSignEvents && (
                     <Badge variant="outline" className="bg-background/40 backdrop-blur">
@@ -614,7 +633,7 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
             )}
             {renderAccountDetailRow(
               'Account Type',
-              isNostrFirst ? 'Nostr-First Account' : 'OAuth-First Account'
+              accountBadgeLabel
             )}
             {renderAccountDetailRow(
               'Key Custody',
