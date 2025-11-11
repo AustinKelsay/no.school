@@ -1,12 +1,22 @@
 import { prisma } from './prisma'
 import { RelayPool } from 'snstr'
 
+const asString = (value: unknown): string | null => (typeof value === 'string' ? value : null)
+const pickFirstString = (...values: unknown[]): string | null => {
+  for (const value of values) {
+    const str = asString(value)
+    if (str) return str
+  }
+  return null
+}
+
 /**
  * Fetch ALL Nostr profile metadata (kind 0) for a given pubkey.
  */
 export async function fetchNostrProfile(pubkey: string): Promise<Record<string, unknown> | null> {
+  let relayPool: RelayPool | null = null
   try {
-    const relayPool = new RelayPool([
+    relayPool = new RelayPool([
       'wss://relay.nostr.band',
       'wss://nos.lol',
       'wss://relay.damus.io'
@@ -17,8 +27,6 @@ export async function fetchNostrProfile(pubkey: string): Promise<Record<string, 
       { kinds: [0], authors: [pubkey] },
       { timeout: 5000 }
     )
-
-    await relayPool.close()
 
     if (!profileEvent || profileEvent.kind !== 0) {
       return null
@@ -33,6 +41,14 @@ export async function fetchNostrProfile(pubkey: string): Promise<Record<string, 
   } catch (error) {
     console.error('Failed to fetch Nostr profile:', error)
     return null
+  } finally {
+    if (relayPool) {
+      try {
+        await relayPool.close()
+      } catch (closeError) {
+        console.error('Failed to close Nostr relay pool:', closeError)
+      }
+    }
   }
 }
 
@@ -65,27 +81,30 @@ export async function syncUserProfileFromNostr(userId: string, pubkey: string) {
     }
 
     const updates: { username?: string; avatar?: string; nip05?: string; lud16?: string; banner?: string } = {}
-    const name = nostrProfile.name || nostrProfile.username || nostrProfile.display_name
-    const picture = nostrProfile.picture || nostrProfile.avatar || nostrProfile.image
+    const name = pickFirstString(nostrProfile.name, nostrProfile.username, nostrProfile.display_name)
+    const picture = pickFirstString(nostrProfile.picture, nostrProfile.avatar, nostrProfile.image)
+    const nip05 = asString(nostrProfile.nip05)
+    const lud16 = asString(nostrProfile.lud16)
+    const banner = asString(nostrProfile.banner)
 
     if (name && name !== currentUser.username) {
-      updates.username = String(name)
+      updates.username = name
     }
 
     if (picture && picture !== currentUser.avatar) {
-      updates.avatar = String(picture)
+      updates.avatar = picture
     }
 
-    if (nostrProfile.nip05 && nostrProfile.nip05 !== currentUser.nip05) {
-      updates.nip05 = String(nostrProfile.nip05)
+    if (nip05 && nip05 !== currentUser.nip05) {
+      updates.nip05 = nip05
     }
 
-    if (nostrProfile.lud16 && nostrProfile.lud16 !== currentUser.lud16) {
-      updates.lud16 = String(nostrProfile.lud16)
+    if (lud16 && lud16 !== currentUser.lud16) {
+      updates.lud16 = lud16
     }
 
-    if (nostrProfile.banner && nostrProfile.banner !== currentUser.banner) {
-      updates.banner = String(nostrProfile.banner)
+    if (banner && banner !== currentUser.banner) {
+      updates.banner = banner
     }
 
     if (Object.keys(updates).length > 0) {

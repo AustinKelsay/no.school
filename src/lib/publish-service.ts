@@ -89,7 +89,7 @@ export class PublishService {
       throw new PublishError('User not found', 'USER_NOT_FOUND')
     }
 
-    // Determine if this is a NIP-07 user (client-side signing)
+    // Prefer the caller-provided privkey (client signing) and fall back to the stored server key
     const signingPrivkey = privkey || user.privkey
     if (!signingPrivkey) {
       throw new PublishError(

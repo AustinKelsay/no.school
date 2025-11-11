@@ -160,12 +160,7 @@ Links a new account to the current user.
 ```json
 {
   "success": true,
-  "message": "Nostr account linked successfully",
-  "account": {
-    "provider": "nostr",
-    "providerAccountId": "02a1...",
-    "linkedAt": "2024-01-18T12:00:00Z"
-  }
+  "message": "Successfully linked nostr account"
 }
 ```
 
@@ -173,6 +168,11 @@ Links a new account to the current user.
 - `400 Bad Request` - Invalid provider or missing data
 - `409 Conflict` - Account already linked to another user
 - `401 Unauthorized` - No valid session
+
+Linking a Nostr account additionally:
+- Normalises the pubkey, replaces `User.pubkey`, and clears any stored `privkey`.
+- Sets `primaryProvider = 'nostr'` and `profileSource = 'nostr'`.
+- Triggers a Nostr profile sync so name/avatar/nip05/lud16/banner update immediately.
 
 ### POST /api/account/unlink
 

@@ -83,7 +83,7 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
         ? 'nostr'
         : 'oauth'
 
-  const requiresNostrExtension = accountType === 'nostr'
+  const requiresNostrExtension = accountType === 'nostr' && !user.privkey
   const canEditBasic = accountType === 'oauth'
 
   // Fetch preferences and linked accounts. Surfaces any failures to the UI.

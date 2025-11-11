@@ -42,7 +42,7 @@ model User {
 ## Server-Side Flow (App Router routes)
 - `POST /api/account/link` (`src/app/api/account/link/route.ts`)
   - Accepts `LinkAccountSchema` (provider + providerAccountId + optional OAuth metadata).
-  - Calls `canLinkAccount` to ensure the provider/account is unused, then `linkAccount` to persist and optionally generate a Nostr keypair if the user lacks one.
+  - Validates the payload, ensures the provider/account is unused via `canLinkAccount`, and then delegates to the shared `linkAccount` helper before returning the JSON response.
 - `POST /api/account/send-link-verification` sends the email verification link after sanitising input, ensuring the email is not in use, and inserting a one-hour token into `VerificationToken`.
 - `POST /api/account/verify-email` verifies a short code (token) against a lookup ref (`ref`) created by `send-link-verification`, then links the email via `linkAccount` and backfills `User.email`/`emailVerified` if empty. The user lands on `/verify-email?ref=...` to submit the code.
 - `GET /api/account/link-oauth` constructs a base64 state payload `{ userId, action: 'link', provider: 'github' }` and redirects to GitHub using either the dedicated `_LINK_` client or the default credentials.
@@ -55,13 +55,18 @@ model User {
 
 ## Library Support (`src/lib/account-linking.ts`)
 - `canLinkAccount` enforces provider uniqueness both globally and per user.
-- `linkAccount` stores the provider, generates Nostr keys when needed, and only sets `primaryProvider/profileSource` if they are unset to protect the first login.
+- `linkAccount`:
+  - Normalises provider-specific identifiers (lower-case pubkeys, trimmed emails) and performs all provider-specific mutations.
+  - Generates anonymous keys only when needed.
+  - Automatically upgrades/downgrades `primaryProvider/profileSource` based on the transition table (anon → OAuth → Nostr).
+  - When linking Nostr it copies the pubkey into `User.pubkey`, clears any stored `privkey`, and invokes `syncUserProfileFromNostr` so database fields (name, avatar, nip05, etc.) reflect the decentralized profile immediately.
 - `unlinkAccount` and `changePrimaryProvider` keep the last login path intact and recompute profile source.
 - `shouldSyncFromNostr` centralises the “nostr-first vs oauth-first” logic used by NextAuth callbacks.
+- Nostr relay fetch & sync helpers live in `src/lib/nostr-profile.ts` and are reused by account linking, profile aggregation, and manual sync endpoints.
 - Utility helpers like `getProviderDisplayName` and `mergeAccounts` support UI labels and future data migrations.
 
 ## Client Experience
-- `LinkedAccountsManager` (`src/components/account/linked-accounts.tsx`) fetches `/api/account/linked`, surfaces `success`/`error` query params from email and GitHub redirects as toasts, shows badges for the primary provider, and exposes `Make Primary`/`Unlink` actions before refreshing the session via `updateSession()`.
+- `LinkedAccountsManager` (`src/components/account/linked-accounts.tsx`) fetches `/api/account/linked`, surfaces `success`/`error` query params from email and GitHub redirects as toasts, shows badges for the primary provider, and exposes `Make Primary`/`Unlink` actions before refreshing the session via `updateSession()`. After a successful link, it now redirects back to `/profile` so every tab (Profile / Settings / Accounts / header) reloads with fresh data.
 - `LinkProviderButton` handles provider-specific flows:
   - `nostr`: requires `window.nostr`, grabs the pubkey, and posts to `/api/account/link`.
   - `email`: opens a dialog, posts to `/api/account/send-link-verification`, and expects the user to click the emailed link.
@@ -71,9 +76,9 @@ model User {
 - The `/profile` screen exposes account linking from the `accounts` tab (e.g. `/profile?tab=accounts`), keeping all provider-management actions consolidated in one place.
 
 ## Primary Provider & Profile Source Rules
-- `session.provider` is populated inside `NextAuth` (`src/lib/auth.ts`) so the client can disable relinking the current method.
-- Switching the primary provider updates `User.primaryProvider` and `profileSource` (`nostr` for Nostr/anonymous/recovery, `oauth` for email/GitHub) and drives downstream profile aggregation (`src/lib/profile-aggregator.ts`).
-- Nostr-first users trigger profile syncs on login; OAuth-first users never overwrite database fields with Nostr metadata.
+- `session.provider` is populated inside `NextAuth` (`src/lib/auth.ts`) so the client can disable relinking the current method, but signing-mode decisions rely on whether `session.user.privkey` is present.
+- Switching the primary provider updates `User.primaryProvider` and `profileSource` (`nostr` for Nostr/anonymous/recovery, `oauth` for email/GitHub) and drives downstream profile aggregation (`src/lib/profile-aggregator.ts`). The linking helper enforces the same rules server-side so auto-upgrades happen without manual “Make Primary” clicks.
+- Nostr-first users trigger profile syncs on login and immediately after linking; OAuth-first users never overwrite database fields with Nostr metadata.
 
 ## Security & Validation
 - All mutating routes enforce authenticated sessions via `getServerSession`.

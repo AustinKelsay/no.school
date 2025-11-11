@@ -1,44 +1,40 @@
 # Auth & Account Linking Upgrade Plan
 
 Author: Codex  
-Date: 2025-11-10
+Last Updated: 2025-11-11
 
-## 1. Objectives
+## 1. Current Behavior Snapshot
 
-- **Automatic hierarchy enforcement:** Upgrades between anonymous → OAuth-first → Nostr-first should happen immediately when the qualifying provider is linked, without requiring manual “make primary” actions.
-- **Key custody truth:** When an OAuth/anonymous user links a real Nostr identity (NIP-07), we must replace the stored platform keypair with the user-controlled pubkey and erase the server-side `privkey`.
-- **Signing-mode clarity:** Signing flows should default to server-side signing whenever the account has a stored `privkey`. Only Nostr-first accounts (no `privkey`) rely on NIP-07.
-- **Anonymous UX:** Anonymous accounts never require a NIP-07 extension until they intentionally link a real Nostr provider.
+- **Automatic hierarchy enforcement:** Linking flows now promote/demote accounts immediately (anon → OAuth → Nostr) without waiting for manual “make primary” actions.
+- **Key custody truth:** Linking a real Nostr identity replaces the stored platform keypair with the user’s pubkey and clears `privkey`, ensuring future signing requires their extension.
+- **Signing-mode clarity:** Publishing logic checks `privkey` presence rather than `session.provider`; only users without a stored key are routed through NIP-07.
+- **Anonymous UX:** Anonymous accounts never require NIP-07. They can publish with the platform-managed key until they intentionally link real Nostr, at which point the platform key is removed.
 
-## 2. Workstreams & Task Breakdown
+## 2. Capabilities & Rules
 
 ### 2.1 Automatic Upgrade / Downgrade Logic
 
 | Trigger | Expected Result |
 |--------|-----------------|
-| Anonymous signup (generated keys) | `primaryProvider = 'anonymous'`, `profileSource = 'nostr'` (already true). |
+| Anonymous signup (generated keys) | `primaryProvider = 'anonymous'`, `profileSource = 'nostr'`. |
 | Anonymous links Email/GitHub | Immediately switch to OAuth-first: `primaryProvider` becomes that OAuth provider, `profileSource = 'oauth'`. Keep generated keypair. |
-| Anonymous links NIP-07 | Promote to Nostr-first: replace pubkey with linked pubkey, null `privkey`, drop anonymous account entry (or leave for history), `primaryProvider = 'nostr'`, `profileSource = 'nostr'`. |
-| OAuth-first links NIP-07 | Promote to Nostr-first: update `primaryProvider/profileSource`, swap stored pubkey & privkey, disable future server-side signing. |
+| Anonymous links NIP-07 | Promote to Nostr-first: replace pubkey with linked pubkey, null `privkey`, keep anon account for history, `primaryProvider = 'nostr'`, `profileSource = 'nostr'`. |
+| OAuth-first links NIP-07 | Promote to Nostr-first: update `primaryProvider/profileSource`, copy linked pubkey into `User.pubkey`, null `privkey`, and run a Nostr profile sync. |
 | OAuth-first links another OAuth | Primary stays whichever came first unless user changes manually (no auto change). |
 | Nostr-first links OAuth after upgrade | Remain Nostr-first; OAuth accounts behave as recovery/secondary. |
 
-Implementation tasks:
-- Extend `linkAccount` to inspect `user.primaryProvider`, the new `provider`, and apply the above transition table immediately after creating the account.
-- Ensure `profileSource` mirrors `primaryProvider` for all auto transitions.
-- Update `/api/account/link` success response to include updated state so the client can refresh without a separate fetch (optional but helpful).
+Key notes:
+- `linkAccount` now normalises provider IDs, mutates `primaryProvider/profileSource` inside the transaction, and (for Nostr) rewrites `pubkey/privkey`.
+- The linking UI redirects back to `/profile` after success, guaranteeing the profile tabs, header, and aggregated API data refresh in lockstep.
 
 ### 2.2 Key Migration & Storage Rules
 
 Requirements:
-1. When linking `provider === 'nostr'`, always use the supplied pubkey (`providerAccountId`) as the canonical `User.pubkey`.
-2. If the user previously had a stored `privkey`, set it to `null`.
-3. If the linking provider is anonymous (server-generated) and user lacked keys, keep current behavior (generate + persist).
-
-Implementation steps:
-- In `linkAccount`, branch for `provider === 'nostr'`: update `User.pubkey` to `providerAccountId`, `User.privkey = null`, and (if applicable) delete/flag any anonymous accounts referencing the old pubkey.
-- Add a helper `promoteToNostrFirst(userId, pubkey)` encapsulating the update + logging.
-- Add a post-linking hook for OAuth-first promotions to copy metadata (avatar/name) only if `profileSource` switches to `nostr`.
+1. When linking `provider === 'nostr'`, the supplied pubkey becomes the canonical `User.pubkey`.
+2. Any stored `privkey` is nulled immediately (OAuth-first → Nostr-first migration).
+3. Anonymous and OAuth-first providers still generate/stash keys server-side so they can sign without NIP-07.
+4. Linking anonymous when a key already exists is idempotent—the system reuses the stored keypair.
+5. A Nostr profile sync runs right after the database update so `User.username/avatar/nip05/lud16/banner` reflect the decentralized profile in the same transaction cycle.
 
 ### 2.3 Signing Mode Detection
 
@@ -51,33 +47,28 @@ Changes:
   - `src/lib/republish-service.ts`
   - `src/hooks/usePublishDraft.ts`
   - any other places gating UI flows.
-- Instead of inferring from `session.provider`, base the decision on `session.user.privkey` (for client) or DB check (for server). If `privkey` absent ⇒ prompt for NIP-07.
-- Ensure `session.user.privkey` is cleared when users become Nostr-first so the UI automatically flips to the NIP-07 path.
+- Instead of inferring from `session.provider`, we base the decision on `session.user.privkey` (client) or DB lookups (server). If `privkey` absent ⇒ prompt for NIP-07.
+- Whenever a user becomes Nostr-first, the JWT/session callbacks stop embedding `privkey`, so the UI automatically flips to the NIP-07 path.
 
 ### 2.4 Anonymous Provider Classification
 
-- Update `isNip07User` to return `true` **only** for `provider === 'nostr'`.
-- Audit code paths that assumed anonymous == NIP-07 (publish hooks, UI). Ensure anonymous accounts surface the stored key for signing (already exposed on profile) and skip extension requirements.
-- Confirm the sign-in page messaging doesn’t imply anonymous users need extensions.
+- `isNip07User` returns `true` **only** for `provider === 'nostr'`.
+- Publishing hooks treat anonymous accounts as server-side signers; the UI exposes the stored key so users can export it.
+- Sign-in messaging clarifies that anonymous access never requires NIP-07 (extensions only show up when explicitly linking Nostr).
 
 ### 2.5 Data Migration & Backfill
 
-We need a one-time script or migration to clean existing records:
-- Find users where `profileSource='nostr'` but `privkey` is still set; null those privkeys.
-- Detect OAuth-first users who have `nostr` accounts linked but `primaryProvider` still OAuth—decide whether to auto-upgrade or log for manual review (depends on whether Nostr linking already happened historically).
-- Remove stale anonymous records when a user already linked NIP-07 (optional, but prevents confusion in UI).
-- Backfill `profileSource` for users with missing values using `primaryProvider`.
-
-Implementation options:
-- Write a Prisma script under `scripts/` (e.g., `scripts/migrate-auth-state.ts`) and document how to run it.
-- Record migration steps in README or docs.
+Legacy production data may still contain mismatched `profileSource/primaryProvider` values. A follow-up script (`scripts/migrate-auth-state.ts`, planned) should:
+- Null any lingering `privkey` rows where `profileSource='nostr'`.
+- Re-run `syncUserProfileFromNostr` for users whose `primaryProvider` already equals `'nostr'` but have stale profile fields.
+- Backfill `profileSource` anywhere it is `NULL` by mirroring `primaryProvider`.
+- Optionally flag anonymous `Account` rows that no longer own the active pubkey to simplify analytics.
 
 ### 2.6 API & UI Adjustments
 
-- `/api/account/linked` response should reflect updated `primaryProvider/profileSource` immediately after linking.
-- Linked accounts UI: after linking, emphasize new primary source (maybe toast).
-- Profile display components already react to `session.user.privkey`; ensure session refresh occurs after transitions (call `updateSession()` post-link).
-- Consider adding explanatory copy describing automatic upgrades.
+- `/api/account/linked` immediately reflects the recalculated `primaryProvider/profileSource`; the UI shows updated badges right after link completion.
+- Linking flows now push back to `/profile` so all tabs re-fetch identity data in a clean state.
+- Profile display, settings, and header share the same `profile:updated` event to stay synchronized.
 
 ### 2.7 Testing & Verification
 
@@ -92,20 +83,17 @@ Manual checklist (per environment):
 5. **Anon publishing without extension**: ensure resource publish succeeds (server-side signing).
 6. **Migration script dry-run**: run against staging DB, inspect logs before applying in production.
 
-Document outcomes in PR checklist.
+Document outcomes in PR checklists and note which flows were smoke-tested (Nostr link, email link, GitHub link, unlink, make primary).
 
 ## 3. Open Considerations
 
-- How aggressively should we prune old anonymous Account rows once a user upgrades? (Keeping them may aid analytics; deleting reduces clutter. Decide before implementation.)
-- Do we need admin tooling to flip `primaryProvider/profileSource` manually in edge cases after automation? (Possibly leverage existing `/api/account/preferences`.)
+- Historical clean-up script (see §2.5) still pending.
+- Consider pruning dormant anonymous Account rows once a user migrates to Nostr-first to simplify analytics.
+- Admin tooling already exists via `/api/account/preferences`, but we may want explicit UI for support to resolve edge cases faster.
 
-## 4. Next Steps
+## 4. Operational Checklist
 
-1. Implement `linkAccount` upgrade logic + helper utilities.
-2. Update signing detection helpers and publishing flows.
-3. Modify `isNip07User` + dependent code.
-4. Build migration script and document rollout.
-5. QA using the checklist above.
-6. Update docs/README with the clarified behavior once implemented.
-
-Once this plan is approved, we can create subtasks or PRs per workstream.
+1. Keep GitHub/Email credentials up to date for both sign-in and linking flows.
+2. Run the forthcoming migration script before cutting a production release if legacy users exist.
+3. Maintain relay availability for the Nostr sync helper; fall back to cached values if relays fail.
+4. Monitor logs for `Failed to sync Nostr profile after linking` to proactively catch relay issues.
