@@ -324,7 +324,6 @@ export function usePublishCourse(courseDraftId: string) {
       }
 
       const requiresClientSigning = !session?.user?.privkey
-      console.log('Publishing course - requires client signing:', requiresClientSigning)
 
       // For NIP-07 users, handle client-side signing
       if (requiresClientSigning) {
@@ -380,15 +379,12 @@ export function usePublishCourse(courseDraftId: string) {
         const { data: courseDraft } = await draftResponse.json()
 
         // Check if extension is available
-        console.log('Checking NIP-07 support, window.nostr:', (window as any).nostr)
         if (!hasNip07Support()) {
           throw new Error('Nostr extension not available')
         }
 
         // Get public key from the browser extension
-        console.log('Getting public key from extension...')
         const pubkey = await (window as any).nostr.getPublicKey()
-        console.log('Got pubkey:', pubkey)
 
         // Publish draft lessons first
         publishStatus.updateStep('publish-lessons', 'processing')

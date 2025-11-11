@@ -184,6 +184,7 @@ export default function SignInPage() {
     setAnonymousResumeFailed(false)
 
     try {
+      const retryableAnonErrors = new Set(['CredentialsSignin', 'ANON_INVALID_KEY'])
       const persistedIdentity = getPersistedAnonymousIdentity()
       const attemptExistingIdentity = Boolean(persistedIdentity?.privkey)
       setHasPersistedAnonymousIdentity(attemptExistingIdentity)
@@ -199,6 +200,12 @@ export default function SignInPage() {
       let result = await attemptAnonymousSignIn(persistedIdentity?.privkey)
 
       if (result?.error && attemptExistingIdentity) {
+        if (!retryableAnonErrors.has(result.error)) {
+          setAnonymousResumeFailed(true)
+          setMessage('')
+          setError(copy.messages.anonymousError || copy.messages.genericError)
+          return
+        }
         setAnonymousResumeFailed(true)
         setMessage('Refreshing your anonymous identity…')
         setError('')
