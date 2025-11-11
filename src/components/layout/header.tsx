@@ -63,6 +63,9 @@ export function Header() {
     }
   }
 
+  const aggregatedIdentityLoadedRef = useRef(false)
+  const lastSessionUserIdRef = useRef<string | null>(null)
+
   const [avatarUrl, setAvatarUrl] = useState<string | undefined>(() =>
     readFromStorage(AVATAR_STORAGE_KEY, session?.user?.image || undefined)
   )
@@ -78,6 +81,7 @@ export function Header() {
     Boolean(adminInfo?.permissions?.createResource)
 
   const clearIdentityCache = useCallback(() => {
+    aggregatedIdentityLoadedRef.current = false
     setAvatarUrl(undefined)
     setDisplayName(undefined)
     if (typeof window !== "undefined") {
@@ -107,42 +111,82 @@ export function Header() {
     Boolean(value && !isAnonymousAvatar(value))
 
   useEffect(() => {
+    const currentUserId = sessionUser?.id ?? null
+    const previousUserId = lastSessionUserIdRef.current
+    const hasNewUser = Boolean(currentUserId && !previousUserId)
+    const hasUserChanged = Boolean(currentUserId && previousUserId && currentUserId !== previousUserId)
+
     if (!sessionUser) {
-      clearIdentityCache()
+      if (previousUserId !== null || avatarUrl || displayName) {
+        clearIdentityCache()
+      }
+      lastSessionUserIdRef.current = null
       return
+    }
+
+    if (hasUserChanged || hasNewUser) {
+      aggregatedIdentityLoadedRef.current = false
+    } else if (aggregatedIdentityLoadedRef.current) {
+      return
+    }
+
+    const persistAvatar = (value?: string) => {
+      if (typeof window === "undefined") {
+        return
+      }
+      try {
+        if (value) {
+          window.localStorage.setItem(AVATAR_STORAGE_KEY, value)
+        } else {
+          window.localStorage.removeItem(AVATAR_STORAGE_KEY)
+        }
+      } catch (error) {
+        console.warn("Failed to persist avatar to storage:", error)
+      }
+    }
+
+    const persistDisplayName = (value?: string) => {
+      if (typeof window === "undefined") {
+        return
+      }
+      try {
+        if (value) {
+          window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, value)
+        } else {
+          window.localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY)
+        }
+      } catch (error) {
+        console.warn("Failed to persist display name to storage:", error)
+      }
     }
 
     const nextAvatar = sessionUser.image || undefined
     if (nextAvatar) {
       const nextMeaningful = isMeaningfulAvatarUrl(nextAvatar)
       const currentMeaningful = isMeaningfulAvatarUrl(avatarUrl)
-      if (nextMeaningful || !currentMeaningful) {
+      if (hasUserChanged || hasNewUser || nextMeaningful || !currentMeaningful) {
         setAvatarUrl(nextAvatar)
-        try {
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(AVATAR_STORAGE_KEY, nextAvatar)
-          }
-        } catch (error) {
-          console.warn("Failed to persist avatar to storage:", error)
-        }
+        persistAvatar(nextAvatar)
       }
+    } else if (hasUserChanged || hasNewUser) {
+      setAvatarUrl(undefined)
+      persistAvatar(undefined)
     }
 
     const nextDisplayName = sessionUser.name || sessionUser.username || undefined
     if (nextDisplayName) {
       const nextMeaningful = isMeaningfulName(nextDisplayName)
       const currentMeaningful = isMeaningfulName(displayName)
-      if (nextMeaningful || !currentMeaningful) {
+      if (hasUserChanged || hasNewUser || nextMeaningful || !currentMeaningful) {
         setDisplayName(nextDisplayName)
-        try {
-          if (typeof window !== "undefined") {
-            window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, nextDisplayName)
-          }
-        } catch (error) {
-          console.warn("Failed to persist display name to storage:", error)
-        }
+        persistDisplayName(nextDisplayName)
       }
+    } else if (hasUserChanged || hasNewUser) {
+      setDisplayName(undefined)
+      persistDisplayName(undefined)
     }
+
+    lastSessionUserIdRef.current = currentUserId
   }, [
     clearIdentityCache,
     avatarUrl,
@@ -184,6 +228,7 @@ export function Header() {
           window.localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY)
         }
       }
+      aggregatedIdentityLoadedRef.current = true
     } catch (error) {
       console.error("Failed to refresh aggregated profile for header", error)
     }
@@ -199,18 +244,32 @@ export function Header() {
     }
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<ProfileUpdatedDetail>).detail
-      if (detail?.image) {
-        setAvatarUrl(detail.image)
-        try {
-          window.localStorage.setItem(AVATAR_STORAGE_KEY, detail.image)
-        } catch {}
+      if (detail && Object.prototype.hasOwnProperty.call(detail, 'image')) {
+        if (detail.image) {
+          setAvatarUrl(detail.image)
+          try {
+            window.localStorage.setItem(AVATAR_STORAGE_KEY, detail.image)
+          } catch {}
+        } else {
+          setAvatarUrl(undefined)
+          try {
+            window.localStorage.removeItem(AVATAR_STORAGE_KEY)
+          } catch {}
+        }
       }
-      const nextName = detail?.name || detail?.username
-      if (nextName) {
-        setDisplayName(nextName)
-        try {
-          window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, nextName)
-        } catch {}
+      if (detail && (Object.prototype.hasOwnProperty.call(detail, 'name') || Object.prototype.hasOwnProperty.call(detail, 'username'))) {
+        const nextName = detail?.name || detail?.username || undefined
+        if (nextName) {
+          setDisplayName(nextName)
+          try {
+            window.localStorage.setItem(DISPLAY_NAME_STORAGE_KEY, nextName)
+          } catch {}
+        } else {
+          setDisplayName(undefined)
+          try {
+            window.localStorage.removeItem(DISPLAY_NAME_STORAGE_KEY)
+          } catch {}
+        }
       }
       loadAggregatedProfile()
     }

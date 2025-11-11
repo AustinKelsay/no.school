@@ -59,8 +59,8 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
   })
 
   const [preferences, setPreferences] = useState({
-    profileSource: 'oauth',
-    primaryProvider: ''
+    profileSource: !user.privkey ? 'nostr' : 'oauth',
+    primaryProvider: session.provider || ''
   })
 
   const [linkedAccounts, setLinkedAccounts] = useState<any[]>([])
@@ -72,9 +72,19 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
   // Tracks initial data loading errors so users get visible feedback
   const [initialLoadError, setInitialLoadError] = useState<string | null>(null)
 
-  // Determine account type
-  const isNostrFirst = !user.privkey
-  const canEditBasic = !isNostrFirst
+  // Determine account type from preferences when available
+  const derivedProfileSource = preferences.profileSource || (!user.privkey ? 'nostr' : 'oauth')
+  const derivedPrimaryProvider = preferences.primaryProvider || session.provider || ''
+  type AccountType = 'anonymous' | 'nostr' | 'oauth'
+  const accountType: AccountType =
+    derivedPrimaryProvider === 'anonymous'
+      ? 'anonymous'
+      : derivedProfileSource === 'nostr'
+        ? 'nostr'
+        : 'oauth'
+
+  const requiresNostrExtension = accountType === 'nostr'
+  const canEditBasic = accountType === 'oauth'
 
   // Fetch preferences and linked accounts. Surfaces any failures to the UI.
   useEffect(() => {
@@ -178,12 +188,12 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
     setEnhancedProfile(normalizedProfile)
 
     const shouldSignWithExtension =
-      isNostrFirst &&
+      requiresNostrExtension &&
       typeof window !== 'undefined' &&
       Boolean((window as any).nostr?.signEvent) &&
       Boolean(user.pubkey)
 
-    if (isNostrFirst && !shouldSignWithExtension) {
+    if (requiresNostrExtension && !shouldSignWithExtension) {
       toast({
         title: 'Nostr Extension Required',
         description:
@@ -406,13 +416,19 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2">
-            <Badge variant={isNostrFirst ? "default" : "secondary"}>
-              {isNostrFirst ? '🔵 Nostr-First' : '🟠 OAuth-First'}
+            <Badge variant={accountType === 'oauth' ? "secondary" : "default"}>
+              {accountType === 'anonymous'
+                ? '🟢 Anonymous Account'
+                : accountType === 'nostr'
+                  ? '🔵 Nostr-First Account'
+                  : '🟠 OAuth-First Account'}
             </Badge>
             <span className="text-sm text-muted-foreground">
-              {isNostrFirst 
-                ? 'Your profile is managed via Nostr. Basic fields are read-only.'
-                : 'You can edit all profile fields directly.'}
+              {accountType === 'anonymous'
+                ? 'Temporary anon identity managed by the platform'
+                : accountType === 'nostr'
+                  ? 'Your profile is managed via Nostr. Basic fields are read-only.'
+                  : 'You can edit all profile fields directly.'}
             </span>
           </div>
           
@@ -427,6 +443,16 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
                 ))}
               </div>
             </div>
+          )}
+
+          {requiresNostrExtension && (
+            <Alert>
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                Basic profile fields (name, email) are managed by your Nostr identity. Use your Nostr client
+                to update them, or link an OAuth provider if you want to edit them here.
+              </AlertDescription>
+            </Alert>
           )}
         </CardContent>
       </Card>

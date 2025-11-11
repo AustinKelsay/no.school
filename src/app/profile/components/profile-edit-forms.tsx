@@ -35,9 +35,11 @@ import { dispatchProfileUpdatedEvent } from '@/lib/profile-events'
 interface ProfileEditFormsProps {
   session: Session
   onClose?: () => void // Make optional since it's no longer always needed
+  profileSource?: 'nostr' | 'oauth' | null
+  primaryProvider?: string | null
 }
 
-export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
+export function ProfileEditForms({ session, onClose, profileSource, primaryProvider }: ProfileEditFormsProps) {
   const { user } = session
   const [isPending, startTransition] = useTransition()
   const [message, setMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
@@ -116,8 +118,17 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
     }
   }, [])
 
-  const isNostrFirst = !user.privkey
-  const canEditBasic = !isNostrFirst // OAuth-first accounts can edit basic profile
+  const derivedProfileSource = profileSource || (!user.privkey ? 'nostr' : 'oauth')
+  const derivedPrimaryProvider = primaryProvider || session.provider || ''
+  type AccountType = 'anonymous' | 'nostr' | 'oauth'
+  const accountType: AccountType =
+    derivedPrimaryProvider === 'anonymous'
+      ? 'anonymous'
+      : derivedProfileSource === 'nostr'
+        ? 'nostr'
+        : 'oauth'
+  const requiresNostrExtension = accountType === 'nostr'
+  const canEditBasic = accountType === 'oauth' // OAuth-first accounts can edit basic profile
 
   const handleBasicSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -206,15 +217,23 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-2">
-            <Badge variant={isNostrFirst ? "default" : "secondary"}>
-              {isNostrFirst ? '🔵 Nostr-First Account' : '🟠 OAuth-First Account'}
+            <Badge variant={accountType === 'oauth' ? "secondary" : "default"}>
+              {accountType === 'anonymous'
+                ? '🟢 Anonymous Account'
+                : accountType === 'nostr'
+                  ? '🔵 Nostr-First Account'
+                  : '🟠 OAuth-First Account'}
             </Badge>
             <span className="text-sm text-muted-foreground">
-              {isNostrFirst ? 'Profile managed via Nostr relays' : 'Profile managed by platform'}
+              {accountType === 'anonymous'
+                ? 'Temporary anon identity managed by the platform'
+                : accountType === 'nostr'
+                  ? 'Profile managed via Nostr relays'
+                  : 'Profile managed by platform'}
             </span>
           </div>
           
-          {isNostrFirst && (
+          {requiresNostrExtension && (
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
@@ -350,7 +369,7 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
                 )}
               </Button>
 
-              {isNostrFirst && (
+              {requiresNostrExtension && (
                 <Alert>
                   <Info className="h-4 w-4" />
                   <AlertDescription>
@@ -364,7 +383,7 @@ export function ProfileEditForms({ session, onClose }: ProfileEditFormsProps) {
       </div>
 
       {/* Nostr Profile Management */}
-      {isNostrFirst && (
+      {requiresNostrExtension && (
         <Card>
           <CardHeader>
             <CardTitle>Nostr Profile Management</CardTitle>

@@ -371,7 +371,7 @@ export function createUnsignedCourseEvent(
  * These users will sign events client-side
  */
 export function isNip07User(provider?: string): boolean {
-  return provider === 'nostr' || provider === 'anonymous'
+  return provider === 'nostr'
 }
 
 /**

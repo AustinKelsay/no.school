@@ -1,7 +1,6 @@
 {
   "relays": {
     "default": [
-      "wss://relay.nostr.band",
       "wss://nos.lol",
       "wss://relay.damus.io",
       "wss://relay.primal.net",
@@ -10,7 +9,6 @@
       "wss://nostr.wine"
     ],
     "zapThreads": [
-      "wss://relay.nostr.band",
       "wss://nos.lol",
       "wss://relay.damus.io"
     ],

@@ -15,7 +15,8 @@ import { getServerSession } from 'next-auth'
 import { z } from 'zod'
 import { RelayPool, createEvent, type NostrEvent } from 'snstr'
 
-import { authOptions, fetchNostrProfile } from '@/lib/auth'
+import { authOptions } from '@/lib/auth'
+import { fetchNostrProfile } from '@/lib/nostr-profile'
 import { prisma } from '@/lib/prisma'
 import { 
   PreferencesUpdateSchema,

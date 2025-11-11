@@ -40,6 +40,7 @@ export function LinkedAccountsManager() {
   const [unlinkingProvider, setUnlinkingProvider] = useState<string | null>(null)
   const [changingPrimary, setChangingPrimary] = useState(false)
   const [providerToUnlink, setProviderToUnlink] = useState<string | null>(null)
+  const [nostrUnlinkAcknowledged, setNostrUnlinkAcknowledged] = useState(false)
 
   const refreshAggregatedProfile = useCallback(async () => {
     try {
@@ -62,7 +63,7 @@ export function LinkedAccountsManager() {
   }, [])
 
   // Fetch linked accounts
-  const fetchAccounts = async () => {
+  const fetchAccounts = useCallback(async () => {
     try {
       const response = await fetch('/api/account/linked')
       if (response.ok) {
@@ -85,27 +86,31 @@ export function LinkedAccountsManager() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [toast])
 
   useEffect(() => {
     fetchAccounts()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [fetchAccounts])
+
+  const applyAccountStateUpdates = useCallback(async (options?: { redirectToProfile?: boolean }) => {
+    await fetchAccounts()
+    await refreshAggregatedProfile()
+    try {
+      await updateSession()
+    } catch (sessionError) {
+      console.error('Failed to refresh session after account change:', sessionError)
+    }
+    if (options?.redirectToProfile) {
+      router.replace('/profile')
+      return
+    }
+    router.refresh()
+  }, [fetchAccounts, refreshAggregatedProfile, router, updateSession])
 
   // Handle OAuth callback messages
   useEffect(() => {
     const success = searchParams.get('success')
     const error = searchParams.get('error')
-
-    const handlePostLink = async () => {
-      await fetchAccounts()
-      await refreshAggregatedProfile()
-      try {
-        await updateSession()
-      } catch (sessionError) {
-        console.error('Failed to refresh session after linking account:', sessionError)
-      }
-      router.refresh()
-    }
 
     if (success === 'github_linked' || success === 'email_linked') {
       // ProfileTabs already surfaces the GitHub toast, so only toast here for other providers
@@ -117,11 +122,11 @@ export function LinkedAccountsManager() {
       }
 
       // Clear URL immediately to prevent effect from re-running during async work
-      window.history.replaceState({}, '', '/profile?tab=accounts')
+      window.history.replaceState({}, '', '/profile')
       
       // Then perform async work (fetch accounts and refresh session)
       ;(async () => {
-        await handlePostLink()
+        await applyAccountStateUpdates({ redirectToProfile: true })
       })()
     } else if (error) {
       let errorMessage = 'Failed to link account'
@@ -166,7 +171,7 @@ export function LinkedAccountsManager() {
       // Clean up URL params
       window.history.replaceState({}, '', '/profile?tab=accounts')
     }
-  }, [searchParams, toast, updateSession]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, toast, applyAccountStateUpdates])
 
   // Unlink account
   const handleUnlink = async (provider: string) => {
@@ -185,11 +190,7 @@ export function LinkedAccountsManager() {
           title: 'Success',
           description: `${getProviderDisplayName(provider)} account unlinked successfully`
         })
-        await fetchAccounts()
-        await refreshAggregatedProfile()
-        // Update session if needed
-        await updateSession()
-        router.refresh()
+        await applyAccountStateUpdates()
       } else {
         toast({
           title: 'Error',
@@ -227,10 +228,7 @@ export function LinkedAccountsManager() {
           title: 'Success',
           description: `${getProviderDisplayName(provider)} is now your primary authentication method`
         })
-        await fetchAccounts()
-        await refreshAggregatedProfile()
-        // Update session
-        await updateSession()
+        await applyAccountStateUpdates()
       } else {
         toast({
           title: 'Error',
@@ -276,6 +274,12 @@ export function LinkedAccountsManager() {
   
   // Get the current session provider - this will be used to disable the corresponding button
   const currentProvider = session?.provider || null
+
+  useEffect(() => {
+    if (!providerToUnlink) {
+      setNostrUnlinkAcknowledged(false)
+    }
+  }, [providerToUnlink])
 
   if (loading) {
     return (
@@ -368,7 +372,7 @@ export function LinkedAccountsManager() {
                     <LinkProviderButton 
                       key={provider} 
                       provider={provider} 
-                      onLinked={fetchAccounts}
+                      onLinked={() => applyAccountStateUpdates({ redirectToProfile: true })}
                       isCurrentProvider={provider === currentProvider}
                     />
                   ))}
@@ -380,25 +384,65 @@ export function LinkedAccountsManager() {
       </Card>
 
       {/* Unlink confirmation dialog */}
-      <AlertDialog open={!!providerToUnlink} onOpenChange={() => setProviderToUnlink(null)}>
+      <AlertDialog
+        open={!!providerToUnlink}
+        onOpenChange={(open) => {
+          if (!open) {
+            setProviderToUnlink(null)
+            setNostrUnlinkAcknowledged(false)
+          }
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Unlink {providerToUnlink && getProviderDisplayName(providerToUnlink)}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to unlink this authentication method? You can always link it again later.
-              {accounts?.accounts.length === 2 && (
-                <span className="block mt-2 font-medium">
-                  Note: You cannot unlink your last authentication method.
-                </span>
-              )}
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <p>
+                  Are you sure you want to unlink this authentication method? You can always link it again later.
+                </p>
+                {accounts?.accounts.length === 2 && (
+                  <p className="font-medium">
+                    Note: You cannot unlink your last authentication method.
+                  </p>
+                )}
+                {providerToUnlink === 'nostr' && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/40 dark:text-amber-50">
+                    <p className="text-sm font-medium">
+                      Disconnecting your self-custodied Nostr login means we will mint a new encrypted key pair so the app can keep signing background Nostr events (just like email/GitHub users).
+                    </p>
+                    <label className="mt-3 flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded border border-amber-500 accent-amber-600"
+                        checked={nostrUnlinkAcknowledged}
+                        onChange={(event) => setNostrUnlinkAcknowledged(event.target.checked)}
+                      />
+                      <span>I understand and consent to an ephemeral Nostr key pair being generated for my account.</span>
+                    </label>
+                  </div>
+                )}
+              </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
+              disabled={
+                !providerToUnlink ||
+                unlinkingProvider === providerToUnlink ||
+                (providerToUnlink === 'nostr' && !nostrUnlinkAcknowledged)
+              }
               onClick={() => providerToUnlink && handleUnlink(providerToUnlink)}
             >
-              Unlink Account
+              {unlinkingProvider === providerToUnlink ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Unlinking...
+                </>
+              ) : (
+                'Unlink Account'
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -409,7 +453,7 @@ export function LinkedAccountsManager() {
 
 interface LinkProviderButtonProps {
   provider: string
-  onLinked: () => void
+  onLinked: () => void | Promise<void>
   isCurrentProvider?: boolean
 }
 
@@ -455,7 +499,7 @@ function LinkProviderButton({ provider, onLinked, isCurrentProvider = false }: L
             title: 'Success',
             description: 'Nostr account linked successfully'
           })
-          onLinked()
+          await onLinked()
         } else {
           toast({
             title: 'Error',
