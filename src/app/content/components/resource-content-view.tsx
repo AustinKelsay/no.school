@@ -210,7 +210,7 @@ function ContentMetadata({ event, parsedEvent, resourceKey }: ContentMetadataPro
 
   const readingTime = parsedEvent.type !== 'video' ? getReadingTime(event.content) : null
 
-  const { commentMetrics, interactions, isLoading: interactionsLoading } = useCommentThreads(event.id)
+  const { commentMetrics, interactions, isLoading: interactionsLoading, hasReacted } = useCommentThreads(event.id)
 
   const zapsCount = interactions.zaps
   const commentsCount = commentMetrics.totalComments
@@ -263,6 +263,11 @@ function ContentMetadata({ event, parsedEvent, resourceKey }: ContentMetadataPro
         isLoadingZaps={interactionsLoading}
         isLoadingComments={interactionsLoading}
         isLoadingLikes={interactionsLoading}
+        hasReacted={hasReacted}
+        eventId={event.id}
+        eventKind={event.kind}
+        eventPubkey={event.pubkey}
+        eventIdentifier={parsedEvent.d}
       />
     </div>
   )
@@ -486,7 +491,7 @@ export function ResourceContentView({
             </div>
 
             {showBackLink && (
-              <div className="flex items-center space-x-2 w-full sm:w-auto">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
                 <Button variant="outline" size="sm" className="flex-1 sm:flex-none" asChild>
                   <Link href={backHref}>
                     <ArrowLeft className="h-4 w-4 mr-2" />

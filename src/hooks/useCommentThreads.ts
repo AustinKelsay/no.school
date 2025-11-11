@@ -17,6 +17,8 @@ export interface CommentThreadsQueryResult {
   refetch?: () => void
   getDirectReplies: () => number
   getThreadComments: () => number
+  hasReacted: boolean
+  userReactionEventId: string | null
 }
 
 /**
@@ -35,6 +37,8 @@ export function useCommentThreads(
     refetch,
     getDirectReplies, 
     getThreadComments,
+    hasReacted,
+    userReactionEventId,
   } = useInteractions({
     eventId,
     realtime: false,
@@ -55,7 +59,9 @@ export function useCommentThreads(
     error,
     refetch,
     getDirectReplies,
-    getThreadComments
+    getThreadComments,
+    hasReacted,
+    userReactionEventId
   }
 }
 

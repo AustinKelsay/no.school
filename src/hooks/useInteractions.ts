@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { useSnstrContext } from '../contexts/snstr-context';
 import { NostrEvent } from 'snstr';
 
@@ -18,6 +19,7 @@ export interface UseInteractionsOptions {
   staleTime?: number;
   enabled?: boolean; // Allow manual control
   elementRef?: React.RefObject<HTMLElement>; // For visibility tracking
+  currentUserPubkey?: string; // Optional override for identifying viewer reactions
 }
 
 export interface InteractionsQueryResult {
@@ -33,11 +35,16 @@ export interface InteractionsQueryResult {
   getDirectReplies: () => number;
   getThreadComments: () => number;
   refetch?: () => void;
+  hasReacted: boolean;
+  userReactionEventId: string | null;
 }
 
 export function useInteractions(options: UseInteractionsOptions): InteractionsQueryResult {
-  const { eventId, elementRef, enabled: manualEnabled = true } = options;
+  const { eventId, elementRef, enabled: manualEnabled = true, currentUserPubkey: explicitPubkey } = options;
   const { subscribe } = useSnstrContext();
+  const { data: session } = useSession();
+  const normalizedSessionPubkey = session?.user?.pubkey?.toLowerCase();
+  const currentUserPubkey = (explicitPubkey?.toLowerCase() || normalizedSessionPubkey) ?? null;
   
   const [isVisible, setIsVisible] = useState(true);
   const [interactions, setInteractions] = useState<InteractionCounts>({ 
@@ -55,13 +62,40 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
   const [isLoadingZaps, setIsLoadingZaps] = useState(false);
   const [isLoadingLikes, setIsLoadingLikes] = useState(false);
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [userReactionEventId, setUserReactionEventId] = useState<string | null>(null);
 
   // Use refs to persist arrays across effect re-runs
   const zapsRef = useRef<NostrEvent[]>([]);
   const likesRef = useRef<NostrEvent[]>([]);
   const commentsRef = useRef<NostrEvent[]>([]);
+  const seenZapsRef = useRef<Set<string>>(new Set());
+  const seenLikesRef = useRef<Set<string>>(new Set());
+  const seenCommentsRef = useRef<Set<string>>(new Set());
   const subscriptionRef = useRef<{ close: () => void } | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resetInteractionStorage = () => {
+    zapsRef.current = [];
+    likesRef.current = [];
+    commentsRef.current = [];
+    seenZapsRef.current = new Set();
+    seenLikesRef.current = new Set();
+    seenCommentsRef.current = new Set();
+    setUserReactionEventId(null);
+  };
+
+  useEffect(() => {
+    if (!currentUserPubkey) {
+      setUserReactionEventId(null);
+      return;
+    }
+
+    const existingReaction = likesRef.current.find(
+      (event) => event.pubkey?.toLowerCase() === currentUserPubkey
+    );
+
+    setUserReactionEventId(existingReaction ? existingReaction.id : null);
+  }, [currentUserPubkey]);
 
   // Set up intersection observer for visibility-based subscription management
   useEffect(() => {
@@ -102,8 +136,9 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
         clearTimeout(timeoutRef.current);
         timeoutRef.current = null;
       }
-      
+
       if (!eventId || eventId.length !== 64) {
+        resetInteractionStorage();
         setInteractions({ zaps: 0, likes: 0, comments: 0, replies: 0, threadComments: 0 });
         setIsLoading(false);
         setIsLoadingZaps(false);
@@ -118,6 +153,7 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
       return;
     }
 
+    resetInteractionStorage();
     setIsLoading(true);
     setIsLoadingZaps(true);
     setIsLoadingLikes(true);
@@ -150,24 +186,38 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
           [{ kinds: [9735, 7, 1], '#e': [eventId] }],
           (event: NostrEvent) => {
             // Route events to appropriate arrays based on kind
+            const eventIdKey = event.id;
             switch (event.kind) {
               case 9735: // Zaps
-                zapsRef.current.push(event);
-                setIsLoadingZaps(false);
+                if (!seenZapsRef.current.has(eventIdKey)) {
+                  seenZapsRef.current.add(eventIdKey);
+                  zapsRef.current.push(event);
+                  setIsLoadingZaps(false);
+                  updateCounts();
+                }
                 break;
               case 7: // Likes/Reactions
                 // Accept all kind 7 reactions as likes (they are reactions/likes by definition)
                 // Common formats: '+', '', '❤️', ':heart:', ':shakingeyes:', etc.
-                likesRef.current.push(event);
-                setIsLoadingLikes(false);
+                if (!seenLikesRef.current.has(eventIdKey)) {
+                  seenLikesRef.current.add(eventIdKey);
+                  likesRef.current.push(event);
+                  setIsLoadingLikes(false);
+                  if (currentUserPubkey && event.pubkey?.toLowerCase() === currentUserPubkey) {
+                    setUserReactionEventId(eventIdKey);
+                  }
+                  updateCounts();
+                }
                 break;
               case 1: // Comments
-                commentsRef.current.push(event);
-                setIsLoadingComments(false);
+                if (!seenCommentsRef.current.has(eventIdKey)) {
+                  seenCommentsRef.current.add(eventIdKey);
+                  commentsRef.current.push(event);
+                  setIsLoadingComments(false);
+                  updateCounts();
+                }
                 break;
             }
-            
-            updateCounts();
           }
         );
 
@@ -216,7 +266,7 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
         timeoutRef.current = null;
       }
     };
-  }, [eventId, subscribe, manualEnabled, isVisible]);
+  }, [eventId, subscribe, manualEnabled, isVisible, currentUserPubkey]);
 
   const getDirectReplies = () => {
     return interactions.replies;
@@ -234,11 +284,9 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
     }
     
     // Reset data
-    zapsRef.current = [];
-    likesRef.current = [];
-    commentsRef.current = [];
+    resetInteractionStorage();
     setInteractions({ zaps: 0, likes: 0, comments: 0, replies: 0, threadComments: 0 });
-    
+
     // Force re-run of the effect
     setIsLoading(true);
   };
@@ -255,6 +303,8 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
     // Additional methods for thread analysis
     getDirectReplies,
     getThreadComments,
-    refetch
+    refetch,
+    hasReacted: Boolean(userReactionEventId),
+    userReactionEventId
   };
 }

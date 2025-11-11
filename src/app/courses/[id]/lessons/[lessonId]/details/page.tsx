@@ -203,10 +203,25 @@ function LessonMetadata({
   duration?: string
 }) {
   const readingTime = content?.isMarkdown ? getEstimatedReadingTime(content.content) : null
+  const lessonNote = lesson.resource?.note
+  const parsedLessonEvent = React.useMemo(() => {
+    if (!lessonNote) {
+      return null
+    }
+    try {
+      return parseEvent(lessonNote)
+    } catch (error) {
+      console.error('Error parsing lesson note:', error)
+      return null
+    }
+  }, [lessonNote])
   
   // Get real interaction data for the lesson resource if available
-  const lessonEventId = lesson.resource?.id ? `lesson-${lesson.resource.id}` : undefined
-  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
+  const lessonEventId = lessonNote?.id
+  const lessonEventKind = lessonNote?.kind
+  const lessonEventPubkey = lessonNote?.pubkey
+  const lessonEventIdentifier = parsedLessonEvent?.d
+  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments, hasReacted } = useInteractions({
     eventId: lessonEventId,
     realtime: false,
     staleTime: 5 * 60 * 1000
@@ -254,6 +269,11 @@ function LessonMetadata({
         isLoadingZaps={isLoadingZaps}
         isLoadingComments={isLoadingComments}
         isLoadingLikes={isLoadingLikes}
+        hasReacted={hasReacted}
+        eventId={lessonEventId}
+        eventKind={lessonEventKind}
+        eventPubkey={lessonEventPubkey}
+        eventIdentifier={lessonEventIdentifier}
         compact
       />
     </div>
