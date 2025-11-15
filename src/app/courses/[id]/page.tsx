@@ -160,7 +160,17 @@ function CoursePageContent({ courseId }: { courseId: string }) {
 
   // Get real interaction data if course has a Nostr event - call hook unconditionally at top level
   const noteId = courseData?.note?.id
-  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments, hasReacted } = useInteractions({
+  const {
+    interactions,
+    isLoadingZaps,
+    isLoadingLikes,
+    isLoadingComments,
+    hasReacted,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
+  } = useInteractions({
     eventId: noteId,
     realtime: false,
     staleTime: 5 * 60 * 1000,
@@ -362,6 +372,15 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                   eventKind={courseData?.note?.kind}
                   eventPubkey={courseData?.note?.pubkey || courseData?.userId || undefined}
                   eventIdentifier={parsedCourseNote?.d}
+                  zapInsights={zapInsights}
+                  recentZaps={recentZaps}
+                  hasZappedWithLightning={hasZappedWithLightning}
+                  viewerZapTotalSats={viewerZapTotalSats}
+                  zapTarget={{
+                    pubkey: courseData?.note?.pubkey || courseData?.userId || undefined,
+                    lightningAddress: instructorProfile?.lud16 || undefined,
+                    name: instructor
+                  }}
                 />
                 
                 <div className="flex items-center space-x-1.5 sm:space-x-2">

@@ -13,6 +13,83 @@ export interface InteractionCounts {
   threadComments: number; // All thread-related comments
 }
 
+export interface ZapReceiptSummary {
+  id: string;
+  amountMsats: number | null;
+  amountSats: number | null;
+  senderPubkey: string | null;
+  receiverPubkey: string | null;
+  note?: string | null;
+  bolt11?: string | null;
+  createdAt?: number;
+}
+
+export interface ZapInsights {
+  totalMsats: number;
+  totalSats: number;
+  averageSats: number;
+  uniqueSenders: number;
+  lastZapAt: number | null;
+}
+
+const MAX_STORED_ZAPS = 200;
+const MAX_RECENT_ZAPS = 8;
+
+export const DEFAULT_ZAP_INSIGHTS: ZapInsights = {
+  totalMsats: 0,
+  totalSats: 0,
+  averageSats: 0,
+  uniqueSenders: 0,
+  lastZapAt: null
+};
+
+function summarizeZapReceipt(event: NostrEvent): ZapReceiptSummary {
+  const amountTag = event.tags.find((tag) => tag[0] === 'amount');
+  const bolt11Tag = event.tags.find((tag) => tag[0] === 'bolt11');
+  const descriptionTag = event.tags.find((tag) => tag[0] === 'description');
+  const receiverTag = event.tags.find((tag) => tag[0] === 'p');
+
+  let amountMsats: number | null = null;
+  let amountSats: number | null = null;
+  if (amountTag?.[1]) {
+    const parsed = Number(amountTag[1]);
+    if (!Number.isNaN(parsed) && parsed >= 0) {
+      amountMsats = parsed;
+      amountSats = Math.max(0, Math.floor(parsed / 1000));
+    }
+  }
+
+  let senderPubkey: string | null = null;
+  let note: string | null = null;
+  if (descriptionTag?.[1]) {
+    try {
+      const parsedDescription = JSON.parse(descriptionTag[1]);
+      if (parsedDescription?.pubkey) {
+        senderPubkey = String(parsedDescription.pubkey).toLowerCase();
+      }
+      if (typeof parsedDescription?.content === 'string' && parsedDescription.content.trim().length > 0) {
+        note = parsedDescription.content.trim();
+      }
+    } catch (error) {
+      // Intentionally ignore invalid zap description payloads
+      console.debug('useInteractions: failed to parse zap description payload', error);
+    }
+  }
+
+  const receiverPubkey = receiverTag?.[1] ? receiverTag[1].toLowerCase() : null;
+
+  return {
+    id: event.id,
+    amountMsats,
+    amountSats,
+    senderPubkey,
+    receiverPubkey,
+    note,
+    bolt11: bolt11Tag?.[1],
+    createdAt: event.created_at
+  };
+}
+
 export interface UseInteractionsOptions {
   eventId?: string;
   realtime?: boolean;
@@ -37,6 +114,10 @@ export interface InteractionsQueryResult {
   refetch?: () => void;
   hasReacted: boolean;
   userReactionEventId: string | null;
+  zapInsights: ZapInsights;
+  recentZaps: ZapReceiptSummary[];
+  hasZappedWithLightning: boolean;
+  viewerZapTotalSats: number;
 }
 
 export function useInteractions(options: UseInteractionsOptions): InteractionsQueryResult {
@@ -73,6 +154,14 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
   const seenCommentsRef = useRef<Set<string>>(new Set());
   const subscriptionRef = useRef<{ close: () => void } | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const zapSummariesRef = useRef<ZapReceiptSummary[]>([]);
+  const zapSenderTotalsRef = useRef<Map<string, { totalMsats: number; lastZapAt: number }>>(new Map());
+  const zapCountRef = useRef(0);
+  const [zapInsights, setZapInsights] = useState<ZapInsights>(DEFAULT_ZAP_INSIGHTS);
+  const [recentZaps, setRecentZaps] = useState<ZapReceiptSummary[]>([]);
+  const [hasZappedWithLightning, setHasZappedWithLightning] = useState(false);
+  const [viewerZapTotalSats, setViewerZapTotalSats] = useState(0);
+  const currentUserPubkeyRef = useRef<string | null>(null);
 
   const resetInteractionStorage = () => {
     zapsRef.current = [];
@@ -81,7 +170,14 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
     seenZapsRef.current = new Set();
     seenLikesRef.current = new Set();
     seenCommentsRef.current = new Set();
+    zapSummariesRef.current = [];
+    zapSenderTotalsRef.current = new Map();
+    zapCountRef.current = 0;
     setUserReactionEventId(null);
+    setZapInsights(DEFAULT_ZAP_INSIGHTS);
+    setRecentZaps([]);
+    setHasZappedWithLightning(false);
+    setViewerZapTotalSats(0);
   };
 
   useEffect(() => {
@@ -95,6 +191,27 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
     );
 
     setUserReactionEventId(existingReaction ? existingReaction.id : null);
+  }, [currentUserPubkey]);
+
+  useEffect(() => {
+    currentUserPubkeyRef.current = currentUserPubkey;
+    if (!currentUserPubkey) {
+      setHasZappedWithLightning(false);
+      setViewerZapTotalSats(0);
+      return;
+    }
+
+    let viewerZapTotal = 0;
+    let viewerHasZapped = false;
+    for (const zap of zapSummariesRef.current) {
+      if (zap.senderPubkey && zap.senderPubkey === currentUserPubkey) {
+        viewerHasZapped = true;
+        viewerZapTotal += zap.amountSats ?? 0;
+      }
+    }
+
+    setHasZappedWithLightning(viewerHasZapped);
+    setViewerZapTotalSats(viewerZapTotal);
   }, [currentUserPubkey]);
 
   // Set up intersection observer for visibility-based subscription management
@@ -193,6 +310,47 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
                   seenZapsRef.current.add(eventIdKey);
                   zapsRef.current.push(event);
                   setIsLoadingZaps(false);
+                  const zapSummary = summarizeZapReceipt(event);
+                  const allZaps = [zapSummary, ...zapSummariesRef.current].slice(0, MAX_STORED_ZAPS);
+                  zapSummariesRef.current = allZaps;
+                  setRecentZaps(allZaps.slice(0, MAX_RECENT_ZAPS));
+
+                  if (zapSummary.senderPubkey) {
+                    const senderKey = zapSummary.senderPubkey;
+                    const existingTotals = zapSenderTotalsRef.current.get(senderKey) || { totalMsats: 0, lastZapAt: 0 };
+                    const msatsContribution = zapSummary.amountMsats ?? 0;
+                    zapSenderTotalsRef.current.set(senderKey, {
+                      totalMsats: existingTotals.totalMsats + msatsContribution,
+                      lastZapAt: Math.max(existingTotals.lastZapAt, zapSummary.createdAt ?? 0)
+                    });
+
+                    if (currentUserPubkeyRef.current && senderKey === currentUserPubkeyRef.current) {
+                      setHasZappedWithLightning(true);
+                      setViewerZapTotalSats((prev) => prev + (zapSummary.amountSats ?? 0));
+                    }
+                  }
+
+                  zapCountRef.current += 1;
+                  const msatsContribution = zapSummary.amountMsats ?? 0;
+                  setZapInsights((prev) => {
+                    const updatedTotalMsats = prev.totalMsats + msatsContribution;
+                    const zapCount = zapCountRef.current;
+                    const updatedAverage = zapCount > 0 ? Math.max(0, Math.floor(updatedTotalMsats / zapCount / 1000)) : 0;
+                    const previousTimestamp = prev.lastZapAt ?? null;
+                    const candidateTimestamp = zapSummary.createdAt ?? previousTimestamp;
+                    const resolvedTimestamp =
+                      zapSummary.createdAt && previousTimestamp
+                        ? Math.max(zapSummary.createdAt, previousTimestamp)
+                        : candidateTimestamp;
+                    return {
+                      totalMsats: updatedTotalMsats,
+                      totalSats: Math.max(0, Math.floor(updatedTotalMsats / 1000)),
+                      averageSats: updatedAverage,
+                      uniqueSenders: zapSenderTotalsRef.current.size,
+                      lastZapAt: resolvedTimestamp ?? null
+                    };
+                  });
+
                   updateCounts();
                 }
                 break;
@@ -305,6 +463,10 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
     getThreadComments,
     refetch,
     hasReacted: Boolean(userReactionEventId),
-    userReactionEventId
+    userReactionEventId,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
   };
 }

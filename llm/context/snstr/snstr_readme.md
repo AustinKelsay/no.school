@@ -1,8 +1,22 @@
-# SNSTR - Simple Nostr Software Toolkit for Retards
+# SNSTR - Secure Nostr Software Toolkit for Renegades
 
-### Still Under Construction 🚧
+![SNSTR Logo](https://raw.githubusercontent.com/AustinKelsay/snstr/main/.github/images/snstr.jpg)
 
-SNSTR is a lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies.
+[![npm version](https://badge.fury.io/js/snstr.svg)](https://www.npmjs.com/package/snstr)
+
+### Beta Release 🚧
+
+SNSTR is a secure, lightweight TypeScript library for interacting with the Nostr protocol. It provides a simple, easy-to-use API with minimal dependencies.
+
+*SNSTR is fierce. Fierce in its speed, in its flexibility, and most of all its security.*
+
+*SNSTR is steadfast, ever persistent, watching, waiting.*
+
+*SNSTR has vengeance on its mind.*
+
+*SNSTR is a Nostr Development Kit for people that go swimming in jeans*
+
+**⚠️ Important**: This library is in beta testing. While mostly stable, some features may still undergo changes. We encourage users to test thoroughly and report any issues or unexpected behavior.
 
 ## Table of Contents
 
@@ -21,9 +35,11 @@ SNSTR is a lightweight TypeScript library for interacting with the Nostr protoco
   - [Code Quality Scripts](#code-quality-scripts)
 - [Development](#development)
 - [Security](#security)
-- [Release Process](#release-process)
+- [Next.js / Turbopack Guidance](#nextjs--turbopack-guidance)
 
 ## Features
+
+![SNSTR Starter Pack](https://raw.githubusercontent.com/AustinKelsay/snstr/main/.github/images/snstr-starter-pack.png)
 
 ### Core Functionality
 
@@ -76,17 +92,46 @@ For detailed information on each implementation, see the corresponding directori
 ## Installation
 
 ```bash
-# Install from npm (coming soon)
+# Install from npm (beta release)
 npm install snstr
 
-# For now, clone and build locally:
+# Or clone and build locally for development:
 git clone https://github.com/AustinKelsay/snstr.git
 cd snstr
 npm install
 npm run build
 ```
 
-**Note**: The library is currently in development and not yet published to npm. Use the local build method above until the first release is published.
+### React Native / Expo
+
+- Works out of the box — no Node polyfills are required.
+- Add secure RNG once at app startup (required by various features):
+  ```ts
+  import 'react-native-get-random-values';
+  ```
+- NIP-04 now works on Web and React Native with the exact same API as Node:
+  ```ts
+  import { encryptNIP04, decryptNIP04 } from 'snstr';
+  const c = encryptNIP04(alicePriv, bobPub, 'hello');
+  const p = decryptNIP04(bobPriv, alicePub, c);
+  ```
+- Prefer NIP-44 for new apps; keep NIP-04 for legacy compatibility.
+
+## Next.js / Turbopack Guidance
+
+snstr ships both CommonJS and ESM builds and provides a dedicated web entry that avoids Node-only modules.
+
+- Prefer the default import in Next.js; do not add `snstr` to `transpilePackages` unless necessary.
+- If you must transpile third-party packages, rely on the ESM import condition we publish and avoid forcing CJS transforms of `snstr`.
+- At client-only boundaries, dynamic `import('snstr')` is a safe workaround for older setups.
+
+Resolution summary:
+
+- Node (CJS): `require('snstr')` → `./dist/src/index.js`.
+- Node/ESM & modern bundlers: `import 'snstr'` → `./dist/esm/src/index.js`.
+- Browsers/React Native: `import 'snstr'` under `browser`/`react-native` conditions → `./dist/esm/src/entries/index.web.js`.
+
+This dual build removes getter-based CJS re-exports from browser bundles and avoids interop issues observed with Turbopack.
 
 ## Basic Usage
 
@@ -172,7 +217,7 @@ See [NIP-01 documentation](src/nip01/README.md#rate-limiting) for detailed confi
 ### Using RelayPool for Multi-Relay Management
 
 ```typescript
-import { RelayPool, generateKeys, createEvent } from "snstr";
+import { RelayPool, generateKeypair, createEvent } from "snstr";
 
 async function relayPoolExample() {
   // Initialize RelayPool with multiple relays
@@ -183,7 +228,7 @@ async function relayPoolExample() {
   ]);
 
   // Generate keypair
-  const keys = await generateKeys();
+  const keys = await generateKeypair();
 
   // Publish to multiple relays simultaneously
   const event = createEvent({
@@ -408,23 +453,85 @@ For a full list of examples and detailed descriptions, see the [examples README]
 
 SNSTR includes a comprehensive test suite that uses an ephemeral relay to avoid external dependencies:
 
+### Main Test Commands
+
 ```bash
 # Run all tests
 npm test
 
-# Run tests by category
-npm run test:core     # Core functionality tests (NIP-01)
-npm run test:crypto   # Encryption and crypto tests
-npm run test:identity # Identity-related tests
-npm run test:protocols # Protocol implementation tests
+# Run tests with watch mode for development
+npm run test:watch
 
-# Run tests for specific NIPs
-npm run test:nip01    # NIP-01 (core protocol)
+# Generate code coverage report
+npm run test:coverage
+
+# Run integration tests
+npm run test:integration
+```
+
+### Test Categories
+
+Tests are organized into logical categories for focused testing:
+
+```bash
+npm run test:core       # Core functionality tests (all NIP-01)
+npm run test:crypto     # All crypto tests (utils/crypto + NIP-04 + NIP-44)
+npm run test:identity   # Identity-related tests (NIP-05, NIP-07, NIP-19)
+npm run test:protocols  # Protocol implementations (NIP-46, NIP-47, NIP-57)
+```
+
+### NIP-01 Core Protocol Tests
+
+NIP-01 tests are further organized by component:
+
+```bash
+# Main NIP-01 tests
+npm run test:nip01                      # All NIP-01 tests
+npm run test:nip01:event                # All event-related tests
+npm run test:nip01:relay                # All relay-related tests
+
+# Event-specific tests
+npm run test:event                      # Core event creation/validation
+npm run test:event:ordering             # Event ordering tests
+npm run test:event:addressable          # Addressable events (kinds 30000-39999)
+npm run test:event:all                  # All event tests combined
+
+# Relay-specific tests
+npm run test:relay                      # All relay functionality
+npm run test:nip01:relay:connection     # Relay connection management
+npm run test:nip01:relay:filter         # Subscription filter tests
+npm run test:nip01:relay:reconnect      # Relay reconnection logic
+npm run test:nip01:relay:pool           # RelayPool multi-relay tests
+npm run test:nip01:relay:websocket      # WebSocket implementation tests
+
+# Client and utilities
+npm run test:nostr                      # Nostr client tests
+npm run test:crypto:core                # Core cryptographic utilities
+npm run test:utils:relayUrl             # Relay URL normalization
+```
+
+### NIP-Specific Tests
+
+Run tests for individual NIP implementations:
+
+```bash
 npm run test:nip02    # NIP-02 (Contact Lists)
-npm run test:nip04    # NIP-04 (encrypted messages)
-npm run test:nip44    # NIP-44 (versioned encryption)
-npm run test:nip17    # NIP-17 (direct messaging)
+npm run test:nip04    # NIP-04 (Encrypted Direct Messages)
+npm run test:nip05    # NIP-05 (DNS Identifiers)
+npm run test:nip07    # NIP-07 (Browser Extensions)
+npm run test:nip09    # NIP-09 (Event Deletion)
+npm run test:nip10    # NIP-10 (Text Notes and Threads)
+npm run test:nip11    # NIP-11 (Relay Information)
+npm run test:nip17    # NIP-17 (Gift Wrapped Messages)
+npm run test:nip19    # NIP-19 (Bech32 Entities)
+npm run test:nip21    # NIP-21 (URI Scheme)
+npm run test:nip44    # NIP-44 (Versioned Encryption)
+npm run test:nip46    # NIP-46 (Remote Signing)
+npm run test:nip47    # NIP-47 (Wallet Connect)
+npm run test:nip50    # NIP-50 (Search Capability)
 npm run test:nip57    # NIP-57 (Lightning Zaps)
+npm run test:nip65    # NIP-65 (Relay List Metadata)
+npm run test:nip66    # NIP-66 (Relay Discovery)
 ```
 
 The test suite is organized by NIP number, with dedicated directories for each implemented NIP (e.g., `tests/nip01/`, `tests/nip04/`, etc.). This structure allows for focused testing of specific implementations while maintaining comprehensive coverage.
@@ -472,6 +579,7 @@ npm run test:nip01:relay:connection      # Relay connection tests
 npm run test:nip01:relay:filter      # Relay filter tests
 npm run test:nip01:relay:reconnect   # Relay reconnection tests
 npm run test:nip01:relay:pool        # RelayPool tests
+npm run test:nip01:relay:websocket   # Custom WebSocket implementation tests
 npm run test:nostr         # Nostr client
 npm run test:event         # Event creation and validation
 npm run test:event:ordering          # Event ordering tests
@@ -479,6 +587,7 @@ npm run test:event:addressable       # Addressable events tests
 npm run test:event:all               # All event tests
 npm run test:relay         # Relay functionality
 npm run test:crypto:core   # Core crypto utilities
+npm run test:utils:relayUrl # Relay URL normalization helpers
 
 # Test specific NIPs
 npm run test:nip02         # NIP-02 (Contact Lists)
@@ -506,7 +615,7 @@ npm run test:nip66         # NIP-66 (Relay Discovery)
 # Run the basic example
 npm run example
 
-# Run with different logging levels
+npm run example:rate-limits # Rate limit configuration walkthrough
 npm run example:verbose    # Verbose logging
 npm run example:debug      # Debug logging
 
@@ -515,11 +624,14 @@ npm run example:nip01:event:ordering     # Event ordering demonstration
 npm run example:nip01:event:addressable  # Addressable events
 npm run example:nip01:event:replaceable  # Replaceable events
 npm run example:nip01:relay:connection   # Relay connection management
-npm run example:nip01:relay:pool        # RelayPool multi-relay demo
 npm run example:nip01:relay:filters      # Filter types
+npm run example:nip01:relay:auto-close   # Auto-unsubscribe demo
 npm run example:nip01:relay:query        # Pooled event queries
 npm run example:nip01:relay:reconnect    # Relay reconnection
+npm run example:nip01:relay:pool        # RelayPool multi-relay demo
+npm run example:nip01:relay:pool-url-normalization # RelayPool URL normalization helpers
 npm run example:nip01:validation         # NIP-01 validation flow
+npm run example:nip01:url-preprocessing  # Relay URL preprocessing utilities
 
 # Example categories
 npm run example:basic      # Basic functionality (core, crypto, direct messages)
@@ -534,22 +646,57 @@ npm run example:dm         # Direct messaging (NIP-04)
 
 # NIP-specific examples
 npm run example:nip02      # Contact Lists (NIP-02)
+npm run example:nip02:pubkey-normalization # Pubkey normalization helpers
 npm run example:nip04      # Encrypted direct messages (NIP-04)
 npm run example:nip05      # DNS identifiers (NIP-05)
 npm run example:nip07      # Browser extensions (NIP-07)
+npm run example:nip07:build # Build browser bundles without running server
+npm run example:nip07:dm   # Browser-hosted DM example
 npm run example:nip09      # Deletion requests (NIP-09)
 npm run example:nip10      # Text notes and threads (NIP-10)
 npm run example:nip11      # Relay information (NIP-11)
 npm run example:nip21      # URI scheme (NIP-21)
 npm run example:nip17      # Gift wrapped direct messages (NIP-17)
 npm run example:nip19      # Bech32-encoded entities (NIP-19)
+npm run example:nip19:bech32      # npub/nsec/note focus
+npm run example:nip19:tlv         # nprofile/nevent/naddr TLV usage
+npm run example:nip19:validation  # Validation and error handling
+npm run example:nip19:security    # Relay URL limits and security
+npm run example:nip19:security-example # Advanced security scenarios
+npm run example:nip19:demo        # Comprehensive walkthrough
 npm run example:nip44      # Versioned encryption (NIP-44)
+npm run example:nip44:js   # Plain JavaScript NIP-44 demo
+npm run example:nip44:version-compat # Version compatibility showcase
+npm run example:nip44:test-vector   # Official vector validation
+npm run example:nip44:compliance    # Compliance and regression demo
 npm run example:nip46      # Remote signing protocol (NIP-46)
+npm run example:nip46:minimal      # Minimal implementation
+npm run example:nip46:basic        # Basic implementation with error handling
+npm run example:nip46:advanced     # Advanced remote signing demo
+npm run example:nip46:from-scratch # Implementation without library helpers
+npm run example:nip46:simple       # Simple bunker/client pair
+npm run example:nip46:simple-client # Simple client-only runner
+npm run example:nip46:test-all     # Run every NIP-46 example sequentially
+npm run example:nip46:connection-string-validation # Validate connection URIs
 npm run example:nip47      # Wallet connect (NIP-47)
+npm run example:nip47:verbose      # Verbose logging for wallet connect
+npm run example:nip47:client-service # Client/service pair demo
+npm run example:nip47:error-handling # Failure scenarios
+npm run example:nip47:expiration    # Request expiration handling
+npm run example:nip47:nip44        # NIP-44 encrypted payload flow
+npm run example:nip47:encryption-negotiation # Custom encryption negotiation
 npm run example:nip50      # Search capability (NIP-50)
 npm run example:nip57      # Lightning zaps (NIP-57)
+npm run example:nip57:client       # Zap client example
+npm run example:nip57:lnurl        # LNURL server simulation
+npm run example:nip57:validation   # Invoice validation
 npm run example:nip65      # Relay list metadata (NIP-65)
 npm run example:nip66      # Relay discovery and monitoring (NIP-66)
+
+# Example bundles
+npm run example:all        # Run the base example
+npm run example:nip01      # Run a curated set of NIP-01 demos
+npm run example:validation # End-to-end validation helpers
 ```
 
 ### Code Quality Scripts
@@ -605,54 +752,3 @@ SNSTR implements robust security features throughout the codebase:
 - **Input Validation**: Thorough validation and error checking across all components
 
 For details on security considerations for specific NIPs, see the documentation in each implementation folder.
-
-## Release Process
-
-SNSTR uses GitHub Actions for continuous integration and automated releases.
-
-### Automated Workflow
-
-The project includes a GitHub Actions workflow that:
-
-1. **Builds and tests** the library on multiple Node.js versions (16.x, 18.x, 20.x)
-2. **Runs linting** to ensure code quality
-3. **Executes all tests** with coverage reports
-4. **Builds the main library** and examples
-5. **Creates releases** when triggered by version tags or manual dispatch
-
-### Creating a Release
-
-There are two ways to trigger a release:
-
-#### Option 1: Manual Release via GitHub Actions
-
-1. Go to the "Actions" tab in the GitHub repository
-2. Select the "Build, Test, and Release" workflow
-3. Click "Run workflow"
-4. Choose the release type (patch, minor, or major)
-5. Click "Run workflow" to start the process
-
-This will:
-
-- Bump the version in package.json
-- Create a git tag
-- Build the project
-- Create a GitHub Release
-- Publish to npm (if configured with NPM_TOKEN)
-
-#### Option 2: Manual Tag Creation
-
-1. Update the version in package.json locally
-2. Create and push a git tag:
-   ```bash
-   git tag -a v0.1.1 -m "Release v0.1.1"
-   git push origin v0.1.1
-   ```
-3. The GitHub Actions workflow will automatically create a release
-
-### Release Prerequisites
-
-To enable npm publishing, you need to:
-
-1. Add your NPM_TOKEN to repository secrets
-2. Ensure you have proper access to the npm package name

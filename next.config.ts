@@ -1,8 +1,6 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Ensure problematic node_modules packages are transpiled and resolved correctly
-  transpilePackages: ["snstr"],
   // Enable experimental features for better performance
   experimental: {
     // optimizePackageImports disabled to avoid server vendor chunk using web runtime
@@ -11,9 +9,9 @@ const nextConfig: NextConfig = {
   // Turbopack configuration (moved from experimental.turbo)
   turbopack: {
     rules: {
-      '*.svg': {
-        loaders: ['@svgr/webpack'],
-        as: '*.js',
+      "*.svg": {
+        loaders: ["@svgr/webpack"],
+        as: "*.js",
       },
     },
   },
@@ -101,11 +99,6 @@ const nextConfig: NextConfig = {
         tls: false,
         child_process: false,
       };
-    }
-
-    // Ensure no legacy deep alias for snstr remains; rely on package exports
-    if (config.resolve.alias && (config.resolve.alias as any).snstr) {
-      delete (config.resolve.alias as any).snstr;
     }
 
     return config;

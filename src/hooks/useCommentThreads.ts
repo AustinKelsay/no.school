@@ -19,6 +19,10 @@ export interface CommentThreadsQueryResult {
   getThreadComments: () => number
   hasReacted: boolean
   userReactionEventId: string | null
+  zapInsights: ReturnType<typeof useInteractions>['zapInsights']
+  recentZaps: ReturnType<typeof useInteractions>['recentZaps']
+  hasZappedWithLightning: ReturnType<typeof useInteractions>['hasZappedWithLightning']
+  viewerZapTotalSats: ReturnType<typeof useInteractions>['viewerZapTotalSats']
 }
 
 /**
@@ -39,6 +43,10 @@ export function useCommentThreads(
     getThreadComments,
     hasReacted,
     userReactionEventId,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
   } = useInteractions({
     eventId,
     realtime: false,
@@ -61,7 +69,11 @@ export function useCommentThreads(
     getDirectReplies,
     getThreadComments,
     hasReacted,
-    userReactionEventId
+    userReactionEventId,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
   }
 }
 

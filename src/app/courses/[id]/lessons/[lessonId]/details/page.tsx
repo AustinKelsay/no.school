@@ -221,7 +221,17 @@ function LessonMetadata({
   const lessonEventKind = lessonNote?.kind
   const lessonEventPubkey = lessonNote?.pubkey
   const lessonEventIdentifier = parsedLessonEvent?.d
-  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments, hasReacted } = useInteractions({
+  const {
+    interactions,
+    isLoadingZaps,
+    isLoadingLikes,
+    isLoadingComments,
+    hasReacted,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
+  } = useInteractions({
     eventId: lessonEventId,
     realtime: false,
     staleTime: 5 * 60 * 1000
@@ -274,6 +284,14 @@ function LessonMetadata({
         eventKind={lessonEventKind}
         eventPubkey={lessonEventPubkey}
         eventIdentifier={lessonEventIdentifier}
+        zapInsights={zapInsights}
+        recentZaps={recentZaps}
+        hasZappedWithLightning={hasZappedWithLightning}
+        viewerZapTotalSats={viewerZapTotalSats}
+        zapTarget={{
+          pubkey: lessonEventPubkey || instructorPubkey,
+          name: instructorName
+        }}
         compact
       />
     </div>

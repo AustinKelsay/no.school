@@ -122,7 +122,17 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
   const [idResult, setIdResult] = useState<UniversalIdResult | null>(null)
   
   // Get real interaction data from Nostr - call hook unconditionally at top level
-  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments, hasReacted } = useInteractions({
+  const {
+    interactions,
+    isLoadingZaps,
+    isLoadingLikes,
+    isLoadingComments,
+    hasReacted,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
+  } = useInteractions({
     eventId: event?.id,
     realtime: false,
     staleTime: 5 * 60 * 1000 // Use staleTime instead of cacheDuration
@@ -394,6 +404,15 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                   eventKind={event.kind}
                   eventPubkey={event.pubkey}
                   eventIdentifier={parsedEvent.d}
+                  zapInsights={zapInsights}
+                  recentZaps={recentZaps}
+                  hasZappedWithLightning={hasZappedWithLightning}
+                  viewerZapTotalSats={viewerZapTotalSats}
+                  zapTarget={{
+                    pubkey: event.pubkey,
+                    lightningAddress: authorProfile?.lud16 || undefined,
+                    name: author
+                  }}
                 />
                 
                 <div className="flex items-center space-x-1.5 sm:space-x-2">

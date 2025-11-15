@@ -210,7 +210,16 @@ function ContentMetadata({ event, parsedEvent, resourceKey }: ContentMetadataPro
 
   const readingTime = parsedEvent.type !== 'video' ? getReadingTime(event.content) : null
 
-  const { commentMetrics, interactions, isLoading: interactionsLoading, hasReacted } = useCommentThreads(event.id)
+  const {
+    commentMetrics,
+    interactions,
+    isLoading: interactionsLoading,
+    hasReacted,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
+  } = useCommentThreads(event.id)
 
   const zapsCount = interactions.zaps
   const commentsCount = commentMetrics.totalComments
@@ -268,6 +277,15 @@ function ContentMetadata({ event, parsedEvent, resourceKey }: ContentMetadataPro
         eventKind={event.kind}
         eventPubkey={event.pubkey}
         eventIdentifier={parsedEvent.d}
+        zapInsights={zapInsights}
+        recentZaps={recentZaps}
+        hasZappedWithLightning={hasZappedWithLightning}
+        viewerZapTotalSats={viewerZapTotalSats}
+        zapTarget={{
+          pubkey: event.pubkey,
+          lightningAddress: authorProfile?.lud16 || undefined,
+          name: parsedEvent.author || undefined
+        }}
       />
     </div>
   )

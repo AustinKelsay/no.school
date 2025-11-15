@@ -1,0 +1,103 @@
+import { bech32 } from '@scure/base'
+import { decodeLnurl } from 'snstr'
+import type { LightningRecipient } from '@/types/zap'
+
+export interface LnurlDetails {
+  /** bech32-encoded lnurl string */
+  lnurlBech32: string
+  /** HTTPS endpoint used to fetch lnurl metadata */
+  endpointUrl: string
+  /** Input string used for metadata fetch (lnurl or lightning address) */
+  fetchInput: string
+  /** Optional human-friendly identifier */
+  identifier?: string
+}
+
+const textEncoder = new TextEncoder()
+
+export function encodeLnurl(url: string): string {
+  const words = bech32.toWords(textEncoder.encode(url))
+  // LNURL strings may be uppercase but we normalize to lowercase for consistency
+  return bech32.encode('lnurl', words, 1023).toLowerCase()
+}
+
+export function buildLightningAddressEndpoint(lightningAddress: string): string | null {
+  if (!lightningAddress || !lightningAddress.includes('@')) {
+    return null
+  }
+  const [username, domain] = lightningAddress.split('@')
+  if (!username || !domain) {
+    return null
+  }
+  return `https://${domain}/.well-known/lnurlp/${username}`
+}
+
+export function deriveLnurlDetails(target?: LightningRecipient): LnurlDetails | null {
+  if (!target) {
+    return null
+  }
+
+  const candidateLnurl = target.lnurl?.trim()
+
+  if (candidateLnurl) {
+    if (candidateLnurl.toLowerCase().startsWith('lnurl')) {
+      const endpoint = decodeLnurl(candidateLnurl)
+      return {
+        lnurlBech32: candidateLnurl.toLowerCase(),
+        endpointUrl: endpoint ?? '',
+        fetchInput: candidateLnurl,
+        identifier: target.lightningAddress || target.name
+      }
+    }
+
+    if (candidateLnurl.startsWith('http://') || candidateLnurl.startsWith('https://')) {
+      return {
+        lnurlBech32: encodeLnurl(candidateLnurl),
+        endpointUrl: candidateLnurl,
+        fetchInput: candidateLnurl,
+        identifier: target.lightningAddress || target.name
+      }
+    }
+  }
+
+  if (target.lightningAddress) {
+    const endpoint = buildLightningAddressEndpoint(target.lightningAddress)
+    if (!endpoint) {
+      return null
+    }
+    return {
+      lnurlBech32: encodeLnurl(endpoint),
+      endpointUrl: endpoint,
+      fetchInput: target.lightningAddress,
+      identifier: target.lightningAddress
+    }
+  }
+
+  return null
+}
+
+export function msatsToSats(msats?: number | null): number | null {
+  if (typeof msats !== 'number' || Number.isNaN(msats)) {
+    return null
+  }
+  return Math.max(0, Math.floor(msats / 1000))
+}
+
+export function getByteLength(value: string): number {
+  return textEncoder.encode(value).length
+}
+
+export function truncateToByteLength(value: string, maxBytes: number): string {
+  const encoded = textEncoder.encode(value)
+  if (encoded.length <= maxBytes) {
+    return value
+  }
+
+  let endIndex = maxBytes
+  // Ensure we cut on character boundaries by decoding progressively
+  while (endIndex > 0 && (encoded[endIndex] & 0xc0) === 0x80) {
+    endIndex -= 1
+  }
+
+  return new TextDecoder().decode(encoded.slice(0, endIndex))
+}
