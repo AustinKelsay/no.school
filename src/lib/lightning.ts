@@ -5,7 +5,7 @@ import type { LightningRecipient } from '@/types/zap'
 export interface LnurlDetails {
   /** bech32-encoded lnurl string */
   lnurlBech32: string
-  /** HTTPS endpoint used to fetch lnurl metadata */
+  /** HTTPS endpoint for clearnet, or HTTP for Tor onion addresses */
   endpointUrl: string
   /** Input string used for metadata fetch (lnurl or lightning address) */
   fetchInput: string
@@ -32,6 +32,26 @@ export function buildLightningAddressEndpoint(lightningAddress: string): string 
   return `https://${domain}/.well-known/lnurlp/${username}`
 }
 
+function isAllowedLnurlEndpoint(endpoint: string): boolean {
+  try {
+    const url = new URL(endpoint)
+    const hostname = url.hostname.toLowerCase()
+
+    if (url.protocol === 'https:') {
+      return true
+    }
+
+    if (url.protocol === 'http:' && hostname.endsWith('.onion')) {
+      return true
+    }
+
+    return false
+  } catch (error) {
+    console.error('deriveLnurlDetails: invalid LNURL endpoint URL', endpoint, error)
+    return false
+  }
+}
+
 export function deriveLnurlDetails(target?: LightningRecipient): LnurlDetails | null {
   if (!target) {
     return null
@@ -46,6 +66,13 @@ export function deriveLnurlDetails(target?: LightningRecipient): LnurlDetails | 
         if (!endpoint) {
           return null
         }
+        if (!isAllowedLnurlEndpoint(endpoint)) {
+          console.error(
+            'deriveLnurlDetails: lnurl endpoint must use https:// for clearnet or http:// for .onion hosts',
+            endpoint
+          )
+          return null
+        }
         return {
           lnurlBech32: candidateLnurl.toLowerCase(),
           endpointUrl: endpoint,
@@ -58,6 +85,13 @@ export function deriveLnurlDetails(target?: LightningRecipient): LnurlDetails | 
     }
 
     if (candidateLnurl.startsWith('http://') || candidateLnurl.startsWith('https://')) {
+      if (!isAllowedLnurlEndpoint(candidateLnurl)) {
+        console.error(
+          'deriveLnurlDetails: direct LNURL endpoint must use https:// for clearnet or http:// for .onion hosts',
+          candidateLnurl
+        )
+        return null
+      }
       return {
         lnurlBech32: encodeLnurl(candidateLnurl),
         endpointUrl: candidateLnurl,
