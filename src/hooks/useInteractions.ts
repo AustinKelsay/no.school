@@ -67,7 +67,18 @@ function summarizeZapReceipt(event: NostrEvent): ZapReceiptSummary {
     if (typeof invoiceMsats === 'number' && !Number.isNaN(invoiceMsats) && invoiceMsats >= 0) {
       amountMsats = invoiceMsats;
       amountSats = Math.max(0, Math.floor(invoiceMsats / 1000));
+    } else if (!parsedInvoice) {
+      // Helpful for debugging providers whose invoices we can't parse.
+      console.debug('summarizeZapReceipt: unable to parse bolt11 invoice for amount', {
+        bolt11: bolt11Tag[1]
+      });
     }
+  }
+
+  // Final safety: if we somehow have sats but not msats, backfill msats
+  // so aggregate stats stay consistent.
+  if (amountMsats == null && typeof amountSats === 'number') {
+    amountMsats = amountSats * 1000;
   }
 
   let senderPubkey: string | null = null;

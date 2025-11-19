@@ -285,7 +285,7 @@ export function InteractionMetrics({
             className={`group flex items-center space-x-1.5 sm:space-x-2 transition-colors cursor-pointer bg-transparent border-0 p-0 ${compact ? '' : ''}`}
           >
             <Zap className={`${iconSize} text-muted-foreground group-hover:text-primary transition-colors`} />
-            <span className="font-medium text-foreground group-hover:text-primary transition-colors">
+            <span className="inline-flex items-center justify-center font-medium text-foreground group-hover:text-primary transition-colors">
               {isLoadingZaps ? (
                 <div className="w-4 h-4 rounded-full border-2 border-primary border-t-transparent animate-spin"></div>
               ) : (
@@ -326,7 +326,7 @@ export function InteractionMetrics({
         onClick={handleScrollToComments}
       >
         <MessageCircle className={`${iconSize} text-muted-foreground group-hover:text-blue-500 transition-colors`} />
-        <span className="font-medium text-foreground group-hover:text-blue-500 transition-colors">
+        <span className="inline-flex items-center justify-center font-medium text-foreground group-hover:text-blue-500 transition-colors">
           {isLoadingComments ? (
             <div className="w-4 h-4 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
           ) : (
@@ -348,7 +348,7 @@ export function InteractionMetrics({
         <Heart
           className={`${iconSize} transition-colors ${likeIconClass} ${showLikeSpinner ? 'opacity-60' : ''}`}
         />
-        <span className={`font-medium transition-colors ${likeCountClass}`}>
+        <span className={`inline-flex items-center justify-center font-medium transition-colors ${likeCountClass}`}>
           {showLikeSpinner ? (
             <div className="inline-flex h-4 w-4 items-center justify-center rounded-full border-2 border-pink-500 border-t-transparent animate-spin"></div>
           ) : (
