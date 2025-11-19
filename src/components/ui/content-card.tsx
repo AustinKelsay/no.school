@@ -99,7 +99,7 @@ export function ContentCard({
   // Get interaction data from Nostr if this is a content item with a note ID
   const eventId = isContent ? getEventId(item.noteId) : undefined
   
-  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
+  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments, zapInsights } = useInteractions({
     eventId,
     realtime: false,
     staleTime: 5 * 60 * 1000 // 5 minutes
@@ -154,6 +154,7 @@ export function ContentCard({
   const zapsCount = interactions.zaps
   const commentsCount = interactions.comments 
   const reactionsCount = interactions.likes
+  const zapTotalSats = zapInsights?.totalSats ?? 0;
 
   return (
     <Card 
@@ -208,7 +209,7 @@ export function ContentCard({
                 {isLoadingZaps ? (
                   <div className="w-4 h-4 rounded-full border-2 border-amber-500 border-t-transparent animate-spin"></div>
                 ) : (
-                  zapsCount.toLocaleString()
+                  zapTotalSats.toLocaleString()
                 )}
               </span>
             </div>

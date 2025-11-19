@@ -33,6 +33,7 @@ import { getRelays } from '@/lib/nostr-relays'
 import { ViewsText } from '@/components/ui/views-text'
 import { ResourceContentView } from '@/app/content/components/resource-content-view'
 import { extractNoteId } from '@/lib/nostr-events'
+import { formatNoteIdentifier } from '@/lib/note-identifiers'
 
 interface ResourcePageProps {
   params: Promise<{
@@ -121,7 +122,17 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
   const [idResult, setIdResult] = useState<UniversalIdResult | null>(null)
   
   // Get real interaction data from Nostr - call hook unconditionally at top level
-  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
+  const {
+    interactions,
+    isLoadingZaps,
+    isLoadingLikes,
+    isLoadingComments,
+    hasReacted,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
+  } = useInteractions({
     eventId: event?.id,
     realtime: false,
     staleTime: 5 * 60 * 1000 // Use staleTime instead of cacheDuration
@@ -287,6 +298,8 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
   const isPaidResource = Boolean(derivedPremiumFlag)
   // Only courses and paid resources keep the preview wall; everything else opens directly.
   const requiresPreviewGate = isCourseContent || isPaidResource
+  const nostrIdentifier = formatNoteIdentifier(event, resourceId)
+  const nostrUrl = nostrIdentifier ? `https://nostr.band/${nostrIdentifier}` : null
   
   // Use only real interaction data - no fallbacks
   const zapsCount = interactions.zaps
@@ -386,6 +399,20 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                   isLoadingZaps={isLoadingZaps}
                   isLoadingComments={isLoadingComments}
                   isLoadingLikes={isLoadingLikes}
+                  hasReacted={hasReacted}
+                  eventId={event.id}
+                  eventKind={event.kind}
+                  eventPubkey={event.pubkey}
+                  eventIdentifier={parsedEvent.d}
+                  zapInsights={zapInsights}
+                  recentZaps={recentZaps}
+                  hasZappedWithLightning={hasZappedWithLightning}
+                  viewerZapTotalSats={viewerZapTotalSats}
+                  zapTarget={{
+                    pubkey: event.pubkey,
+                    lightningAddress: authorProfile?.lud16 || undefined,
+                    name: author
+                  }}
                 />
                 
                 <div className="flex items-center space-x-1.5 sm:space-x-2">
@@ -523,6 +550,16 @@ function ResourcePageContent({ resourceId }: { resourceId: string }) {
                       {formatDate(event.created_at)}
                     </p>
                   </div>
+                  {nostrUrl && (
+                    <div>
+                      <Button variant="outline" className="w-full justify-center" asChild>
+                        <a href={nostrUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Open in Nostr
+                        </a>
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

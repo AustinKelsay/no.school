@@ -17,6 +17,12 @@ export interface CommentThreadsQueryResult {
   refetch?: () => void
   getDirectReplies: () => number
   getThreadComments: () => number
+  hasReacted: boolean
+  userReactionEventId: string | null
+  zapInsights: ReturnType<typeof useInteractions>['zapInsights']
+  recentZaps: ReturnType<typeof useInteractions>['recentZaps']
+  hasZappedWithLightning: ReturnType<typeof useInteractions>['hasZappedWithLightning']
+  viewerZapTotalSats: ReturnType<typeof useInteractions>['viewerZapTotalSats']
 }
 
 /**
@@ -35,6 +41,12 @@ export function useCommentThreads(
     refetch,
     getDirectReplies, 
     getThreadComments,
+    hasReacted,
+    userReactionEventId,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
   } = useInteractions({
     eventId,
     realtime: false,
@@ -55,7 +67,13 @@ export function useCommentThreads(
     error,
     refetch,
     getDirectReplies,
-    getThreadComments
+    getThreadComments,
+    hasReacted,
+    userReactionEventId,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
   }
 }
 
