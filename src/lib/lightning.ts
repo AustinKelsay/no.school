@@ -41,12 +41,19 @@ export function deriveLnurlDetails(target?: LightningRecipient): LnurlDetails | 
 
   if (candidateLnurl) {
     if (candidateLnurl.toLowerCase().startsWith('lnurl')) {
-      const endpoint = decodeLnurl(candidateLnurl)
-      return {
-        lnurlBech32: candidateLnurl.toLowerCase(),
-        endpointUrl: endpoint ?? '',
-        fetchInput: candidateLnurl,
-        identifier: target.lightningAddress || target.name
+      try {
+        const endpoint = decodeLnurl(candidateLnurl)
+        if (!endpoint) {
+          return null
+        }
+        return {
+          lnurlBech32: candidateLnurl.toLowerCase(),
+          endpointUrl: endpoint,
+          fetchInput: candidateLnurl,
+          identifier: target.lightningAddress || target.name
+        }
+      } catch {
+        return null
       }
     }
 

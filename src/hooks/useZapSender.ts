@@ -121,6 +121,9 @@ export function useZapSender(options: UseZapSenderOptions): ZapSenderHook {
   }, [zapTarget?.pubkey, eventPubkey]);
 
   const normalizedSessionPubkey = useMemo(() => normalizeHexPubkey(session?.user?.pubkey), [session?.user?.pubkey]);
+  // session?.user?.privkey is only set for ephemeral/session-scoped keys
+  // (anonymous, email, GitHub flows) and never long-term identity keys;
+  // long-lived keys use NIP-07 (see isNip07User and src/lib/auth.ts around lines 638–643).
   const normalizedSessionPrivkey = useMemo(() => normalizeHexPrivkey(session?.user?.privkey), [session?.user?.privkey]);
   const canServerSign = Boolean(normalizedSessionPrivkey) && !isNip07User(session?.provider);
 

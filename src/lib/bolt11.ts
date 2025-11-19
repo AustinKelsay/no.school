@@ -5,6 +5,16 @@ export interface ParsedBolt11Invoice {
   amountMsats?: number;
 }
 
+interface DecodedBolt11 {
+  descriptionHash?: string;
+  millisatoshis?: number | string;
+  satoshis?: number | string;
+  sections?: Array<{
+    name: string;
+    value?: string | number;
+  }>;
+}
+
 export function parseBolt11Invoice(bolt11: string): ParsedBolt11Invoice | null {
   if (typeof bolt11 !== "string" || !bolt11) {
     console.error("parseBolt11Invoice: expected non-empty string invoice, got", bolt11);
@@ -12,7 +22,7 @@ export function parseBolt11Invoice(bolt11: string): ParsedBolt11Invoice | null {
   }
 
   try {
-    const decoded = decode(bolt11) as any;
+    const decoded: DecodedBolt11 = decode(bolt11);
     if (!decoded || typeof decoded !== "object") {
       return null;
     }
@@ -59,7 +69,7 @@ export function parseBolt11Invoice(bolt11: string): ParsedBolt11Invoice | null {
     }
 
     if (!descriptionHash && amountMsats == null) {
-      return {};
+      return null;
     }
 
     const result: ParsedBolt11Invoice = {};
