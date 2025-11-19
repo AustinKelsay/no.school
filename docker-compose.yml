@@ -40,12 +40,11 @@ services:
     command: >
       sh -lc '
         set -e
-        chmod +x /app/wait-for-db.sh
-        /app/wait-for-db.sh db 5432
-        # Ensure deps are installed inside the mounted volume
         if [ ! -x node_modules/.bin/prisma ]; then
           npm install
         fi
+        chmod +x /app/wait-for-db.sh
+        /app/wait-for-db.sh db 5432
         npx prisma db push --accept-data-loss
         npx prisma generate
         npm run dev

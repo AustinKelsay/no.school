@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useSnstrContext } from '../contexts/snstr-context';
 import { NostrEvent } from 'snstr';
+import { parseBolt11Invoice } from '@/lib/bolt11';
 
 export interface InteractionCounts {
   zaps: number;
@@ -59,20 +60,39 @@ function summarizeZapReceipt(event: NostrEvent): ZapReceiptSummary {
     }
   }
 
+  // Fallback: derive amount from the invoice if the zap receipt does not include an amount tag.
+  if (amountMsats == null && bolt11Tag?.[1]) {
+    const parsedInvoice = parseBolt11Invoice(bolt11Tag[1]);
+    const invoiceMsats = parsedInvoice?.amountMsats;
+    if (typeof invoiceMsats === 'number' && !Number.isNaN(invoiceMsats) && invoiceMsats >= 0) {
+      amountMsats = invoiceMsats;
+      amountSats = Math.max(0, Math.floor(invoiceMsats / 1000));
+    }
+  }
+
   let senderPubkey: string | null = null;
   let note: string | null = null;
   if (descriptionTag?.[1]) {
-    try {
-      const parsedDescription = JSON.parse(descriptionTag[1]);
-      if (parsedDescription?.pubkey) {
-        senderPubkey = String(parsedDescription.pubkey).toLowerCase();
+    const rawDescription = descriptionTag[1];
+    const trimmedDescription = rawDescription.trim();
+
+    // If the description looks like JSON, try to parse it as a zap request
+    if (trimmedDescription.startsWith('{') || trimmedDescription.startsWith('[')) {
+      try {
+        const parsedDescription = JSON.parse(trimmedDescription);
+        if (parsedDescription?.pubkey) {
+          senderPubkey = String(parsedDescription.pubkey).toLowerCase();
+        }
+        if (typeof parsedDescription?.content === 'string' && parsedDescription.content.trim().length > 0) {
+          note = parsedDescription.content.trim();
+        }
+      } catch {
+        // Intentionally ignore invalid zap description payloads that look like JSON
       }
-      if (typeof parsedDescription?.content === 'string' && parsedDescription.content.trim().length > 0) {
-        note = parsedDescription.content.trim();
-      }
-    } catch (error) {
-      // Intentionally ignore invalid zap description payloads
-      console.debug('useInteractions: failed to parse zap description payload', error);
+    } else if (trimmedDescription.length > 0) {
+      // For non-JSON descriptions (e.g. some LNURL providers), treat the raw
+      // description text as the note so we at least show something meaningful.
+      note = trimmedDescription;
     }
   }
 
@@ -156,6 +176,7 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const zapSummariesRef = useRef<ZapReceiptSummary[]>([]);
   const zapSenderTotalsRef = useRef<Map<string, { totalMsats: number; lastZapAt: number }>>(new Map());
+  const unknownZapCountRef = useRef(0);
   const zapCountRef = useRef(0);
   const [zapInsights, setZapInsights] = useState<ZapInsights>(DEFAULT_ZAP_INSIGHTS);
   const [recentZaps, setRecentZaps] = useState<ZapReceiptSummary[]>([]);
@@ -172,6 +193,7 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
     seenCommentsRef.current = new Set();
     zapSummariesRef.current = [];
     zapSenderTotalsRef.current = new Map();
+    unknownZapCountRef.current = 0;
     zapCountRef.current = 0;
     setUserReactionEventId(null);
     setZapInsights(DEFAULT_ZAP_INSIGHTS);
@@ -317,7 +339,8 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
 
                   if (zapSummary.senderPubkey) {
                     const senderKey = zapSummary.senderPubkey;
-                    const existingTotals = zapSenderTotalsRef.current.get(senderKey) || { totalMsats: 0, lastZapAt: 0 };
+                    const existingTotals =
+                      zapSenderTotalsRef.current.get(senderKey) || { totalMsats: 0, lastZapAt: 0 };
                     const msatsContribution = zapSummary.amountMsats ?? 0;
                     zapSenderTotalsRef.current.set(senderKey, {
                       totalMsats: existingTotals.totalMsats + msatsContribution,
@@ -328,6 +351,11 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
                       setHasZappedWithLightning(true);
                       setViewerZapTotalSats((prev) => prev + (zapSummary.amountSats ?? 0));
                     }
+                  } else {
+                    // Treat zaps without a discoverable sender pubkey as
+                    // unique supporters so that providers like Stacker News
+                    // still increment the supporter count.
+                    unknownZapCountRef.current += 1;
                   }
 
                   zapCountRef.current += 1;
@@ -342,11 +370,13 @@ export function useInteractions(options: UseInteractionsOptions): InteractionsQu
                       zapSummary.createdAt && previousTimestamp
                         ? Math.max(zapSummary.createdAt, previousTimestamp)
                         : candidateTimestamp;
+                    const supporterCount =
+                      zapSenderTotalsRef.current.size + unknownZapCountRef.current;
                     return {
                       totalMsats: updatedTotalMsats,
                       totalSats: Math.max(0, Math.floor(updatedTotalMsats / 1000)),
                       averageSats: updatedAverage,
-                      uniqueSenders: zapSenderTotalsRef.current.size,
+                      uniqueSenders: supporterCount,
                       lastZapAt: resolvedTimestamp ?? null
                     };
                   });

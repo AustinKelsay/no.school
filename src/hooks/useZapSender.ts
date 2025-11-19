@@ -44,7 +44,7 @@ type ZapStatus =
   | 'success'
   | 'error';
 
-interface ZapState {
+export interface ZapState {
   status: ZapStatus;
   metadata?: LnurlPayResponse;
   lnurlDetails?: LnurlDetails | null;
@@ -172,8 +172,7 @@ export function useZapSender(options: UseZapSenderOptions): ZapSenderHook {
           relays: relayList,
           content: note,
           lnurl,
-          aTag,
-          senderPubkey: signerPubkey
+          aTag
         },
         signerPubkey
       );
@@ -308,28 +307,50 @@ export function useZapSender(options: UseZapSenderOptions): ZapSenderHook {
 
         setZapState({ status: 'requesting-invoice', metadata, lnurlDetails, zapRequest: signedZapRequest });
 
+        const zapRequestJson = JSON.stringify(signedZapRequest);
+        const zapRequestHash = await sha256Hex(zapRequestJson);
+
         const callbackUrl = new URL(metadata.callback);
         callbackUrl.searchParams.set('amount', amountMsats.toString());
-        callbackUrl.searchParams.set('nostr', JSON.stringify(signedZapRequest));
+        callbackUrl.searchParams.set('nostr', zapRequestJson);
         callbackUrl.searchParams.set('lnurl', lnurlDetails.lnurlBech32);
         if (lnurlComment) {
           callbackUrl.searchParams.set('comment', lnurlComment);
         }
 
-        const invoiceResponse = await fetch(callbackUrl.toString());
+        const callbackHref = callbackUrl.toString();
+        const invoiceResponse = await fetch(callbackHref);
         const invoiceJson = await invoiceResponse.json();
 
         if (invoiceJson.status === 'ERROR') {
           throw new Error(invoiceJson.reason || 'LNURL callback returned an error.');
         }
 
-        const invoice: string = invoiceJson.pr;
+        if (typeof invoiceJson.pr !== 'string' || !invoiceJson.pr) {
+          throw new Error('LNURL callback returned an invalid invoice.');
+        }
+
+        const invoice = invoiceJson.pr;
 
         const parsedInvoice = parseBolt11Invoice(invoice);
         if (parsedInvoice?.descriptionHash) {
-          const requestHash = await sha256Hex(JSON.stringify(signedZapRequest));
-          if (requestHash !== parsedInvoice.descriptionHash) {
-            throw new Error('Invoice description hash does not match zap request.');
+          const invoiceHash = parsedInvoice.descriptionHash.toLowerCase();
+          if (zapRequestHash.toLowerCase() !== invoiceHash) {
+            // Surface full context so we can compare exactly what we hashed
+            // and sent in the nostr param vs what the LNURL server used.
+            console.error('useZapSender: invoice description hash does not match zap request', {
+              zapRequestJson,
+              zapRequestHash,
+              invoiceDescriptionHash: invoiceHash,
+              zapRequest: signedZapRequest,
+              lnurlCallback: callbackHref,
+              lnurlResponse: invoiceJson,
+              parsedInvoice
+            });
+            throw new Error(
+              'Invoice description hash does not match zap request. ' +
+              'This Lightning provider is not producing NIP-57 compatible zap invoices.'
+            );
           }
         }
 
@@ -361,13 +382,13 @@ export function useZapSender(options: UseZapSenderOptions): ZapSenderHook {
           };
         }
 
-        if (weblnResult.error) {
-          setZapState((prev) => ({
-            ...prev,
-            status: 'invoice-ready',
-            weblnError: weblnResult.error
-          }));
-        }
+        // When WebLN is unavailable or the user declines, fall back to
+        // invoice-ready so manual payment and retry controls are usable.
+        setZapState((prev) => ({
+          ...prev,
+          status: 'invoice-ready',
+          weblnError: weblnResult.error
+        }));
 
         return {
           invoice,
