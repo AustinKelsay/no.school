@@ -36,7 +36,6 @@
     "homepage.visual.screenLabel": "Main label shown inside the hero preview card",
     "homepage.visual.primaryBadge": "Top-right badge text above the hero preview card",
     "homepage.visual.secondaryBadge": "Bottom-left badge text below the hero preview card",
-    "homepage.cta": "Call-to-action section at bottom of homepage",
     "homepage.cta.title": "CTA title line",
     "homepage.cta.description": "CTA description paragraph",
     "homepage.cta.buttons.getStarted": "Primary CTA in the footer section",
