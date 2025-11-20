@@ -1,6 +1,6 @@
 # Data Architecture: Mock JSON Database + Real Nostr Events
 
-This document explains the **revolutionary hybrid development setup** for the no.school platform, which combines a **mock JSON database** for rapid development with **real Nostr events** for content management. This approach provides the perfect balance of development speed and production readiness, demonstrating how to seamlessly integrate traditional database patterns with decentralized content storage using the Nostr protocol.
+This document explains the **revolutionary hybrid development setup** for the pleb.school platform, which combines a **mock JSON database** for rapid development with **real Nostr events** for content management. This approach provides the perfect balance of development speed and production readiness, demonstrating how to seamlessly integrate traditional database patterns with decentralized content storage using the Nostr protocol.
 
 ## 🎯 **Perfect Development Setup**
 

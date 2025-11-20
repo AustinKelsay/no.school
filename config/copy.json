@@ -28,17 +28,29 @@
     "homepage.hero.description": "One-paragraph description below the title",
     "homepage.hero.buttons.startLearning": "Primary CTA button text",
     "homepage.hero.buttons.watchDemo": "Secondary CTA button text",
-    "homepage.stats": "Statistics section displaying platform metrics with values and labels",
+    "homepage.stats": "Statistics section displaying platform metrics with values, labels, and optional icons. You can add, remove, or reorder stats here.",
     "homepage.stats.*.value": "Displayed metric value (e.g., '2,500+')",
     "homepage.stats.*.label": "Short label describing the metric (e.g., 'Students')",
+    "homepage.stats.*.icon": "Optional lucide-react icon component name (e.g., 'Users', 'BookOpen') for the stat. Falls back to a default icon if omitted or invalid.",
     "homepage.visual": "Text overlays and labels for visual elements in the hero section",
-    "homepage.cta": "Call-to-action section at bottom of homepage",
+    "homepage.visual.screenLabel": "Main label shown inside the hero preview card",
+    "homepage.visual.primaryBadge": "Top-right badge text above the hero preview card",
+    "homepage.visual.secondaryBadge": "Bottom-left badge text below the hero preview card",
     "homepage.cta.title": "CTA title line",
     "homepage.cta.description": "CTA description paragraph",
     "homepage.cta.buttons.getStarted": "Primary CTA in the footer section",
     "homepage.cta.buttons.viewCourses": "Secondary CTA in the footer section",
     "homepage.cta": "Call-to-action section at bottom of homepage with title, description, and buttons",
     "homepage.sections": "Title and description text for content sections (courses, videos, documents)",
+    "subscribe": "Subscribe page hero and highlights describing Lightning-powered subscriptions for creators and how learners unlock paid content and perks",
+    "feeds": "Feeds page hero and highlights describing Nostr-native community forums plus aggregated feeds from external communities (Discord, Stacker News, other Nostr chats)",
+    "about": "About page hero, sections, and call-to-action text describing how this platform works and how to fork it",
+    "about.hero": "Hero section for the about page including badge, title, and description",
+    "about.sections": "Key pillars that explain who the platform is for and how it works",
+    "about.sections.creators": "Section highlighting benefits for creators and communities who fork the platform",
+    "about.sections.learners": "Section highlighting benefits for learners who use the platform",
+    "about.sections.platform": "Section describing the technical platform (Nostr, Lightning, configuration model)",
+    "about.cta": "Footer call-to-action guiding visitors to fork/configure the project",
     "contentLibrary": "Content discovery/library page text including title, filters, empty states",
     "contentLibrary.resultsCounter": "Dynamic text showing results count. Use {count} and {total} placeholders.",
     "contentLibrary.emptyState": "Text shown when no content matches current filters",
@@ -71,10 +83,43 @@
     "contentCards": "Text used within content cards including buttons and duration labels",
     "lessons": "Lesson-specific text including numbering, fallback text, and labels"
   },
+  "about": {
+    "hero": {
+      "badge": "Configurable open education stack",
+      "title": "Run your own Nostr-native course & content platform",
+      "description": "pleb.school is a forkable, configuration-driven platform. Swap branding, themes, and relays to launch your own education hub, then deploy it to Vercel or your own infrastructure without rewriting the core architecture."
+    },
+    "sections": {
+      "creators": {
+        "title": "For creators & communities",
+        "description": "Launch a white-label academy that lives on your domain, with your branding, pricing, and content model. Use the JSON configs under /config to define how courses, documents, and videos are presented."
+      },
+      "learners": {
+        "title": "For learners",
+        "description": "Give your audience a single place to watch talks, follow structured courses, and read long-form content — with progress tracking, Lightning-powered interactions, and Nostr identity baked in."
+      },
+      "platform": {
+        "title": "For the platform builders",
+        "description": "Start from a production-ready Next.js 15 stack wired to Prisma, Nostr relays, and Lightning zaps. Swap relays, themes, auth providers, and copy by editing JSON instead of touching business logic."
+      }
+    },
+    "cta": {
+      "title": "Make this platform your own",
+      "description": "Fork the repo, point it at your own relays and database, and ship a fully-branded education experience. The reference deployment runs on Vercel, but the stack stays portable.",
+      "primary": {
+        "label": "View GitHub repo",
+        "href": "https://github.com/AustinKelsay/pleb.school"
+      },
+      "secondary": {
+        "label": "View config guide",
+        "href": "https://github.com/AustinKelsay/pleb.school/blob/main/config/README.md"
+      }
+    }
+  },
   "site": {
     "title": "PlebDevs - Learn to Code, Build on Bitcoin, Become a dev",
     "description": "A one of a kind developer education, content, and community platform built on Nostr and fully Lightning integrated.",
-    "brandName": "no.school"
+    "brandName": "pleb.school"
   },
   "navigation": {
     "searchPlaceholder": "Search content",
@@ -94,62 +139,135 @@
   },
   "homepage": {
     "hero": {
-      "badge": "Bitcoin Development Platform",
+      "badge": "Nostr-native open education stack",
       "title": {
-        "line1": "Learn how to code",
-        "line2": "Build on",
+        "line1": "Launch your learning hub",
+        "line2": "Built with",
         "animatedWords": ["Bitcoin", "Lightning", "Nostr", "AI"],
-        "line3": "Become a Dev"
+        "line3": "Own your platform"
       },
-      "description": "Master the fundamentals of coding, build real projects on Bitcoin protocols, and join the next generation of developers shaping the future of money and communication.",
+      "description": "pleb.school is the reference deployment of a configurable, open source education stack. Fork it, point it at your own relays and database, and run a fully branded Nostr-native course and content platform for your community.",
       "buttons": {
-        "startLearning": "Start Learning",
-        "watchDemo": "Watch Demo"
+        "startLearning": "Explore demo content",
+        "watchDemo": "Watch platform demo"
       }
     },
     "stats": {
-      "students": {
-        "value": "2,500+",
-        "label": "Students"
+      "contentTypes": {
+        "value": "Courses · Videos · Docs",
+        "label": "Multi-format learning content",
+        "icon": "BookOpen"
       },
-      "content": {
-        "value": "50+",
-        "label": "Courses, Videos & Docs"
+      "nostrNative": {
+        "value": "Nostr-native",
+        "label": "Feeds, auth & discovery",
+        "icon": "Users"
       },
-      "rating": {
-        "value": "4.7/5",
-        "label": "Rating"
+      "lightningFirst": {
+        "value": "Lightning-first",
+        "label": "Zaps, tips & paid content",
+        "icon": "Zap"
       },
-      "support": {
-        "value": "24/7",
-        "label": "Support"
+      "selfHostedFoss": {
+        "value": "Self-hosted & FOSS",
+        "label": "MIT-licensed, own your data",
+        "icon": "Code"
       }
     },
     "visual": {
-      "lightningText": "� Lightning Network Development",
-      "liveCourse": "Live Course",
-      "completed": "Completed"
+      "screenLabel": "Nostr-native course & content stack",
+      "primaryBadge": "Demo deployment",
+      "secondaryBadge": "Configurable & self-hosted"
     },
     "cta": {
-      "title": "Ready to Start Building?",
-      "description": "Join thousands of developers learning Bitcoin development. Start your journey today.",
+      "title": "Ready to run your own instance?",
+      "description": "Use this deployment as a sandbox, then fork the repo, customize the configs under /config, and ship a Nostr-native academy that lives on your domain.",
       "buttons": {
-        "getStarted": "Get Started Free",
-        "viewCourses": "View All Courses"
+        "getStarted": "Sign in to this demo",
+        "viewCourses": "Browse demo content"
       }
     },
     "sections": {
       "courses": {
         "title": "Courses",
-        "description": "Structured learning paths from Bitcoin fundamentals to advanced Lightning Network development"
+        "description": "Opinionated course layouts you can reuse for your own curriculum, from intro concepts to advanced protocol deep dives."
       },
       "videos": {
         "title": "Videos", 
-        "description": "Video tutorials and workshops from Bitcoin developers and experts"
+        "description": "Video-first lessons and workshops that show how talks, screencasts, and live sessions can plug into the platform."
       },
       "documents": {
         "title": "Documents",
-        "description": "Guides, tutorials, and educational materials for Bitcoin development"
+        "description": "Long-form documents, guides, and reference notes rendered from markdown and Nostr events."
+      }
+    }
+  },
+  "subscribe": {
+    "meta": {
+      "title": "Subscribe",
+      "description": "Soon, creators will be able to accept Lightning-powered subscriptions and give learners access to paid courses, resources, and exclusive community perks."
+    },
+    "hero": {
+      "badge": "Coming soon",
+      "title": "Lightning subscriptions for pleb.school",
+      "description": "Soon you'll be able to offer paid memberships that unlock premium content on your pleb.school instance — using either pay-as-you-go invoices or recurring Lightning subscriptions powered by Nostr Wallet Connect."
+    },
+    "highlights": {
+      "signal": {
+        "title": "Pay-as-you-go access",
+        "description": "Prompt learners to pay a Lightning invoice one month at a time. No cards, no custodians — just sats for access."
+      },
+      "creators": {
+        "title": "Recurring Lightning subscriptions",
+        "description": "Use Nostr Wallet Connect to let fans set up recurring Lightning subscriptions that renew automatically from their own wallet."
+      },
+      "perks": {
+        "title": "Unlock paid content & perks",
+        "description": "Subscribed users get access to all paid courses and content you mark as premium, plus future member-only benefits you configure on your instance."
+      }
+    },
+    "cta": {
+      "primary": {
+        "label": "Explore demo content",
+        "href": "/content"
+      },
+      "secondary": {
+        "label": "Back to home",
+        "href": "/"
+      }
+    }
+  },
+  "feeds": {
+    "meta": {
+      "title": "Feeds",
+      "description": "Soon you’ll be able to host a Nostr-native community forum on your pleb.school instance and aggregate read-only feeds from your other spaces like Discord and Stacker News."
+    },
+    "hero": {
+      "title": "Coming soon: Nostr-native community feeds",
+      "description": "Run a Nostr-powered forum directly on your pleb.school deployment while conversations still live on Nostr. Mirror threads from your relays and pull in read-only activity from Discord servers, Stacker News Territories, and other Nostr communities."
+    },
+    "highlights": {
+      "sources": {
+        "title": "Host your Nostr forum",
+        "description": "Create a Nostr-native community board right inside your learning platform—threads, replies, and reactions live on Nostr but render alongside your courses."
+      },
+      "alerts": {
+        "title": "Bring in your other communities",
+        "description": "Pull read-only feeds from existing Nostr chats and group conversations, Discord servers, and Stacker News Territories so learners can follow the wider conversation."
+      },
+      "adaptive": {
+        "title": "One home for your people",
+        "description": "Give your community a single hub for lessons, announcements, and discussion while everything remains portable, open, and permissionless on Nostr."
+      }
+    },
+    "cta": {
+      "primary": {
+        "label": "Browse demo courses",
+        "href": "/courses"
+      },
+      "secondary": {
+        "label": "Back to home",
+        "href": "/"
       }
     }
   },

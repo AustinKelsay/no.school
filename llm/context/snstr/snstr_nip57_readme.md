@@ -303,9 +303,9 @@ Check out the examples in the repository:
 - [`lnurl-server-simulation.ts`](https://github.com/AustinKelsay/snstr/blob/main/examples/nip57/lnurl-server-simulation.ts): Full simulation of LNURL server handling zap requests
 - [`invoice-validation-example.ts`](https://github.com/AustinKelsay/snstr/blob/main/examples/nip57/invoice-validation-example.ts): Invoice validation example for zap verification
 
-## Frontend Integration (no.school)
+## Frontend Integration (pleb.school)
 
-- `src/hooks/useZapSender.ts` drives the no.school UI flow. It resolves LUD-16 identifiers, fetches LNURL pay metadata, enforces min/max constraints, builds and signs zap requests (server key or NIP-07), validates the bolt11 description hash, attempts WebLN, and exposes invoices plus retry helpers.
+- `src/hooks/useZapSender.ts` drives the pleb.school UI flow. It resolves LUD-16 identifiers, fetches LNURL pay metadata, enforces min/max constraints, builds and signs zap requests (server key or NIP-07), validates the bolt11 description hash, attempts WebLN, and exposes invoices plus retry helpers.
 - `src/components/ui/interaction-metrics.tsx` consumes that hook in the zap dialog so every content/course/lesson page can send real zaps. Users get quick amount presets, custom sats + note input, live status chips, WebLN retries, and copy/open-in-wallet controls with the same UI everywhere.
 
 You can run these examples using the npm scripts:

@@ -1,20 +1,27 @@
 "use client"
 
-import { AnimatedText } from './animated-text'
+import { AnimatedText } from "./animated-text"
+import { copyConfig } from "@/lib/copy"
 
 export function HeroAnimated() {
-  const animatedWords = ["Bitcoin", "Lightning", "Nostr", "AI"]
-  
+  const title = copyConfig.homepage?.hero?.title
+
+  const line1 = title?.line1 ?? "Launch your learning hub"
+  const line2 = title?.line2 ?? "Built on"
+  const line3 = title?.line3 ?? "Own your platform"
+  const animatedWords = title?.animatedWords ?? ["Bitcoin", "Lightning", "Nostr", "AI"]
+
   return (
-    <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-      Learn how to code 
+    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight">
+      {line1}
       <br />
-      Build on{" "}
+      {line2}{" "}
       <span className="text-primary">
         <AnimatedText words={animatedWords} duration={2500} />
       </span>
       <br />
-      {" "}Become a Dev
+      {" "}
+      {line3}
     </h1>
   )
 }
