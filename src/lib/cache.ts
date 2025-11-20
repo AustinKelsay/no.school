@@ -1,5 +1,5 @@
 /**
- * Production-ready caching layer for the no.school application
+ * Production-ready caching layer for the pleb.school application
  * Provides hierarchical caching with memory (L1) and optional Redis (L2) support
  */
 

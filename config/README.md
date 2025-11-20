@@ -38,7 +38,11 @@ Example (dark + clean‑slate):
 Homepage sections (courses, videos, documents), filters (price/category/sort), pagination and search options, and global labels (categories, sort/price labels).
 
 ### 🔤 `copy.json` — Site Copy & Text
-All user‑facing strings for navigation, homepage, content pages, error/empty states, cards, and lessons.
+All user‑facing strings for navigation, homepage, about page, content pages, error/empty states, cards, and lessons.
+
+- `site.*` controls global title/description/brand name.
+- `homepage.*` powers the landing page hero, stats, sections, and CTA.
+- `about.*` powers the About page hero, three feature pillars, and the “make it your own” CTA. This is the place to explain how your forked platform works (who it’s for, how Nostr/Lightning are used, and how to configure the stack) without touching React components.
 
 ### ⚡ `nostr.json` — Nostr Relays & NIPs
 Relay sets and event type mapping. The app now reads relays from this file everywhere.

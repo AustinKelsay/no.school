@@ -84,6 +84,7 @@ export function useCopy() {
     site: copyConfig.site,
     navigation: copyConfig.navigation,
     homepage: copyConfig.homepage,
+    about: copyConfig.about,
     contentLibrary: copyConfig.contentLibrary,
     course: copyConfig.course,
     resource: copyConfig.resource,

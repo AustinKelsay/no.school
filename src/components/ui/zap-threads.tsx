@@ -86,7 +86,7 @@ export function createNaddrAnchor(options: {
   } catch (error) {
     console.error('Error creating naddr anchor:', error)
     // Fallback to a simple URL-based anchor
-    return `https://no.school/content/${options.identifier}`
+    return `https://pleb.school/content/${options.identifier}`
   }
 }
 

@@ -120,7 +120,7 @@ src/
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd no.school
+cd pleb.school
 
 # Install dependencies
 npm install

@@ -3,39 +3,56 @@ import { BellRing, Rss, Sparkles } from "lucide-react"
 
 import { MainLayout, Section } from "@/components/layout"
 import { ComingSoonPlaceholder } from "@/components/placeholders/coming-soon"
+import { copyConfig } from "@/lib/copy"
+
+const feedsCopy = copyConfig.feeds
 
 export const metadata: Metadata = {
-  title: "Feeds",
+  title: feedsCopy?.meta?.title ?? "Feeds",
   description:
-    "Stay updated with curated learning feeds and real-time drops from the no.school community."
+    feedsCopy?.meta?.description ??
+    "Design configurable learning feeds that blend courses, Nostr events, and community signals into a single stream."
 }
 
 export default function FeedsPage() {
+  const hero = feedsCopy?.hero
+  const highlights = feedsCopy?.highlights
+  const cta = feedsCopy?.cta
+
   return (
     <MainLayout>
       <Section spacing="xl">
         <ComingSoonPlaceholder
-          title="Curated learning feeds are almost here"
-          description="We're building a personalized stream that surfaces the best lessons, lightning talks, and community drops the moment they publish."
+          title={hero?.title ?? "Configurable learning feeds are almost here"}
+          description={
+            hero?.description ??
+            "This page will showcase how to wire Nostr relays, course enrollments, and custom ranking into feeds that feel native to your community."
+          }
           highlights={[
             {
               icon: Rss,
-              title: "Smart sources",
-              description: "Blend editorial picks with your enrolled courses and topics."
+              title: highlights?.sources?.title ?? "Smart sources",
+              description:
+                highlights?.sources?.description ??
+                "Blend editorial picks, enrolled courses, and tagged Nostr events into a single configurable stream."
             },
             {
               icon: BellRing,
-              title: "Real-time alerts",
-              description: "Push updates the second a mentor posts something new."
+              title: highlights?.alerts?.title ?? "Real-time alerts",
+              description:
+                highlights?.alerts?.description ??
+                "Surface new lessons, drops, and releases as soon as they hit your relays."
             },
             {
               icon: Sparkles,
-              title: "Adaptive signal",
-              description: "Feeds learn from what you watch, read, and save."
+              title: highlights?.adaptive?.title ?? "Adaptive signal",
+              description:
+                highlights?.adaptive?.description ??
+                "Experiment with scoring and personalization while keeping your content portable on Nostr."
             }
           ]}
-          primaryCta={{ label: "Browse courses today", href: "/courses" }}
-          secondaryCta={{ label: "Back to home", href: "/" }}
+          primaryCta={cta?.primary ?? { label: "Browse demo courses", href: "/courses" }}
+          secondaryCta={cta?.secondary ?? { label: "Back to home", href: "/" }}
         />
       </Section>
     </MainLayout>

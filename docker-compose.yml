@@ -1,7 +1,7 @@
 
 services:
   db:
-    container_name: noschool-db
+    container_name: plebschool-db
     image: postgres:15-alpine
     restart: unless-stopped
     env_file:
@@ -15,13 +15,13 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-noschool} -d ${POSTGRES_DB:-no_school}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-plebschool} -d ${POSTGRES_DB:-pleb_school}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   app:
-    container_name: noschool-app
+    container_name: plebschool-app
     build:
       context: .
       target: development

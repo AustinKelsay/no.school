@@ -1,10 +1,10 @@
 # Theme Configuration
 
-This document explains the no.school theme system design philosophy and how to configure themes using the `config/theme.json` file.
+This document explains the pleb.school theme system design philosophy and how to configure themes using the `config/theme.json` file.
 
 ## Design Philosophy: CSS Variables Over Hardcoded Styles
 
-The no.school platform embraces a **CSS variable-driven design system** that prioritizes flexibility and consistency. Our approach is built on these core principles:
+The pleb.school platform embraces a **CSS variable-driven design system** that prioritizes flexibility and consistency. Our approach is built on these core principles:
 
 ### 1. **Use Out-of-the-Box shadcn/ui Components**
 We leverage shadcn/ui components as-is, without modifying their core implementations. This ensures:
@@ -479,9 +479,9 @@ You can set `defaults.darkMode` to:
 
 This allows you to have full control while still respecting user preferences when appropriate.
 
-## Summary: The no.school Theme Philosophy
+## Summary: The pleb.school Theme Philosophy
 
-The no.school theme system represents a modern approach to application theming that prioritizes:
+The pleb.school theme system represents a modern approach to application theming that prioritizes:
 
 ### **Developer Experience**
 - Write components once, support 47+ themes automatically
@@ -504,7 +504,7 @@ The no.school theme system represents a modern approach to application theming t
 ### **The Golden Rule**
 **"Components should describe *what* they are, not *how* they look."**
 
-By following this principle and leveraging CSS variables through our theme system, we ensure that the no.school platform remains flexible, maintainable, and beautiful across all themes.
+By following this principle and leveraging CSS variables through our theme system, we ensure that the pleb.school platform remains flexible, maintainable, and beautiful across all themes.
 
 ## Quick Reference
 
