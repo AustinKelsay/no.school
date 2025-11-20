@@ -108,11 +108,11 @@
       "description": "Fork the repo, point it at your own relays and database, and ship a fully-branded education experience. The reference deployment runs on Vercel, but the stack stays portable.",
       "primary": {
         "label": "View GitHub repo",
-        "href": "https://github.com/AustinKelsay/no.school"
+        "href": "https://github.com/AustinKelsay/pleb.school"
       },
       "secondary": {
         "label": "View config guide",
-        "href": "https://github.com/AustinKelsay/no.school/blob/main/config/README.md"
+        "href": "https://github.com/AustinKelsay/pleb.school/blob/main/config/README.md"
       }
     }
   },

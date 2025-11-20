@@ -199,6 +199,38 @@ Notes:
 
 Note: In development, Docker Compose runs `prisma db push --accept-data-loss` on startup to apply schema changes quickly.
 
+### **Docker name changes (noschool → plebschool)**
+
+Recent changes renamed the development containers and default Postgres credentials:
+
+- `noschool-app` → `plebschool-app`
+- `noschool-db` → `plebschool-db`
+- Database/user: `no_school` / `noschool` → `pleb_school` / `plebschool`
+
+If you already had a Docker dev stack running with data you care about:
+
+- Your data lives in the Docker volume and is not deleted when containers are recreated.
+- To keep using the same data with the new names, rename the database and role once in your existing `noschool-db` container before pulling the new config:
+
+  ```bash
+  # Inside the old noschool-db container, logged in as the existing superuser:
+  docker exec -e PGPASSWORD=password -it noschool-db \
+    psql -U noschool -d postgres \
+    -c 'ALTER DATABASE "no_school" RENAME TO "pleb_school";'
+
+  docker exec -e PGPASSWORD=password -it noschool-db \
+    psql -U noschool -d postgres \
+    -c "CREATE ROLE plebschool WITH LOGIN SUPERUSER PASSWORD 'password';"
+
+  docker exec -e PGPASSWORD=password -it noschool-db \
+    psql -U plebschool -d postgres \
+    -c "ALTER ROLE noschool RENAME TO plebschool;"
+  ```
+
+- After that, `docker compose down && docker compose up -d` with the updated repo will connect to the same data using the new names.
+
+For fresh installs or if you do not need old data, you can simply pull the latest changes and run `docker compose up -d` — the new containers and database will be created automatically.
+
 ### **Build & Deploy**
 
 ```bash
