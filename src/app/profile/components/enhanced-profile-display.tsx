@@ -33,6 +33,7 @@ import { ProfileEditForms } from './profile-edit-forms'
 import type { AggregatedProfile } from '@/lib/profile-aggregator'
 import { cn } from '@/lib/utils'
 import { InfoTooltip } from '@/components/ui/info-tooltip'
+import { getAccountType } from '@/lib/profile-priority'
 
 interface EnhancedProfileDisplayProps {
   session: Session
@@ -188,13 +189,7 @@ export function EnhancedProfileDisplay({ session }: EnhancedProfileDisplayProps)
     profileSource: null,
     totalLinkedAccounts: 0
   }
-  type AccountType = 'anonymous' | 'nostr' | 'oauth'
-  const accountType: AccountType =
-    profile.primaryProvider === 'anonymous'
-      ? 'anonymous'
-      : profile.profileSource === 'nostr'
-        ? 'nostr'
-        : 'oauth'
+  const accountType = getAccountType(profile.primaryProvider, profile.profileSource)
   const accountBadgeLabel =
     accountType === 'anonymous'
       ? '🟢 Anonymous Account'

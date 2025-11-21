@@ -523,14 +523,14 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
     }
     
     // Call the real publish function from the hook
-    // Pass empty object for server-side signing, or { privkey } for client-side
-    publish({})
+    // Server-side flows use the stored server key; NIP-07 flows sign on the client
+    publish()
   }
 
   const handleRetry = () => {
     // Reset the publish status and try again
     publishStatus.reset()
-    publish({})
+    publish()
   }
 
   // Show loading state while session is loading or data is loading

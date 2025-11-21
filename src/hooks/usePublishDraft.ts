@@ -146,8 +146,8 @@ export function usePublishResource(draftId: string) {
     }
   ])
 
-  const mutation = useMutation<PublishResourceResult, Error, { privkey?: string }>({
-    mutationFn: async ({ privkey }) => {
+  const mutation = useMutation<PublishResourceResult, Error, void>({
+    mutationFn: async () => {
       if (!session?.user?.id) {
         throw new Error('Not authenticated')
       }
@@ -225,11 +225,11 @@ export function usePublishResource(draftId: string) {
 
         return (json as { data?: PublishResourceResult }).data ?? (json as PublishResourceResult)
       } else {
-        // Server-side signing - send everything to API
+        // Server-side signing - let the API use the stored server key
         const response = await fetch(`/api/drafts/resources/${draftId}/publish`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ privkey })
+          body: JSON.stringify({})
         })
 
         const json = await response.json()
@@ -317,8 +317,8 @@ export function usePublishCourse(courseDraftId: string) {
     }
   ])
 
-  const mutation = useMutation<PublishCourseResult, Error, { privkey?: string }>({
-    mutationFn: async ({ privkey }) => {
+  const mutation = useMutation<PublishCourseResult, Error, void>({
+    mutationFn: async () => {
       if (!session?.user?.id) {
         throw new Error('Not authenticated')
       }
@@ -492,11 +492,11 @@ export function usePublishCourse(courseDraftId: string) {
         return (json as { data?: PublishCourseResult }).data ?? (json as PublishCourseResult)
       }
 
-      // Server-side publishing (handles all steps)
+      // Server-side publishing (handles all steps using stored server key)
       const response = await fetch(`/api/drafts/courses/${courseDraftId}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ privkey })
+        body: JSON.stringify({})
       })
 
       const json = await response.json()

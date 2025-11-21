@@ -65,7 +65,6 @@ export class PublishService {
   static async publishResource(
     draftId: string,
     userId: string,
-    privkey?: string,
     relays: string[] = DEFAULT_RELAYS
   ): Promise<PublishResourceResult> {
     // Fetch the draft with user info
@@ -89,8 +88,8 @@ export class PublishService {
       throw new PublishError('User not found', 'USER_NOT_FOUND')
     }
 
-    // Prefer the caller-provided privkey (client signing) and fall back to the stored server key
-    const signingPrivkey = privkey || user.privkey
+    // Use the stored server-side key for signing (ephemeral/OAuth accounts only)
+    const signingPrivkey = user.privkey
     if (!signingPrivkey) {
       throw new PublishError(
         'Private key not available for signing',
@@ -216,7 +215,6 @@ export class PublishService {
   static async publishCourse(
     courseDraftId: string,
     userId: string,
-    privkey?: string,
     relays: string[] = DEFAULT_RELAYS
   ): Promise<PublishCourseResult> {
     // Fetch the course draft with lessons
@@ -249,7 +247,7 @@ export class PublishService {
       throw new PublishError('User not found', 'USER_NOT_FOUND')
     }
 
-    const signingPrivkey = privkey || user.privkey
+    const signingPrivkey = user.privkey
     if (!signingPrivkey) {
       throw new PublishError(
         'Private key not available for signing',
@@ -269,7 +267,6 @@ export class PublishService {
           const result = await this.publishResource(
             draftLesson.draftId,
             userId,
-            signingPrivkey,
             relays
           )
           publishedLessonEvents.push(result.event)
