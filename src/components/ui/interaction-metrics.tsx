@@ -203,7 +203,7 @@ export function InteractionMetrics({
         }
         const unsignedReaction = createUnsignedReaction(pubkey, tags)
         const reactionId = await getEventHash(unsignedReaction)
-        const reactionSig = await signEvent(reactionId, normalizedSessionPrivkey)
+        const reactionSig = await signEvent(unsignedReaction, normalizedSessionPrivkey)
         signedReaction = { ...unsignedReaction, id: reactionId, sig: reactionSig }
       } else {
         const nostr = typeof window !== 'undefined' ? (window as Window & { nostr?: any }).nostr : undefined
