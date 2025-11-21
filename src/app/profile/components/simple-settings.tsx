@@ -76,8 +76,8 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
   const [initialLoadError, setInitialLoadError] = useState<string | null>(null)
 
   // Determine account type from preferences when available
-  const derivedProfileSource = preferences.profileSource || defaultProfileSource
-  const derivedPrimaryProvider = preferences.primaryProvider || defaultPrimaryProvider
+  const derivedProfileSource = preferences.profileSource ?? defaultProfileSource
+  const derivedPrimaryProvider = preferences.primaryProvider ?? defaultPrimaryProvider
   type AccountType = 'anonymous' | 'nostr' | 'oauth'
   const accountType: AccountType =
     derivedPrimaryProvider === 'anonymous'

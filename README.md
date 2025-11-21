@@ -220,11 +220,11 @@ If you already had a Docker dev stack running with data you care about:
 
     docker exec -e PGPASSWORD=password -it noschool-db \
       psql -U noschool -d postgres \
-      -c "DO $$ BEGIN
+      -c "DO \$\$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'plebschool_helper') THEN
           CREATE ROLE plebschool_helper WITH LOGIN SUPERUSER PASSWORD 'password';
         END IF;
-      END $$;"
+      END \$\$;"
 
     docker exec -e PGPASSWORD=password -it noschool-db \
       psql -U plebschool_helper -d postgres \
