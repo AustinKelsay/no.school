@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { GitFork, Network, Settings2 } from "lucide-react"
+import type { ComponentType } from "react"
 
 import { MainLayout, Section } from "@/components/layout"
 import { Badge } from "@/components/ui/badge"
@@ -129,7 +130,7 @@ export default function AboutPage() {
 }
 
 interface AboutCardProps {
-  icon: React.ComponentType<{ className?: string }>
+  icon: ComponentType<{ className?: string }>
   title: string
   description: string
 }

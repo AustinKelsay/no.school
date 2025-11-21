@@ -315,6 +315,7 @@ function CoursePageContent({ courseId }: { courseId: string }) {
   const zapsCount = interactions.zaps
   const commentsCount = interactions.comments
   const likesCount = interactions.likes
+  const notePubkey = courseData?.note?.pubkey
 
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) return `${minutes} min`
@@ -360,28 +361,30 @@ function CoursePageContent({ courseId }: { courseId: string }) {
               </div>
 
               <div className="flex items-center flex-wrap gap-4 sm:gap-6">
-                <InteractionMetrics
-                  zapsCount={zapsCount}
-                  commentsCount={commentsCount}
-                  likesCount={likesCount}
-                  isLoadingZaps={isLoadingZaps}
-                  isLoadingComments={isLoadingComments}
-                  isLoadingLikes={isLoadingLikes}
-                  hasReacted={hasReacted}
-                  eventId={courseData?.note?.id}
-                  eventKind={courseData?.note?.kind}
-                  eventPubkey={courseData?.note?.pubkey || courseData?.userId || undefined}
-                  eventIdentifier={parsedCourseNote?.d}
-                  zapInsights={zapInsights}
-                  recentZaps={recentZaps}
-                  hasZappedWithLightning={hasZappedWithLightning}
-                  viewerZapTotalSats={viewerZapTotalSats}
-                  zapTarget={{
-                    pubkey: courseData?.note?.pubkey || courseData?.userId || undefined,
-                    lightningAddress: instructorProfile?.lud16 || undefined,
-                    name: instructor
-                  }}
-                />
+                {noteId && notePubkey && (
+                  <InteractionMetrics
+                    zapsCount={zapsCount}
+                    commentsCount={commentsCount}
+                    likesCount={likesCount}
+                    isLoadingZaps={isLoadingZaps}
+                    isLoadingComments={isLoadingComments}
+                    isLoadingLikes={isLoadingLikes}
+                    hasReacted={hasReacted}
+                    eventId={noteId}
+                    eventKind={courseData?.note?.kind}
+                    eventPubkey={notePubkey}
+                    eventIdentifier={parsedCourseNote?.d}
+                    zapInsights={zapInsights}
+                    recentZaps={recentZaps}
+                    hasZappedWithLightning={hasZappedWithLightning}
+                    viewerZapTotalSats={viewerZapTotalSats}
+                    zapTarget={{
+                      pubkey: notePubkey,
+                      lightningAddress: instructorProfile?.lud16 || undefined,
+                      name: instructor
+                    }}
+                  />
+                )}
                 
                 <div className="flex items-center space-x-1.5 sm:space-x-2">
                   <BookOpen className="h-5 w-5 text-muted-foreground" />
