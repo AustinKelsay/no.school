@@ -100,14 +100,16 @@ export class DataCache {
   getStats() {
     const now = Date.now()
     const entries = Array.from(this.cache.values())
+    const totalEntries = entries.length
     const validEntries = entries.filter(entry => entry.expires > now)
+    const expiredEntries = totalEntries - validEntries.length
     
     return {
-      totalEntries: this.cache.size,
+      totalEntries,
       validEntries: validEntries.length,
-      expiredEntries: entries.length - validEntries.length,
+      expiredEntries,
       memoryUsage: this.estimateMemoryUsage(),
-      hitRate: this.calculateHitRate()
+      hitRate: this.calculateHitRate(validEntries.length, totalEntries)
     }
   }
 
@@ -146,10 +148,13 @@ export class DataCache {
   /**
    * Calculate cache hit rate (simplified)
    */
-  private calculateHitRate(): number {
-    // This would need actual hit/miss tracking in a real implementation
-    const stats = this.getStats()
-    return stats.validEntries / Math.max(stats.totalEntries, 1)
+  private calculateHitRate(validEntries: number, totalEntries: number): number {
+    // This would need actual hit/miss tracking in a real implementation.
+    // For now we approximate hit rate as the ratio of valid entries to total entries.
+    if (totalEntries === 0) {
+      return 0
+    }
+    return validEntries / totalEntries
   }
 }
 
