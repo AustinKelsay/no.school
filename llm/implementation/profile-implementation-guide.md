@@ -172,10 +172,12 @@ Email verification ensures secure linking. The implementation uses a secure veri
 - Tokens are single-use and expire after 60 minutes.
 
 ```typescript
-const code = (Math.floor(100000 + Math.random() * 900000)).toString() // 6-digit string
+// Generate a short, single-use lookup ID for URL
 const lookupId = crypto.randomBytes(8).toString('hex')
+const code = (Math.floor(100000 + Math.random() * 900000)).toString() // 6-digit numeric code
 const expires = new Date(Date.now() + 3600000) // 60 minutes
 
+// Store both in database
 await prisma.verificationToken.create({
   data: {
     identifier: `link:${userId}:${email}`,
@@ -185,12 +187,15 @@ await prisma.verificationToken.create({
   }
 })
 
+// Send verification email with code and lookupId URL
+const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email?ref=${lookupId}`
 await sendEmail({
   to: email,
-  subject: 'Verify your email to link your account',
+  subject: 'Link your email account',
   html: `
-    <p>Use this code: <strong>${code}</strong></p>
-    <p>Enter it at: ${process.env.NEXTAUTH_URL}/verify-email?ref=${lookupId}</p>
+    <p>Use this 6-digit code: <strong>${code}</strong></p>
+    <p>Enter it at: <a href="${verificationUrl}">${verificationUrl}</a></p>
+    <p>The code expires in 60 minutes and is single-use.</p>
   `
 })
 ```
@@ -359,10 +364,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find verification token by reference
+    // Find verification token by lookupId
     const verificationToken = await prisma.verificationToken.findFirst({
       where: { 
-        identifier: ref,
+        lookupId: ref,
         token: token
       }
     })
@@ -374,8 +379,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check expiry and process verification...
-    // (Same logic as the GET endpoint but more secure)
+    // Check expiry and process verification (invalidate after use)...
     
   } catch (error) {
     return NextResponse.json(
@@ -390,7 +394,7 @@ export async function POST(request: NextRequest) {
 
 **Key Principles**:
 1. **Never expose secrets in URLs** - Tokens should be in request bodies, not query parameters
-2. **Short-lived tokens** - 15-30 minutes maximum for verification tokens
+2. **Short-lived tokens** - 60 minutes maximum for verification tokens
 3. **Single-use only** - Tokens must be invalidated immediately after use
 4. **Secure transmission** - Use HTTPS and avoid logging sensitive data
 5. **User experience** - Verification pages provide better UX than direct API calls

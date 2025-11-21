@@ -10,7 +10,6 @@ import type { NostrEvent } from 'snstr'
 
 // Validation schemas
 const publishSchema = z.object({
-  privkey: z.string().optional(),
   signedEvent: z.object({
     id: z.string(),
     pubkey: z.string(),
@@ -80,7 +79,7 @@ export async function POST(
       )
     }
 
-    const { privkey, signedEvent, relays, relaySet, publishedLessonEvents } = validationResult.data
+    const { signedEvent, relays, relaySet, publishedLessonEvents } = validationResult.data
 
     // If a signed event is provided (NIP-07 flow), handle it differently
     if (signedEvent) {
@@ -238,7 +237,6 @@ export async function POST(
     const result = await PublishService.publishCourse(
       courseDraftId,
       session.user.id,
-      privkey,
       relays && relays.length ? relays : getRelays(relaySet || 'default')
     )
 

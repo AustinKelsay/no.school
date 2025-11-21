@@ -234,7 +234,8 @@ function LessonMetadata({
   } = useInteractions({
     eventId: lessonEventId,
     realtime: false,
-    staleTime: 5 * 60 * 1000
+    staleTime: 5 * 60 * 1000,
+    enabled: Boolean(lessonEventId)
   })
 
   

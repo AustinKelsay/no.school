@@ -13,6 +13,8 @@ export class DataCache {
   private cache = new Map<string, CacheEntry<unknown>>()
   private maxSize: number
   protected defaultTtl: number
+  private hits = 0
+  private misses = 0
 
   constructor(options: { maxSize?: number; defaultTtl?: number } = {}) {
     this.maxSize = options.maxSize ?? 1000 // Max cache entries
@@ -30,8 +32,11 @@ export class DataCache {
     // Check cache first
     const cached = this.cache.get(key)
     if (cached && cached.expires > Date.now()) {
+      this.hits += 1
       return cached.data as T
     }
+
+    this.misses += 1
 
     // Fetch from source
     const data = await fetcher()
@@ -92,6 +97,8 @@ export class DataCache {
    */
   clear(): void {
     this.cache.clear()
+    this.hits = 0
+    this.misses = 0
   }
 
   /**
@@ -100,14 +107,18 @@ export class DataCache {
   getStats() {
     const now = Date.now()
     const entries = Array.from(this.cache.values())
+    const totalEntries = entries.length
     const validEntries = entries.filter(entry => entry.expires > now)
+    const expiredEntries = totalEntries - validEntries.length
     
     return {
-      totalEntries: this.cache.size,
+      totalEntries,
       validEntries: validEntries.length,
-      expiredEntries: entries.length - validEntries.length,
+      expiredEntries,
       memoryUsage: this.estimateMemoryUsage(),
-      hitRate: this.calculateHitRate()
+      hits: this.hits,
+      misses: this.misses,
+      hitRate: this.calculateHitRate(this.hits, this.misses)
     }
   }
 
@@ -146,10 +157,12 @@ export class DataCache {
   /**
    * Calculate cache hit rate (simplified)
    */
-  private calculateHitRate(): number {
-    // This would need actual hit/miss tracking in a real implementation
-    const stats = this.getStats()
-    return stats.validEntries / Math.max(stats.totalEntries, 1)
+  private calculateHitRate(hits: number, misses: number): number {
+    const total = hits + misses
+    if (total === 0) {
+      return 0
+    }
+    return hits / total
   }
 }
 

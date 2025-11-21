@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { useZapFormState, MIN_CUSTOM_ZAP, QUICK_ZAP_AMOUNTS } from "@/hooks/useZapFormState"
-import { getByteLength } from "@/lib/lightning"
+import { getByteLength, truncateToByteLength } from "@/lib/lightning"
 import type { LightningRecipient, ZapSendResult } from "@/types/zap"
 import type { ZapInsights, ZapReceiptSummary } from "@/hooks/useInteractions"
 import type { ZapState } from "@/hooks/useZapSender"
@@ -275,8 +275,11 @@ export function ZapDialog({
             <Textarea
               id="zap-note"
               value={zapNote}
-              maxLength={140}
-              onChange={(event) => setZapNote(event.target.value)}
+              onChange={(event) => {
+                const value = event.target.value;
+                const truncated = truncateToByteLength(value, zapCommentLimitBytes);
+                setZapNote(truncated);
+              }}
               placeholder={`Tell ${zapTargetName} why this resonated.`}
             />
             <p className="text-xs text-muted-foreground">

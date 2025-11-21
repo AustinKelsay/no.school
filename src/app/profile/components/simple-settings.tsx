@@ -45,6 +45,9 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
   const { toast } = useToast()
   const [isPending, startTransition] = useTransition()
   const [isLoading, setIsLoading] = useState(false)
+
+  const defaultProfileSource = user.privkey ? 'oauth' : 'nostr'
+  const defaultPrimaryProvider = session.provider || ''
   
   // Form states
   const [basicProfile, setBasicProfile] = useState<BasicProfileData>({
@@ -59,8 +62,8 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
   })
 
   const [preferences, setPreferences] = useState({
-    profileSource: !user.privkey ? 'nostr' : 'oauth',
-    primaryProvider: session.provider || ''
+    profileSource: defaultProfileSource,
+    primaryProvider: defaultPrimaryProvider
   })
 
   const [linkedAccounts, setLinkedAccounts] = useState<any[]>([])
@@ -73,8 +76,8 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
   const [initialLoadError, setInitialLoadError] = useState<string | null>(null)
 
   // Determine account type from preferences when available
-  const derivedProfileSource = preferences.profileSource || (!user.privkey ? 'nostr' : 'oauth')
-  const derivedPrimaryProvider = preferences.primaryProvider || session.provider || ''
+  const derivedProfileSource = preferences.profileSource ?? defaultProfileSource
+  const derivedPrimaryProvider = preferences.primaryProvider ?? defaultPrimaryProvider
   type AccountType = 'anonymous' | 'nostr' | 'oauth'
   const accountType: AccountType =
     derivedPrimaryProvider === 'anonymous'
@@ -97,8 +100,8 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
         if (prefResponse.ok) {
           const prefs = await prefResponse.json()
           setPreferences({
-            profileSource: prefs.profileSource || 'oauth',
-            primaryProvider: prefs.primaryProvider || ''
+            profileSource: prefs.profileSource ?? defaultProfileSource,
+            primaryProvider: prefs.primaryProvider ?? defaultPrimaryProvider
           })
         } else {
           const err = await prefResponse.json().catch(() => ({}))
@@ -153,7 +156,7 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
     }
 
     fetchData()
-  }, [user.pubkey])
+  }, [user.pubkey, defaultPrimaryProvider, defaultProfileSource])
 
   const handleBasicSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -294,8 +297,8 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
           description: 'Your account preferences have been saved.'
         })
         setPreferences({
-          profileSource: data.profileSource || preferences.profileSource,
-          primaryProvider: data.primaryProvider || preferences.primaryProvider
+          profileSource: data.profileSource ?? preferences.profileSource ?? defaultProfileSource,
+          primaryProvider: data.primaryProvider ?? preferences.primaryProvider ?? defaultPrimaryProvider
         })
       } else {
         toast({
@@ -466,7 +469,11 @@ export function SimpleSettings({ session }: SimpleSettingsProps) {
               <InfoTooltip content="Core info stored in our database. OAuth-first users can edit it here." />
             </CardTitle>
             <CardDescription>
-              {canEditBasic ? 'Edit your name and email' : 'Managed via Nostr profile'}
+              {accountType === 'oauth'
+                ? 'Edit your name and email'
+                : accountType === 'nostr'
+                  ? 'Managed via Nostr profile'
+                  : 'Managed by the platform — create an account to edit'}
             </CardDescription>
           </CardHeader>
           <CardContent>

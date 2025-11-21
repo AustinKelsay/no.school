@@ -10,6 +10,7 @@
  */
 
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
 import { getServerSession } from 'next-auth'
 
 import { z } from 'zod'
@@ -545,11 +546,13 @@ export async function syncProfileFromProvider(provider: string) {
       throw new Error('Not authenticated')
     }
 
+    const cookieHeader = cookies().toString()
+
     const response = await fetch(`${process.env.NEXTAUTH_URL}/api/profile/sync`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Cookie': `next-auth.session-token=${session.user.id}` // Pass session for server-to-server call
+        ...(cookieHeader ? { Cookie: cookieHeader } : {})
       },
       body: JSON.stringify({ provider })
     })
