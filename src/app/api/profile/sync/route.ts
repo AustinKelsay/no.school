@@ -7,7 +7,8 @@
 
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, syncUserProfileFromNostr, fetchNostrProfile } from '@/lib/auth'
+import { authOptions } from '@/lib/auth'
+import { syncUserProfileFromNostr, fetchNostrProfile } from '@/lib/nostr-profile'
 import { prisma } from '@/lib/prisma'
 import { z } from 'zod'
 import { isOAuthFirstProvider, shouldSyncFromNostr } from '@/lib/account-linking'

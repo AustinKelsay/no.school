@@ -8,12 +8,11 @@ set -e
 host="$1"
 port="$2"
 shift 2
-cmd="$@"
 
-until pg_isready -h "$host" -p "$port" -U noschool -d no_school; do
+until pg_isready -h "$host" -p "$port" -U plebschool -d pleb_school; do
   >&2 echo "Postgres is unavailable - sleeping"
   sleep 1
 done
 
 >&2 echo "Postgres is up - executing command"
-exec $cmd 
+exec "$@"

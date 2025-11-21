@@ -6,8 +6,9 @@
  */
 
 import { prisma } from '@/lib/prisma'
-import { fetchNostrProfile } from '@/lib/auth'
+import { fetchNostrProfile } from '@/lib/nostr-profile'
 import { slugifyUsername } from '@/lib/username-utils'
+import { isNostrFirstProfile } from '@/lib/profile-priority'
 import authConfig from '../../config/auth.json'
 
 export interface LinkedAccountData {
@@ -320,13 +321,15 @@ export async function getAggregatedProfile(userId: string): Promise<AggregatedPr
   }
   
   // Aggregate fields based on profileSource priority
-  const isNostrFirst = user.profileSource === 'nostr' || 
-    (!user.profileSource && user.primaryProvider === 'nostr')
+  const isNostrFirst = isNostrFirstProfile(user.profileSource, user.primaryProvider)
+
+  const nostrAccounts = aggregated.linkedAccounts.filter(a => a.provider === 'nostr')
+  const nonNostrAccounts = aggregated.linkedAccounts.filter(a => a.provider !== 'nostr')
   
   // Get prioritized accounts
   const prioritizedAccounts = isNostrFirst
-    ? [...aggregated.linkedAccounts.filter(a => a.provider === 'nostr'), currentData, ...aggregated.linkedAccounts.filter(a => a.provider !== 'nostr')]
-    : [currentData, ...aggregated.linkedAccounts.filter(a => a.provider !== 'nostr'), ...aggregated.linkedAccounts.filter(a => a.provider === 'nostr')]
+    ? [...nostrAccounts, currentData, ...nonNostrAccounts]
+    : [currentData, ...nonNostrAccounts, ...nostrAccounts]
   
   // Aggregate each field from prioritized sources
   for (const account of prioritizedAccounts) {

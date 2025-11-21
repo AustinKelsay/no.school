@@ -4,7 +4,6 @@ import {
   createCourseEvent,
   createResourceEvent,
   extractNoteId,
-  isNip07User,
   type CourseEventDraftInput,
   type ResourceEventDraftInput,
 } from '@/lib/nostr-events'
@@ -130,7 +129,6 @@ export class RepublishService {
       include: {
         user: {
           include: {
-            accounts: true,
             role: true,
           },
         },
@@ -223,12 +221,10 @@ export class RepublishService {
       }
     }
 
-    const ownerAccounts = resource.user.accounts
-    const ownerIsNip07 = ownerAccounts.some(account => isNip07User(account.provider))
     const signingPrivkey = privkey || resource.user.privkey
 
     if (!signingPrivkey) {
-      if (ownerIsNip07) {
+      if (!resource.user.privkey) {
         throw new RepublishError(
           'Private key required to republish this resource',
           'PRIVKEY_REQUIRED'
@@ -294,7 +290,6 @@ export class RepublishService {
       include: {
         user: {
           include: {
-            accounts: true,
             role: true,
           },
         },
@@ -437,12 +432,10 @@ export class RepublishService {
       }
     }
 
-    const ownerAccounts = course.user.accounts
-    const ownerIsNip07 = ownerAccounts.some(account => isNip07User(account.provider))
     const signingPrivkey = privkey || course.user.privkey
 
     if (!signingPrivkey) {
-      if (ownerIsNip07) {
+      if (!course.user.privkey) {
         throw new RepublishError(
           'Private key required to republish this course',
           'PRIVKEY_REQUIRED'

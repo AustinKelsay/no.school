@@ -1,5 +1,5 @@
 /**
- * API validation utilities and error handling for no.school
+ * API validation utilities and error handling for pleb.school
  * Provides consistent validation, error handling, and response formatting
  */
 

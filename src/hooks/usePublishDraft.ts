@@ -12,7 +12,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSnstrContext } from '@/contexts/snstr-context'
-import { isNip07User, createUnsignedResourceEvent, createUnsignedCourseEvent } from '@/lib/nostr-events'
+import { createUnsignedResourceEvent, createUnsignedCourseEvent } from '@/lib/nostr-events'
 import { hasNip07Support, type NostrEvent } from 'snstr'
 import type { PublishResourceResult, PublishCourseResult } from '@/lib/publish-service'
 
@@ -146,17 +146,16 @@ export function usePublishResource(draftId: string) {
     }
   ])
 
-  const mutation = useMutation<PublishResourceResult, Error, { privkey?: string }>({
-    mutationFn: async ({ privkey }) => {
+  const mutation = useMutation<PublishResourceResult, Error, void>({
+    mutationFn: async () => {
       if (!session?.user?.id) {
         throw new Error('Not authenticated')
       }
 
-      const provider = (session as { provider?: string })?.provider
-      const isNip07 = isNip07User(provider)
+      const hasServerSideKey = Boolean(session?.user?.privkey)
 
-      // For NIP-07 users, we need to handle signing client-side
-      if (isNip07) {
+      // For users without a stored privkey, handle signing client-side via NIP-07
+      if (!hasServerSideKey) {
         publishStatus.updateStep('validate', 'processing')
         
         // First, validate the draft
@@ -226,11 +225,11 @@ export function usePublishResource(draftId: string) {
 
         return (json as { data?: PublishResourceResult }).data ?? (json as PublishResourceResult)
       } else {
-        // Server-side signing - send everything to API
+        // Server-side signing - let the API use the stored server key
         const response = await fetch(`/api/drafts/resources/${draftId}/publish`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ privkey })
+          body: JSON.stringify({})
         })
 
         const json = await response.json()
@@ -318,19 +317,16 @@ export function usePublishCourse(courseDraftId: string) {
     }
   ])
 
-  const mutation = useMutation<PublishCourseResult, Error, { privkey?: string }>({
-    mutationFn: async ({ privkey }) => {
+  const mutation = useMutation<PublishCourseResult, Error, void>({
+    mutationFn: async () => {
       if (!session?.user?.id) {
         throw new Error('Not authenticated')
       }
 
-      const provider = (session as { provider?: string })?.provider
-      const isNip07 = isNip07User(provider)
-      
-      console.log('Publishing course - Provider:', provider, 'isNip07:', isNip07)
+      const requiresClientSigning = !session?.user?.privkey
 
       // For NIP-07 users, handle client-side signing
-      if (isNip07) {
+      if (requiresClientSigning) {
         publishStatus.updateStep('validate', 'processing')
         
         // Validate the course draft
@@ -383,15 +379,12 @@ export function usePublishCourse(courseDraftId: string) {
         const { data: courseDraft } = await draftResponse.json()
 
         // Check if extension is available
-        console.log('Checking NIP-07 support, window.nostr:', (window as any).nostr)
         if (!hasNip07Support()) {
           throw new Error('Nostr extension not available')
         }
 
         // Get public key from the browser extension
-        console.log('Getting public key from extension...')
         const pubkey = await (window as any).nostr.getPublicKey()
-        console.log('Got pubkey:', pubkey)
 
         // Publish draft lessons first
         publishStatus.updateStep('publish-lessons', 'processing')
@@ -499,11 +492,11 @@ export function usePublishCourse(courseDraftId: string) {
         return (json as { data?: PublishCourseResult }).data ?? (json as PublishCourseResult)
       }
 
-      // Server-side publishing (handles all steps)
+      // Server-side publishing (handles all steps using stored server key)
       const response = await fetch(`/api/drafts/courses/${courseDraftId}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ privkey })
+        body: JSON.stringify({})
       })
 
       const json = await response.json()

@@ -5,7 +5,8 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions, fetchNostrProfile } from '@/lib/auth'
+import { authOptions } from '@/lib/auth'
+import { fetchNostrProfile } from '@/lib/nostr-profile'
 import { prisma } from '@/lib/prisma'
 
 /**

@@ -184,6 +184,7 @@ export default function SignInPage() {
     setAnonymousResumeFailed(false)
 
     try {
+      const retryableAnonErrors = new Set(['CredentialsSignin', 'ANON_INVALID_KEY'])
       const persistedIdentity = getPersistedAnonymousIdentity()
       const attemptExistingIdentity = Boolean(persistedIdentity?.privkey)
       setHasPersistedAnonymousIdentity(attemptExistingIdentity)
@@ -196,23 +197,33 @@ export default function SignInPage() {
           ...(privateKey ? { privateKey } : {}),
         })
 
-      const result = await attemptAnonymousSignIn(persistedIdentity?.privkey)
+      let result = await attemptAnonymousSignIn(persistedIdentity?.privkey)
+
+      if (result?.error && attemptExistingIdentity) {
+        if (!retryableAnonErrors.has(result.error)) {
+          setAnonymousResumeFailed(true)
+          setMessage('')
+          setError(copy.messages.anonymousError || copy.messages.genericError)
+          return
+        }
+        setAnonymousResumeFailed(true)
+        setMessage('Refreshing your anonymous identity…')
+        setError('')
+        // Clear the stale identity and try again without a private key
+        clearPersistedAnonymousIdentity()
+        setHasPersistedAnonymousIdentity(false)
+        result = await attemptAnonymousSignIn()
+      }
 
       if (result?.error) {
-        if (attemptExistingIdentity) {
-          setAnonymousResumeFailed(true)
-          setError(
-            copy.messages.anonymousError ||
-              'We could not reconnect to your existing anonymous identity. Try again in a moment or reset the cached key below.'
-          )
-        } else {
-          setError(copy.messages.anonymousError || copy.messages.genericError)
-        }
+        setError(copy.messages.anonymousError || copy.messages.genericError)
+        setMessage('')
       } else {
         // Success - redirect will be handled by NextAuth
         await persistAnonymousSessionIdentity()
         setAnonymousResumeFailed(false)
         setHasPersistedAnonymousIdentity(true)
+        setMessage('')
         router.push(callbackUrl)
       }
     } catch (err) {

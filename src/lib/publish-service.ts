@@ -17,7 +17,6 @@ import { DEFAULT_RELAYS, getRelays } from './nostr-relays'
 import { 
   createResourceEvent, 
   createCourseEvent,
-  isNip07User,
   extractNoteId
 } from '@/lib/nostr-events'
 import { DraftService, CourseDraftService, type CourseDraftWithIncludes } from '@/lib/draft-service'
@@ -66,7 +65,6 @@ export class PublishService {
   static async publishResource(
     draftId: string,
     userId: string,
-    privkey?: string,
     relays: string[] = DEFAULT_RELAYS
   ): Promise<PublishResourceResult> {
     // Fetch the draft with user info
@@ -83,26 +81,21 @@ export class PublishService {
     // Check if user has a private key (required for server-side signing)
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { privkey: true, pubkey: true, accounts: { select: { provider: true } } }
+      select: { privkey: true, pubkey: true }
     })
 
     if (!user) {
       throw new PublishError('User not found', 'USER_NOT_FOUND')
     }
 
-    // Determine if this is a NIP-07 user (client-side signing)
-    const provider = user.accounts[0]?.provider
-    const isNip07 = isNip07User(provider)
-
-    // For server-side signing, we need the private key
-    if (!isNip07 && !user.privkey && !privkey) {
+    // Use the stored server-side key for signing (ephemeral/OAuth accounts only)
+    const signingPrivkey = user.privkey
+    if (!signingPrivkey) {
       throw new PublishError(
         'Private key not available for signing',
         'PRIVKEY_NOT_AVAILABLE'
       )
     }
-
-    const signingPrivkey = privkey || user.privkey!
 
     try {
       // Ensure this draft isn't reused multiple times in the same course draft
@@ -222,7 +215,6 @@ export class PublishService {
   static async publishCourse(
     courseDraftId: string,
     userId: string,
-    privkey?: string,
     relays: string[] = DEFAULT_RELAYS
   ): Promise<PublishCourseResult> {
     // Fetch the course draft with lessons
@@ -247,8 +239,7 @@ export class PublishService {
       where: { id: userId },
       select: { 
         privkey: true, 
-        pubkey: true, 
-        accounts: { select: { provider: true } } 
+        pubkey: true
       }
     })
 
@@ -256,17 +247,13 @@ export class PublishService {
       throw new PublishError('User not found', 'USER_NOT_FOUND')
     }
 
-    const provider = user.accounts[0]?.provider
-    const isNip07 = isNip07User(provider)
-
-    if (!isNip07 && !user.privkey && !privkey) {
+    const signingPrivkey = user.privkey
+    if (!signingPrivkey) {
       throw new PublishError(
         'Private key not available for signing',
         'PRIVKEY_NOT_AVAILABLE'
       )
     }
-
-    const signingPrivkey = privkey || user.privkey!
 
     try {
       // First, publish any draft lessons that aren't already published
@@ -280,7 +267,6 @@ export class PublishService {
           const result = await this.publishResource(
             draftLesson.draftId,
             userId,
-            signingPrivkey,
             relays
           )
           publishedLessonEvents.push(result.event)

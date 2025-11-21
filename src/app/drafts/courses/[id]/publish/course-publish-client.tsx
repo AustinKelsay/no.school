@@ -203,7 +203,7 @@ function CourseSummary({ draftData, lessons }: { draftData: CourseDraft; lessons
     if (minutes < 60) return `${minutes} min`
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
-    if (mins === 0) return `${hours}h`
+    if (mins === 0) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
     return `${hours}h ${mins}m`
   }
 
@@ -523,14 +523,14 @@ export function CoursePublishPageClient({ courseId }: CoursePublishPageClientPro
     }
     
     // Call the real publish function from the hook
-    // Pass empty object for server-side signing, or { privkey } for client-side
-    publish({})
+    // Server-side flows use the stored server key; NIP-07 flows sign on the client
+    publish()
   }
 
   const handleRetry = () => {
     // Reset the publish status and try again
     publishStatus.reset()
-    publish({})
+    publish()
   }
 
   // Show loading state while session is loading or data is loading

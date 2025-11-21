@@ -44,7 +44,7 @@ export const ComingSoonPlaceholder = ({
       <div className="relative space-y-10">
         <div className="text-center space-y-4 max-w-3xl mx-auto">
           {badge ? (
-            <Badge className="mx-auto w-fit" variant="secondary">
+            <Badge className="mx-auto w-fit" variant="default">
               {badge}
             </Badge>
           ) : null}
@@ -65,13 +65,15 @@ export const ComingSoonPlaceholder = ({
                 key={`${item.title}-${index}`}
                 className="h-full border-border bg-background/60 p-5"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10">
                     <item.icon className="h-5 w-5 text-primary" />
                   </div>
-                  <div>
+                  <div className="pt-1">
                     <p className="text-base font-medium text-foreground">{item.title}</p>
-                    <p className="text-xs text-muted-foreground">{item.description}</p>
+                    <p className="text-xs text-muted-foreground leading-relaxed mt-1">
+                      {item.description}
+                    </p>
                   </div>
                 </div>
               </Card>

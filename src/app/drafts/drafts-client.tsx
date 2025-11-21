@@ -62,7 +62,7 @@ function DraftCard({ draft }: { draft: CourseDraft | ResourceDraft }) {
     if (minutes < 60) return `${minutes} min`
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
-    if (mins === 0) return `${hours}h`
+    if (mins === 0) return `${hours} ${hours === 1 ? 'hour' : 'hours'}`
     return `${hours}h ${mins}m`
   }
 

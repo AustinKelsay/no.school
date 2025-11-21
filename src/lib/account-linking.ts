@@ -29,13 +29,77 @@
  */
 
 import { prisma } from './prisma'
-import { Account, User } from '@prisma/client'
+import type { Prisma, User } from '@prisma/client'
 import { generateKeypair } from 'snstr'
+import { syncUserProfileFromNostr } from './nostr-profile'
 
 /**
  * Provider types that can be linked
  */
 export type AuthProvider = 'nostr' | 'email' | 'github' | 'anonymous' | 'recovery'
+
+function normalizeNostrPubkey(pubkey: string): string {
+  const normalized = pubkey.trim().toLowerCase()
+  if (!/^[a-f0-9]{64}$/i.test(normalized)) {
+    throw new Error('Invalid Nostr public key format')
+  }
+  return normalized
+}
+
+function normalizeProviderAccountId(provider: string, providerAccountId: string): string {
+  if (provider === 'nostr') {
+    return normalizeNostrPubkey(providerAccountId)
+  }
+
+  const trimmed = providerAccountId.trim()
+  if (provider === 'email') {
+    return trimmed.toLowerCase()
+  }
+
+  return trimmed
+}
+
+function buildPostLinkUserUpdate(
+  user: Pick<User, 'primaryProvider' | 'profileSource' | 'pubkey' | 'privkey'>,
+  provider: AuthProvider,
+  providerAccountId: string
+): Prisma.UserUpdateInput | null {
+  const update: Prisma.UserUpdateInput = {}
+  let mutated = false
+  let nextPrimary = user.primaryProvider || null
+  let nextProfileSource = user.profileSource || null
+
+  if (provider === 'nostr') {
+    if (user.pubkey !== providerAccountId) {
+      update.pubkey = providerAccountId
+      mutated = true
+    }
+    if (user.privkey !== null) {
+      update.privkey = null
+      mutated = true
+    }
+    nextPrimary = 'nostr'
+    nextProfileSource = 'nostr'
+  } else if (!user.primaryProvider) {
+    nextPrimary = provider
+    nextProfileSource = getProfileSourceForProvider(provider)
+  } else if (isOAuthFirstProvider(provider) && user.primaryProvider === 'anonymous') {
+    nextPrimary = provider
+    nextProfileSource = 'oauth'
+  }
+
+  if (nextPrimary && nextPrimary !== user.primaryProvider) {
+    update.primaryProvider = nextPrimary
+    mutated = true
+  }
+
+  if (nextProfileSource && nextProfileSource !== user.profileSource) {
+    update.profileSource = nextProfileSource
+    mutated = true
+  }
+
+  return mutated ? update : null
+}
 
 /**
  * Determines if a provider is Nostr-first (user controls identity)
@@ -64,15 +128,22 @@ export function getProfileSourceForProvider(provider: string): 'nostr' | 'oauth'
  */
 export async function canLinkAccount(
   userId: string,
-  provider: string,
+  provider: AuthProvider,
   providerAccountId: string
 ): Promise<string | null> {
+  let normalizedAccountId: string
+  try {
+    normalizedAccountId = normalizeProviderAccountId(provider, providerAccountId)
+  } catch (error) {
+    return error instanceof Error ? error.message : 'Invalid account identifier'
+  }
+
   // Check if this provider/account combination already exists
   const existingAccount = await prisma.account.findUnique({
     where: {
       provider_providerAccountId: {
         provider,
-        providerAccountId
+        providerAccountId: normalizedAccountId
       }
     },
     include: {
@@ -109,7 +180,7 @@ export async function canLinkAccount(
  */
 export async function linkAccount(
   userId: string,
-  provider: string,
+  provider: AuthProvider,
   providerAccountId: string,
   accountData?: {
     access_token?: string
@@ -126,54 +197,67 @@ export async function linkAccount(
       return { success: false, error: canLink }
     }
 
-    // Get the user
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      include: { accounts: true }
-    })
+    const normalizedAccountId = normalizeProviderAccountId(provider, providerAccountId)
 
-    if (!user) {
-      return { success: false, error: 'User not found' }
-    }
+    await prisma.$transaction(async tx => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: {
+          primaryProvider: true,
+          profileSource: true,
+          pubkey: true,
+          privkey: true
+        }
+      })
 
-    // Create the account link
-    await prisma.account.create({
-      data: {
-        userId,
-        provider,
-        providerAccountId,
-        type: 'credentials', // Most of our providers use credentials
-        ...accountData
+      if (!user) {
+        throw new Error('USER_NOT_FOUND')
+      }
+
+      await tx.account.create({
+        data: {
+          userId,
+          provider,
+          providerAccountId: normalizedAccountId,
+          type: 'credentials',
+          ...accountData
+        }
+      })
+
+      const userUpdate = buildPostLinkUserUpdate(user, provider, normalizedAccountId)
+      if (userUpdate) {
+        await tx.user.update({
+          where: { id: userId },
+          data: userUpdate
+        })
+      }
+
+      if (provider === 'anonymous' && !user.pubkey) {
+        const keys = await generateKeypair()
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            pubkey: keys.publicKey,
+            privkey: keys.privateKey
+          }
+        })
       }
     })
 
-    // Only set as primary if user doesn't already have a primary provider
-    // This preserves the original authentication method as primary
-    if (!user.primaryProvider) {
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          primaryProvider: provider,
-          profileSource: getProfileSourceForProvider(provider)
-        }
-      })
-    }
-
-    // If linking a Nostr provider and user doesn't have keys, generate them
-    if (isNostrFirstProvider(provider) && !user.pubkey) {
-      const keys = await generateKeypair()
-      await prisma.user.update({
-        where: { id: userId },
-        data: {
-          pubkey: keys.publicKey,
-          privkey: provider === 'nostr' ? null : keys.privateKey // Only store privkey for non-NIP07
-        }
-      })
+    if (provider === 'nostr') {
+      try {
+        await syncUserProfileFromNostr(userId, normalizedAccountId)
+      } catch (syncError) {
+        console.warn('Failed to sync Nostr profile after linking:', syncError)
+      }
     }
 
     return { success: true }
   } catch (error) {
     console.error('Failed to link account:', error)
+    if (error instanceof Error && error.message === 'USER_NOT_FOUND') {
+      return { success: false, error: 'User not found' }
+    }
     return { success: false, error: 'Failed to link account' }
   }
 }
@@ -197,6 +281,9 @@ export async function unlinkAccount(
       return { success: false, error: 'User not found' }
     }
 
+    const wasNostrPrimary = user.primaryProvider === 'nostr'
+    const wasNostrProfileSource = user.profileSource === 'nostr'
+
     // Check if this is the last account
     if (user.accounts.length <= 1) {
       return { success: false, error: 'Cannot unlink your last authentication method' }
@@ -213,19 +300,57 @@ export async function unlinkAccount(
       where: { id: accountToUnlink.id }
     })
 
-    // If this was the primary provider, set a new primary
+    // Prepare any required user updates (email cleanup, primary provider swap, etc.)
+    const remainingAccounts = user.accounts.filter(a => a.provider !== provider)
+    const userUpdates: Prisma.UserUpdateInput = {}
+    const hasRemainingNostrFirst = remainingAccounts.some(a => isNostrFirstProvider(a.provider))
+    const shouldGenerateEphemeralKeys = provider === 'nostr' && !user.privkey
+
+    if (provider === 'email' && (user.email || user.emailVerified)) {
+      userUpdates.email = null
+      userUpdates.emailVerified = null
+    }
+
+    if (provider === 'nostr') {
+      if (wasNostrPrimary || wasNostrProfileSource) {
+        userUpdates.username = null
+        userUpdates.avatar = null
+      }
+      userUpdates.nip05 = null
+      userUpdates.lud16 = null
+    }
+
     if (user.primaryProvider === provider) {
-      const remainingAccounts = user.accounts.filter(a => a.provider !== provider)
       if (remainingAccounts.length > 0) {
         const newPrimary = remainingAccounts[0]
-        await prisma.user.update({
-          where: { id: userId },
-          data: {
-            primaryProvider: newPrimary.provider,
-            profileSource: getProfileSourceForProvider(newPrimary.provider)
-          }
-        })
+        userUpdates.primaryProvider = newPrimary.provider
+        userUpdates.profileSource = getProfileSourceForProvider(newPrimary.provider)
+      } else {
+        userUpdates.primaryProvider = null
+        userUpdates.profileSource = null
       }
+    }
+
+    if (!hasRemainingNostrFirst && user.profileSource === 'nostr' && userUpdates.profileSource === undefined) {
+      userUpdates.profileSource = 'oauth'
+    }
+
+    if (shouldGenerateEphemeralKeys) {
+      try {
+        const keys = await generateKeypair()
+        userUpdates.pubkey = keys.publicKey
+        userUpdates.privkey = keys.privateKey
+      } catch (error) {
+        console.error('Failed to generate fallback keypair after unlinking Nostr account:', error)
+        return { success: false, error: 'Failed to finalize Nostr unlink. Please try again.' }
+      }
+    }
+
+    if (Object.keys(userUpdates).length > 0) {
+      await prisma.user.update({
+        where: { id: userId },
+        data: userUpdates
+      })
     }
 
     return { success: true }

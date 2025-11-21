@@ -367,11 +367,12 @@ export function createUnsignedCourseEvent(
 }
 
 /**
- * Check if a user is using NIP-07 (browser extension)
- * These users will sign events client-side
+ * Check if a user should follow the NIP-07 (browser extension) signing path.
+ * Only NIP-07 users (provider === "nostr") sign with their own extension.
+ * Anonymous / OAuth users keep server-side key signing instead.
  */
 export function isNip07User(provider?: string): boolean {
-  return provider === 'nostr' || provider === 'anonymous'
+  return provider === "nostr"
 }
 
 /**

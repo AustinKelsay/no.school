@@ -144,58 +144,73 @@ for (const account of prioritizedAccounts) {
 The simplified settings (`simple-settings.tsx`) provides focused functionality:
 
 ```typescript
-// Account type detection
-const isNostrFirst = !user.privkey
-const canEditBasic = !isNostrFirst
+const derivedProfileSource = preferences.profileSource || (!user.privkey ? 'nostr' : 'oauth')
+const derivedPrimaryProvider = preferences.primaryProvider || session.provider || ''
 
-// Conditional rendering
-{canEditBasic && (
-  <BasicProfileForm />
-)}
+type AccountType = 'anonymous' | 'nostr' | 'oauth'
+const accountType: AccountType =
+  derivedPrimaryProvider === 'anonymous'
+    ? 'anonymous'
+    : derivedProfileSource === 'nostr'
+      ? 'nostr'
+      : 'oauth'
 
-// All users
-<EnhancedProfileForm />
-<ProfileConfiguration />
-<SyncOptions />
+const canEditBasic = accountType === 'oauth'
+const requiresNostrExtension = accountType === 'nostr'
 ```
+
+Rendered behavior:
+- `BasicProfileForm` only appears when `canEditBasic` is true (OAuth-first users).
+- Everyone sees `EnhancedProfileForm`, but Nostr-first accounts get a banner explaining that NIP-07 updates their canonical profile.
+- Account badges surface `Anonymous / Nostr-First / OAuth-First` using the derived state so that UI stays aligned with automatic promotions.
 
 ### Account Linking Security
 
-Email verification ensures secure linking. The implementation uses a secure verification page at `/verify-email?ref=...` and a POST endpoint `/api/account/verify-email` that accepts `{ ref, token }` (short code). Tokens are single-use and expire after 60 minutes.
-
-#### Verification Page with POST (implemented)
+Email verification ensures secure linking. The implementation uses a secure verification page at `/verify-email?ref=...` and a POST endpoint `/api/account/verify-email` that accepts `{ ref, token }`, where:
+- `ref` is a short-lived lookup ID (never the token itself).
+- `token` is the six-digit code the user receives via email.
+- Tokens are single-use and expire after 60 minutes.
 
 ```typescript
-// Generate secure token
-const token = crypto.randomBytes(32).toString('hex')
+// Generate a short, single-use lookup ID for URL
+const lookupId = crypto.randomBytes(8).toString('hex')
+const code = (Math.floor(100000 + Math.random() * 900000)).toString() // 6-digit numeric code
 const expires = new Date(Date.now() + 3600000) // 60 minutes
 
-// Store in database
+// Store both in database
 await prisma.verificationToken.create({
   data: {
     identifier: `link:${userId}:${email}`,
-    token,
+    token: code,
+    lookupId,
     expires
   }
 })
 
-// Send verification email with link to verification page
+// Send verification email with code and lookupId URL
+const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email?ref=${lookupId}`
 await sendEmail({
   to: email,
   subject: 'Link your email account',
-  html: `Click to verify: ${url}/verify-email?ref=${encodeURIComponent(`link:${userId}:${email}`)}`
+  html: `
+    <p>Use this 6-digit code: <strong>${code}</strong></p>
+    <p>Enter it at: <a href="${verificationUrl}">${verificationUrl}</a></p>
+    <p>The code expires in 60 minutes and is single-use.</p>
+  `
 })
 ```
 
 The verification page (`/verify-email`) does:
-1. Extract the reference from the URL query parameter
-2. Present a form or use JavaScript to submit the token via POST
-3. Send the token in the request body, not as a URL parameter
-4. Implement proper CSRF protection
+1. Extract `ref` (lookup ID) from the query string.
+2. Present a form for the 6-digit code.
+3. POST `{ ref, token }` to `/api/account/verify-email`.
+4. Redirect back to `/profile?tab=accounts&success=email_linked` upon success.
 
-#### Alternative: Server-Side Token Lookup
+### Real-Time Identity Refresh
 
-If you must use URL-based verification, use a short-lived lookup identifier instead of the actual token:
+- `src/lib/profile-events.ts` exports `PROFILE_UPDATED_EVENT`. Server actions and account-linking flows dispatch it whenever identity data changes.
+- The header (`src/components/layout/header.tsx`) listens for that event, refetches `/api/profile/aggregated`, and updates its cached avatar/display name so the top-right identity always matches the Profile tab after linking or editing.
+- Profile tabs call `dispatchProfileUpdatedEvent` after account operations to keep every client component in sync without full-page reloads.
 
 ```typescript
 // Generate a short, single-use lookup ID (not the secret token)
@@ -349,10 +364,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Find verification token by reference
+    // Find verification token by lookupId
     const verificationToken = await prisma.verificationToken.findFirst({
       where: { 
-        identifier: ref,
+        lookupId: ref,
         token: token
       }
     })
@@ -364,8 +379,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Check expiry and process verification...
-    // (Same logic as the GET endpoint but more secure)
+    // Check expiry and process verification (invalidate after use)...
     
   } catch (error) {
     return NextResponse.json(
@@ -380,7 +394,7 @@ export async function POST(request: NextRequest) {
 
 **Key Principles**:
 1. **Never expose secrets in URLs** - Tokens should be in request bodies, not query parameters
-2. **Short-lived tokens** - 15-30 minutes maximum for verification tokens
+2. **Short-lived tokens** - 60 minutes maximum for verification tokens
 3. **Single-use only** - Tokens must be invalidated immediately after use
 4. **Secure transmission** - Use HTTPS and avoid logging sensitive data
 5. **User experience** - Verification pages provide better UX than direct API calls

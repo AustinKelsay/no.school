@@ -30,6 +30,7 @@ import {
   User
 } from 'lucide-react'
 import { getRelays } from '@/lib/nostr-relays'
+import { formatNoteIdentifier } from '@/lib/note-identifiers'
 
 interface CoursePageProps {
   params: {
@@ -159,7 +160,17 @@ function CoursePageContent({ courseId }: { courseId: string }) {
 
   // Get real interaction data if course has a Nostr event - call hook unconditionally at top level
   const noteId = courseData?.note?.id
-  const { interactions, isLoadingZaps, isLoadingLikes, isLoadingComments } = useInteractions({
+  const {
+    interactions,
+    isLoadingZaps,
+    isLoadingLikes,
+    isLoadingComments,
+    hasReacted,
+    zapInsights,
+    recentZaps,
+    hasZappedWithLightning,
+    viewerZapTotalSats
+  } = useInteractions({
     eventId: noteId,
     realtime: false,
     staleTime: 5 * 60 * 1000,
@@ -271,6 +282,7 @@ function CoursePageContent({ courseId }: { courseId: string }) {
   let image = '/placeholder.svg'
   let isPremium = false
   let currency = 'sats'
+  let parsedCourseNote: ReturnType<typeof parseCourseEvent> | null = null
 
   // Start with database data (minimal Course type)
   isPremium = (courseData.price ?? 0) > 0
@@ -279,6 +291,7 @@ function CoursePageContent({ courseId }: { courseId: string }) {
   if (courseData.note) {
     try {
       const parsedNote = parseCourseEvent(courseData.note)
+      parsedCourseNote = parsedNote
       title = parsedNote.title || title
       description = parsedNote.description || description
       category = parsedNote.category || category
@@ -295,11 +308,14 @@ function CoursePageContent({ courseId }: { courseId: string }) {
   const instructor = instructorProfile?.name || 
                      instructorProfile?.display_name || 
                      (courseData.userId ? formatNpubWithEllipsis(courseData.userId) : 'Unknown')
+  const nostrIdentifier = formatNoteIdentifier(courseData.note, courseId)
+  const nostrUrl = nostrIdentifier ? `https://nostr.band/${nostrIdentifier}` : null
   
   // Use only real interaction data - no fallbacks
   const zapsCount = interactions.zaps
   const commentsCount = interactions.comments
   const likesCount = interactions.likes
+  const notePubkey = courseData?.note?.pubkey
 
   const formatDuration = (minutes: number): string => {
     if (minutes < 60) return `${minutes} min`
@@ -345,14 +361,30 @@ function CoursePageContent({ courseId }: { courseId: string }) {
               </div>
 
               <div className="flex items-center flex-wrap gap-4 sm:gap-6">
-                <InteractionMetrics
-                  zapsCount={zapsCount}
-                  commentsCount={commentsCount}
-                  likesCount={likesCount}
-                  isLoadingZaps={isLoadingZaps}
-                  isLoadingComments={isLoadingComments}
-                  isLoadingLikes={isLoadingLikes}
-                />
+                {noteId && notePubkey && (
+                  <InteractionMetrics
+                    zapsCount={zapsCount}
+                    commentsCount={commentsCount}
+                    likesCount={likesCount}
+                    isLoadingZaps={isLoadingZaps}
+                    isLoadingComments={isLoadingComments}
+                    isLoadingLikes={isLoadingLikes}
+                    hasReacted={hasReacted}
+                    eventId={noteId}
+                    eventKind={courseData?.note?.kind}
+                    eventPubkey={notePubkey}
+                    eventIdentifier={parsedCourseNote?.d}
+                    zapInsights={zapInsights}
+                    recentZaps={recentZaps}
+                    hasZappedWithLightning={hasZappedWithLightning}
+                    viewerZapTotalSats={viewerZapTotalSats}
+                    zapTarget={{
+                      pubkey: notePubkey,
+                      lightningAddress: instructorProfile?.lud16 || undefined,
+                      name: instructor
+                    }}
+                  />
+                )}
                 
                 <div className="flex items-center space-x-1.5 sm:space-x-2">
                   <BookOpen className="h-5 w-5 text-muted-foreground" />
@@ -519,6 +551,16 @@ function CoursePageContent({ courseId }: { courseId: string }) {
                     <div>
                       <h4 className="font-semibold mb-2">Requirements</h4>
                       <p className="text-sm text-muted-foreground">Submission required for completion</p>
+                    </div>
+                  )}
+                  {nostrUrl && (
+                    <div>
+                      <Button variant="outline" className="w-full justify-center" asChild>
+                        <a href={nostrUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="h-4 w-4 mr-2" />
+                          Open in Nostr
+                        </a>
+                      </Button>
                     </div>
                   )}
                 </CardContent>

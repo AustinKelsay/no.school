@@ -338,12 +338,12 @@ export function ResourcePublishPageClient({ resourceId }: ResourcePublishPageCli
   }, [draftData])
 
   const handlePublish = () => {
-    publish({})
+    publish()
   }
 
   const handleRetry = () => {
     publishStatus.reset()
-    publish({})
+    publish()
   }
 
   // Redirect to the published content after successful publishing
