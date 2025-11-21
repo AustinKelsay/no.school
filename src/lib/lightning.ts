@@ -25,11 +25,15 @@ export function buildLightningAddressEndpoint(lightningAddress: string): string 
   if (!lightningAddress || !lightningAddress.includes('@')) {
     return null
   }
-  const [username, domain] = lightningAddress.split('@')
+  const [rawUsername, rawDomain] = lightningAddress.split('@')
+  const username = rawUsername?.trim()
+  const domain = rawDomain?.trim()
   if (!username || !domain) {
     return null
   }
-  return `https://${domain}/.well-known/lnurlp/${username}`
+  const normalizedDomain = domain.toLowerCase()
+  const scheme = normalizedDomain.endsWith('.onion') ? 'http' : 'https'
+  return `${scheme}://${normalizedDomain}/.well-known/lnurlp/${username}`
 }
 
 function isAllowedLnurlEndpoint(endpoint: string): boolean {

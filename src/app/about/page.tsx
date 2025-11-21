@@ -22,6 +22,8 @@ export default function AboutPage() {
   const hero = aboutCopy?.hero
   const sections = aboutCopy?.sections
   const cta = aboutCopy?.cta
+  const hasPrimaryCta = Boolean(cta?.primary?.href && cta?.primary?.label)
+  const hasSecondaryCta = Boolean(cta?.secondary?.href && cta?.secondary?.label)
 
   return (
     <MainLayout>
@@ -109,7 +111,7 @@ export default function AboutPage() {
             </Card>
           </div>
 
-          {(cta?.primary?.href || cta?.secondary?.href) && (
+          {(hasPrimaryCta || hasSecondaryCta) && (
             <div className="flex flex-col items-center justify-center gap-3 sm:flex-row sm:justify-center pt-2">
               {cta?.primary?.href && cta.primary.label ? (
                 <Button size="lg" className="w-full sm:w-auto" asChild>
